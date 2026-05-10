@@ -22,11 +22,8 @@ jobs:
         include:
           - target: x86_64-unknown-linux-musl
             arch: x86_64
-            cross_compiler: musl-tools
           - target: aarch64-unknown-linux-musl
             arch: aarch64
-            cross_compiler: gcc-aarch64-linux-gnu musl-tools
-            linker: aarch64-linux-gnu-gcc
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -41,19 +38,14 @@ jobs:
           cache-on-failure: true
           key: ${{ matrix.target }}
 
-      - name: Install cross-compiler and build deps
-        if: matrix.cross_compiler != ''
-        run: sudo apt-get update -qq && sudo apt-get install -y ${{ matrix.cross_compiler }} cmake clang llvm
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Ensure web/dist placeholder exists
         run: mkdir -p web/dist && touch web/dist/.gitkeep
 
       - name: Build release binary
-        run: |
-          cargo build --release --bin brai --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.linker }}
-          AWS_LC_SYS_CMAKE_BUILDER: "1"
+        run: cross build --release --bin brai --target ${{ matrix.target }}
 
       - name: Rename binary with arch suffix
         run: |
