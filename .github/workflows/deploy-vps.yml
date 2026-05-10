@@ -38,14 +38,16 @@ jobs:
           cache-on-failure: true
           key: ${{ matrix.target }}
 
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Install cargo-zigbuild and zig
+        run: |
+          pip3 install ziglang --quiet
+          cargo install cargo-zigbuild --locked
 
       - name: Ensure web/dist placeholder exists
         run: mkdir -p web/dist && touch web/dist/.gitkeep
 
       - name: Build release binary
-        run: cross build --release --bin brai --target ${{ matrix.target }}
+        run: cargo zigbuild --release --bin brai --target ${{ matrix.target }}
 
       - name: Rename binary with arch suffix
         run: |
