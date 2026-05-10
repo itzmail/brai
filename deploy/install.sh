@@ -15,7 +15,7 @@ echo "[brai-install] Starting deployment..."
 
 # Backup current binary if exists
 if [ -f "$BINARY_DST" ]; then
-    cp "$BINARY_DST" "${BINARY_DST}.bak"
+    sudo cp "$BINARY_DST" "${BINARY_DST}.bak"
     echo "[brai-install] Backed up existing binary to ${BINARY_DST}.bak"
 fi
 
