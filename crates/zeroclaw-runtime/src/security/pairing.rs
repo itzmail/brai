@@ -1,1 +1,1 @@
-pub use zeroclaw_config::pairing::*;
+pub use brai_config::pairing::*;

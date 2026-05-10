@@ -17,7 +17,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Mutex;
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 /// Hostname prefix for the Bedrock Runtime endpoint.
 const ENDPOINT_PREFIX: &str = "bedrock-runtime";
@@ -598,7 +598,7 @@ impl BedrockProvider {
         if let Some(token) = env_optional("BEDROCK_API_KEY") {
             return Self {
                 auth: Some(BedrockAuth::BearerToken(token)),
-                max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+                max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
                 cred_cache: Mutex::new(None),
             };
         }
@@ -607,7 +607,7 @@ impl BedrockProvider {
                 .or_else(|_| AwsCredentials::from_credential_process())
                 .ok()
                 .map(BedrockAuth::SigV4),
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         }
     }
@@ -617,14 +617,14 @@ impl BedrockProvider {
         if let Some(token) = env_optional("BEDROCK_API_KEY") {
             return Self {
                 auth: Some(BedrockAuth::BearerToken(token)),
-                max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+                max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
                 cred_cache: Mutex::new(None),
             };
         }
         let auth = AwsCredentials::resolve().await.ok().map(BedrockAuth::SigV4);
         Self {
             auth,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         }
     }
@@ -633,7 +633,7 @@ impl BedrockProvider {
     pub fn with_bearer_token(token: &str) -> Self {
         Self {
             auth: Some(BedrockAuth::BearerToken(token.to_string())),
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         }
     }
@@ -645,7 +645,7 @@ impl BedrockProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.bedrock",
             120,
             10,
@@ -1545,7 +1545,7 @@ mod tests {
         let _config = EnvGuard::set("AWS_CONFIG_FILE", Some("/dev/null"));
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         };
         let result = provider
@@ -1938,7 +1938,7 @@ mod tests {
     async fn warmup_without_credentials_is_noop() {
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         };
         let result = provider.warmup().await;
@@ -1949,7 +1949,7 @@ mod tests {
     fn capabilities_reports_native_tool_calling() {
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         };
         let caps = provider.capabilities();
@@ -2276,7 +2276,7 @@ region=ap-southeast-1
     fn cached_credentials_returns_none_when_empty() {
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         };
         assert!(provider.cached_credentials().is_none());
@@ -2287,7 +2287,7 @@ region=ap-southeast-1
         let future = chrono::Utc::now() + chrono::Duration::hours(1);
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(Some(make_creds(Some(future)))),
         };
         let cached = provider.cached_credentials();
@@ -2300,7 +2300,7 @@ region=ap-southeast-1
         let past = chrono::Utc::now() - chrono::Duration::hours(1);
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(Some(make_creds(Some(past)))),
         };
         assert!(provider.cached_credentials().is_none());
@@ -2311,7 +2311,7 @@ region=ap-southeast-1
         let future = chrono::Utc::now() + chrono::Duration::hours(1);
         let provider = BedrockProvider {
             auth: None,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
             cred_cache: Mutex::new(None),
         };
         assert!(provider.cached_credentials().is_none());

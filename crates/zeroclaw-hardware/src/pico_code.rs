@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Default timeout for `mpremote` operations (seconds).
 const MPREMOTE_TIMEOUT_SECS: u64 = 30;
@@ -314,7 +314,7 @@ impl Tool for DeviceWriteCodeTool {
         // Write code to an atomic, owner-only temp file via tempfile crate.
         let named_tmp = match tokio::task::spawn_blocking(|| {
             tempfile::Builder::new()
-                .prefix("zeroclaw_main_")
+                .prefix("brai_main_")
                 .suffix(".py")
                 .tempfile()
         })
@@ -487,7 +487,7 @@ impl Tool for DeviceExecTool {
         // Write snippet to an atomic, owner-only temp file via tempfile crate.
         let named_tmp = match tokio::task::spawn_blocking(|| {
             tempfile::Builder::new()
-                .prefix("zeroclaw_exec_")
+                .prefix("brai_exec_")
                 .suffix(".py")
                 .tempfile()
         })

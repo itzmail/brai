@@ -7,8 +7,8 @@
 use crate::util_helpers::truncate_with_ellipsis;
 use async_trait::async_trait;
 use serde_json::json;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::CloudOpsConfig;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::CloudOpsConfig;
 
 /// Read-only cloud operations advisory tool.
 ///

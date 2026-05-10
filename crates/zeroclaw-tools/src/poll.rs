@@ -3,10 +3,10 @@ use parking_lot::RwLock;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use zeroclaw_api::channel::{Channel, SendMessage};
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
+use brai_api::channel::{Channel, SendMessage};
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
 
 /// Shared handle giving tools late-bound access to the live channel map.
 pub type ChannelMapHandle = Arc<RwLock<HashMap<String, Arc<dyn Channel>>>>;
@@ -269,7 +269,7 @@ impl Tool for PollTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_api::channel::ChannelMessage;
+    use brai_api::channel::ChannelMessage;
 
     struct StubChannel {
         name: String,

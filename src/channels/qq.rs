@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::qq::*;
+pub use brai_channels::qq::*;

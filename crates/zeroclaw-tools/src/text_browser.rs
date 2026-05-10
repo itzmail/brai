@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 /// Text browser tool: renders web pages as plain text using text-based browsers
 /// (lynx, links, w3m). Ideal for headless/SSH environments where graphical
@@ -273,8 +273,8 @@ impl Tool for TextBrowserTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_tool() -> TextBrowserTool {
         let security = Arc::new(SecurityPolicy {

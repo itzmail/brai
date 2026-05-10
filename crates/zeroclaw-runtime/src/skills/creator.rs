@@ -2,13 +2,13 @@
 //
 // After the agent completes a multi-step tool-call sequence, this module
 // can persist the execution as a reusable skill definition (SKILL.toml)
-// under `~/.zeroclaw/workspace/skills/<slug>/`.
+// under `~/.brai/workspace/skills/<slug>/`.
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use zeroclaw_config::schema::SkillCreationConfig;
-use zeroclaw_memory::embeddings::EmbeddingProvider;
-use zeroclaw_memory::vector::cosine_similarity;
+use brai_config::schema::SkillCreationConfig;
+use brai_memory::embeddings::EmbeddingProvider;
+use brai_memory::vector::cosine_similarity;
 
 /// A record of a single tool call executed during a task.
 #[derive(Debug, Clone)]
@@ -289,7 +289,7 @@ fn extract_description_from_toml(content: &str) -> Option<String> {
 /// Scans assistant messages for tool call patterns (both JSON and XML formats)
 /// and returns records for each unique tool invocation.
 pub fn extract_tool_calls_from_history(
-    history: &[zeroclaw_providers::ChatMessage],
+    history: &[brai_providers::ChatMessage],
 ) -> Vec<ToolCallRecord> {
     let mut records = Vec::new();
 
@@ -373,7 +373,7 @@ pub fn extract_tool_calls_from_history(
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use zeroclaw_memory::embeddings::{EmbeddingProvider, NoopEmbedding};
+    use brai_memory::embeddings::{EmbeddingProvider, NoopEmbedding};
 
     // ── Slug generation ──────────────────────────────────────────
 
@@ -831,7 +831,7 @@ tags = ["auto-generated"]
 
     #[test]
     fn extract_from_user_messages_only() {
-        use zeroclaw_providers::ChatMessage;
+        use brai_providers::ChatMessage;
         let history = vec![ChatMessage::user("hello"), ChatMessage::user("world")];
         let records = extract_tool_calls_from_history(&history);
         assert!(records.is_empty());

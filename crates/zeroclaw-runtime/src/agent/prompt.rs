@@ -7,14 +7,14 @@ use anyhow::Result;
 use chrono::{Datelike, Local, Timelike};
 use std::fmt::Write;
 use std::path::Path;
-use zeroclaw_config::schema::IdentityConfig;
+use brai_config::schema::IdentityConfig;
 
 pub struct PromptContext<'a> {
     pub workspace_dir: &'a Path,
     pub model_name: &'a str,
     pub tools: &'a [Box<dyn Tool>],
     pub skills: &'a [Skill],
-    pub skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+    pub skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode,
     pub identity_config: Option<&'a IdentityConfig>,
     pub dispatcher_instructions: &'a str,
     /// True when the provider request carries native tool specs. In that mode
@@ -307,7 +307,7 @@ impl PromptSection for ChannelMediaSection {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use zeroclaw_api::tool::Tool;
+    use brai_api::tool::Tool;
 
     struct TestTool;
 
@@ -340,7 +340,7 @@ mod tests {
     #[test]
     fn identity_section_with_aieos_includes_workspace_files() {
         let workspace =
-            std::env::temp_dir().join(format!("zeroclaw_prompt_test_{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("brai_prompt_test_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&workspace).unwrap();
         std::fs::write(
             workspace.join("AGENTS.md"),
@@ -348,7 +348,7 @@ mod tests {
         )
         .unwrap();
 
-        let identity_config = zeroclaw_config::schema::IdentityConfig {
+        let identity_config = brai_config::schema::IdentityConfig {
             format: "aieos".into(),
             aieos_path: None,
             aieos_inline: Some(r#"{"identity":{"names":{"first":"Nova"}}}"#.into()),
@@ -360,7 +360,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: Some(&identity_config),
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -392,7 +392,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
             sends_native_tool_specs: false,
@@ -414,7 +414,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: true,
@@ -436,7 +436,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -481,7 +481,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -524,7 +524,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Compact,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Compact,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -553,7 +553,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
             sends_native_tool_specs: false,
@@ -595,7 +595,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &skills,
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -630,7 +630,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -666,7 +666,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -694,7 +694,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -730,7 +730,7 @@ mod tests {
             model_name: "test-model",
             tools: &tools,
             skills: &[],
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,

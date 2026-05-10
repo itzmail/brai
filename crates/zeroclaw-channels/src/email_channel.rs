@@ -32,9 +32,9 @@ use tokio_rustls::client::TlsStream;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
-pub use zeroclaw_config::scattered_types::EmailConfig;
+pub use brai_config::scattered_types::EmailConfig;
 
 type ImapSession = Session<TlsStream<TcpStream>>;
 
@@ -132,7 +132,7 @@ impl EmailChannel {
     fn extract_attachments(
         &self,
         parsed: &mail_parser::Message,
-    ) -> Vec<zeroclaw_api::media::MediaAttachment> {
+    ) -> Vec<brai_api::media::MediaAttachment> {
         let mut attachments = Vec::new();
         let mut total_size = 0;
 
@@ -168,7 +168,7 @@ impl EmailChannel {
                 .unwrap_or("attachment")
                 .to_string();
 
-            attachments.push(zeroclaw_api::media::MediaAttachment {
+            attachments.push(brai_api::media::MediaAttachment {
                 file_name,
                 data,
                 mime_type: mime_str,
@@ -532,7 +532,7 @@ struct ParsedEmail {
     sender: String,
     content: String,
     timestamp: u64,
-    attachments: Vec<zeroclaw_api::media::MediaAttachment>,
+    attachments: Vec<brai_api::media::MediaAttachment>,
 }
 
 /// Result from waiting on IDLE

@@ -353,8 +353,8 @@ mod tests {
     use crate::sop::types::{
         Sop, SopExecutionMode, SopPriority, SopRunAction, SopStep, SopTrigger, SopTriggerSource,
     };
-    use zeroclaw_config::schema::{MemoryConfig, SopConfig};
-    use zeroclaw_memory::traits::Memory;
+    use brai_config::schema::{MemoryConfig, SopConfig};
+    use brai_memory::traits::Memory;
 
     fn test_sop(name: &str, triggers: Vec<SopTrigger>) -> Sop {
         Sop {
@@ -393,7 +393,7 @@ mod tests {
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
         // Leak the tempdir so it lives for the test
         std::mem::forget(tmp);
         SopAuditLogger::new(memory)

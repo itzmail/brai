@@ -11,9 +11,9 @@ pub mod types;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
 
 /// Maximum download size for OneDrive files (10 MB).
 const MAX_ONEDRIVE_DOWNLOAD_SIZE: usize = 10 * 1024 * 1024;
@@ -32,14 +32,14 @@ impl Microsoft365Tool {
     pub fn new(
         config: types::Microsoft365ResolvedConfig,
         security: Arc<SecurityPolicy>,
-        zeroclaw_dir: &std::path::Path,
+        brai_dir: &std::path::Path,
     ) -> anyhow::Result<Self> {
-        let http_client = zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        let http_client = brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "tool.microsoft365",
             60,
             10,
         );
-        let token_cache = Arc::new(auth::TokenCache::new(config.clone(), zeroclaw_dir)?);
+        let token_cache = Arc::new(auth::TokenCache::new(config.clone(), brai_dir)?);
         Ok(Self {
             config,
             security,

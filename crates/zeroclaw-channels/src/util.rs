@@ -9,7 +9,7 @@ pub fn truncate_with_ellipsis(s: &str, max_chars: usize) -> String {
     }
 }
 
-pub const BLOCK_KIT_PREFIX: &str = "__ZEROCLAW_BLOCK_KIT__";
+pub const BLOCK_KIT_PREFIX: &str = "__BRAI_BLOCK_KIT__";
 
 pub fn strip_tool_call_tags(message: &str) -> String {
     const TOOL_CALL_OPEN_TAGS: [&str; 7] = [
@@ -192,8 +192,8 @@ pub(crate) fn new_approval_token() -> String {
 /// for any other input so normal messages are not intercepted.
 pub fn parse_approval_reply(
     text: &str,
-) -> Option<(String, zeroclaw_api::channel::ChannelApprovalResponse)> {
-    use zeroclaw_api::channel::ChannelApprovalResponse;
+) -> Option<(String, brai_api::channel::ChannelApprovalResponse)> {
+    use brai_api::channel::ChannelApprovalResponse;
     let lower = text.trim().to_lowercase();
     let mut parts = lower.splitn(2, ' ');
     let token = parts.next()?.to_string();
@@ -211,7 +211,7 @@ pub fn parse_approval_reply(
 }
 
 /// Generate a conversation history key from a channel message.
-pub fn conversation_history_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+pub fn conversation_history_key(msg: &brai_api::channel::ChannelMessage) -> String {
     match &msg.thread_ts {
         Some(tid) => format!(
             "{}_{}_{}_{}",
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn parse_approval_reply_accepts_canonical_forms() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
         let cases = [
             ("abc123 yes", ChannelApprovalResponse::Approve),
             ("abc123 y", ChannelApprovalResponse::Approve),

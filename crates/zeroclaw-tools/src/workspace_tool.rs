@@ -7,10 +7,10 @@ use serde_json::json;
 use std::fmt::Write;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
-use zeroclaw_config::workspace::WorkspaceManager;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
+use brai_config::workspace::WorkspaceManager;
 
 /// Agent-callable tool for workspace management operations.
 pub struct WorkspaceTool {
@@ -258,7 +258,7 @@ impl Tool for WorkspaceTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_tool(tmp: &TempDir) -> WorkspaceTool {
         let mgr = WorkspaceManager::new(tmp.path().to_path_buf());

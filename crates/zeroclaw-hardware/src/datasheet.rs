@@ -5,7 +5,7 @@
 //!
 //! 1. **search** — query the web for the device datasheet PDF URL.
 //! 2. **download** — fetch the PDF and save it to
-//!    `~/.zeroclaw/hardware/datasheets/<device>.pdf`.
+//!    `~/.brai/hardware/datasheets/<device>.pdf`.
 //! 3. **list** — enumerate all locally cached datasheets.
 //! 4. **read** — return the local path of a cached datasheet so the LLM can
 //!    reference it with the `read_file` tool or a future RAG pipeline.
@@ -18,11 +18,11 @@
 
 use async_trait::async_trait;
 use std::path::PathBuf;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 // ── DatasheetManager ─────────────────────────────────────────────────────────
 
-/// Manages device datasheet files in `~/.zeroclaw/hardware/datasheets/`.
+/// Manages device datasheet files in `~/.brai/hardware/datasheets/`.
 pub struct DatasheetManager {
     /// Root datasheet storage directory.
     datasheet_dir: PathBuf,
@@ -33,7 +33,7 @@ impl DatasheetManager {
     pub fn new() -> Option<Self> {
         let home = directories::BaseDirs::new()?.home_dir().to_path_buf();
         Some(Self {
-            datasheet_dir: home.join(".zeroclaw").join("hardware").join("datasheets"),
+            datasheet_dir: home.join(".brai").join("hardware").join("datasheets"),
         })
     }
 
@@ -62,7 +62,7 @@ impl DatasheetManager {
 
     /// Download a datasheet PDF from `url` and save it locally.
     ///
-    /// The file is saved as `~/.zeroclaw/hardware/datasheets/<device_name>.pdf`.
+    /// The file is saved as `~/.brai/hardware/datasheets/<device_name>.pdf`.
     /// Returns the path to the saved file.
     pub async fn download_datasheet(
         &self,
@@ -121,7 +121,7 @@ impl DatasheetManager {
 impl Default for DatasheetManager {
     fn default() -> Self {
         Self::new().unwrap_or_else(|| Self {
-            datasheet_dir: PathBuf::from(".zeroclaw/hardware/datasheets"),
+            datasheet_dir: PathBuf::from(".brai/hardware/datasheets"),
         })
     }
 }
@@ -273,7 +273,7 @@ impl Tool for DatasheetTool {
                             "Datasheet for '{device}' downloaded successfully.\n\
                              Saved to: {}\n\n\
                              Next step: create a device profile at \
-                             ~/.zeroclaw/hardware/devices/aardvark0.md with the key \
+                             ~/.brai/hardware/devices/aardvark0.md with the key \
                              registers, I2C address, and protocol notes from this datasheet.",
                             path.display()
                         ),
@@ -295,7 +295,7 @@ impl Tool for DatasheetTool {
                         .to_string()
                 } else {
                     format!(
-                        "{} cached datasheet(s) in ~/.zeroclaw/hardware/datasheets/:\n{}",
+                        "{} cached datasheet(s) in ~/.brai/hardware/datasheets/:\n{}",
                         datasheets.len(),
                         datasheets
                             .iter()

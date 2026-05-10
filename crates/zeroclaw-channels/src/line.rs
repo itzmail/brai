@@ -6,9 +6,9 @@ use sha2::Sha256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
-use zeroclaw_config::schema::{LineDmPolicy, LineGroupPolicy};
-use zeroclaw_runtime::security::pairing::PairingGuard;
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_config::schema::{LineDmPolicy, LineGroupPolicy};
+use brai_runtime::security::pairing::PairingGuard;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -467,18 +467,18 @@ impl LineChannel {
             pairing,
             webhook_port,
             pending_tokens: Arc::new(RwLock::new(HashMap::new())),
-            client: zeroclaw_config::schema::build_channel_proxy_client("channel.line", None),
+            client: brai_config::schema::build_channel_proxy_client("channel.line", None),
             api_base_url: "https://api.line.me".to_string(),
             content_api_base_url: "https://api-data.line.me".to_string(),
             transcription_manager: None,
         }
     }
 
-    /// Construct a `LineChannel` directly from a [`zeroclaw_config::schema::LineConfig`].
+    /// Construct a `LineChannel` directly from a [`brai_config::schema::LineConfig`].
     ///
     /// Mirrors [`LarkChannel::from_config`] — keeps construction logic inside the
     /// channel crate rather than duplicating it across orchestrator call sites.
-    pub fn from_config(config: &zeroclaw_config::schema::LineConfig) -> Self {
+    pub fn from_config(config: &brai_config::schema::LineConfig) -> Self {
         Self::new(
             config.channel_access_token.clone(),
             config.channel_secret.clone(),
@@ -492,7 +492,7 @@ impl LineChannel {
 
     /// Override the proxy URL for outbound HTTP calls.
     pub fn with_proxy_url(mut self, proxy_url: Option<String>) -> Self {
-        self.client = zeroclaw_config::schema::build_channel_proxy_client(
+        self.client = brai_config::schema::build_channel_proxy_client(
             "channel.line",
             proxy_url.as_deref(),
         );
@@ -505,7 +505,7 @@ impl LineChannel {
     /// LINE Content API and transcribed before being forwarded to the agent.
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -1745,7 +1745,7 @@ mod tests {
             vec![],
             0,
         )
-        .with_transcription(zeroclaw_config::schema::TranscriptionConfig {
+        .with_transcription(brai_config::schema::TranscriptionConfig {
             enabled: false,
             ..Default::default()
         });
@@ -1811,7 +1811,7 @@ mod tests {
             .mount(&api_server)
             .await;
 
-        let transcription_config = zeroclaw_config::schema::TranscriptionConfig {
+        let transcription_config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".to_string(),
             api_key: None,
@@ -1824,7 +1824,7 @@ mod tests {
             deepgram: None,
             assemblyai: None,
             google: None,
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: format!("{}/v1/transcribe", api_server.uri()),
                 bearer_token: Some("test-token".to_string()),
                 max_audio_bytes: 25 * 1024 * 1024,

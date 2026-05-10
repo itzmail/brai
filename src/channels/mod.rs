@@ -1,13 +1,13 @@
-pub use zeroclaw_channels::orchestrator::*;
+pub use brai_channels::orchestrator::*;
 #[cfg(feature = "channel-matrix")]
 pub mod matrix;
 #[cfg(feature = "channel-telegram")]
 pub mod telegram;
 pub mod session_backend {
-    pub use zeroclaw_infra::session_backend::*;
+    pub use brai_infra::session_backend::*;
 }
 pub mod session_sqlite {
-    pub use zeroclaw_infra::session_sqlite::*;
+    pub use brai_infra::session_sqlite::*;
 }
 
 use crate::config::Config;

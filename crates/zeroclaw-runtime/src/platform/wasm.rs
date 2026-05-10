@@ -12,7 +12,7 @@
 //! The default ZeroClaw binary excludes it to maintain the 4.6 MB size target.
 
 use super::traits::RuntimeAdapter;
-use zeroclaw_config::schema::WasmRuntimeConfig;
+use brai_config::schema::WasmRuntimeConfig;
 use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
 
@@ -292,7 +292,7 @@ impl RuntimeAdapter for WasmRuntime {
     fn storage_path(&self) -> PathBuf {
         self.workspace_dir
             .as_ref()
-            .map_or_else(|| PathBuf::from(".zeroclaw"), |w| w.join(".zeroclaw"))
+            .map_or_else(|| PathBuf::from(".brai"), |w| w.join(".brai"))
     }
 
     fn supports_long_running(&self) -> bool {
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn wasm_storage_path_with_workspace() {
         let rt = WasmRuntime::with_workspace(default_config(), PathBuf::from("/home/user/project"));
-        assert_eq!(rt.storage_path(), PathBuf::from("/home/user/project/.zeroclaw"));
+        assert_eq!(rt.storage_path(), PathBuf::from("/home/user/project/.brai"));
     }
 
     // ── Config validation ──────────────────────────────────────

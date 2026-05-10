@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-tool-call-parser"
+name = "brai-tool-call-parser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,3 +11,6 @@ regex = "1.10"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
 tracing = { version = "0.1", default-features = false }
+
+[lints]
+workspace = true

@@ -4,7 +4,7 @@ use regex::Regex;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Web search tool for searching the internet.
 /// Supports multiple providers: DuckDuckGo (free), Brave (requires API key),
@@ -85,7 +85,7 @@ impl WebSearchTool {
         // Fast path: boot-time key is present and usable (not an encrypted blob).
         if let Some(ref key) = self.boot_brave_api_key
             && !key.is_empty()
-            && !zeroclaw_config::secrets::SecretStore::is_encrypted(key)
+            && !brai_config::secrets::SecretStore::is_encrypted(key)
         {
             return Ok(key.clone());
         }
@@ -103,7 +103,7 @@ impl WebSearchTool {
             )
         })?;
 
-        let config: zeroclaw_config::schema::Config = toml::from_str(&contents).map_err(|e| {
+        let config: brai_config::schema::Config = toml::from_str(&contents).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to parse config file {} for Brave API key: {e}",
                 self.config_path.display()
@@ -117,10 +117,10 @@ impl WebSearchTool {
             .ok_or_else(|| anyhow::anyhow!("Brave API key not configured"))?;
 
         // Decrypt if necessary.
-        if zeroclaw_config::secrets::SecretStore::is_encrypted(&raw_key) {
-            let zeroclaw_dir = self.config_path.parent().unwrap_or_else(|| Path::new("."));
+        if brai_config::secrets::SecretStore::is_encrypted(&raw_key) {
+            let brai_dir = self.config_path.parent().unwrap_or_else(|| Path::new("."));
             let store =
-                zeroclaw_config::secrets::SecretStore::new(zeroclaw_dir, self.secrets_encrypt);
+                brai_config::secrets::SecretStore::new(brai_dir, self.secrets_encrypt);
             let plaintext = store.decrypt(&raw_key)?;
             if plaintext.is_empty() {
                 anyhow::bail!("Brave API key not configured (decrypted value is empty)");
@@ -139,7 +139,7 @@ impl WebSearchTool {
             .timeout(Duration::from_secs(self.timeout_secs))
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
         let client = builder.build()?;
 
         let response = client.get(&search_url).send().await?;
@@ -214,7 +214,7 @@ impl WebSearchTool {
 
         let builder = reqwest::Client::builder().timeout(Duration::from_secs(self.timeout_secs));
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
         let client = builder.build()?;
 
         let response = client
@@ -237,7 +237,7 @@ impl WebSearchTool {
     fn resolve_tavily_api_key(&self) -> anyhow::Result<String> {
         if let Some(ref key) = self.boot_tavily_api_key
             && !key.is_empty()
-            && !zeroclaw_config::secrets::SecretStore::is_encrypted(key)
+            && !brai_config::secrets::SecretStore::is_encrypted(key)
         {
             return Ok(key.clone());
         }
@@ -253,7 +253,7 @@ impl WebSearchTool {
             )
         })?;
 
-        let config: zeroclaw_config::schema::Config = toml::from_str(&contents).map_err(|e| {
+        let config: brai_config::schema::Config = toml::from_str(&contents).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to parse config file {} for Tavily API key: {e}",
                 self.config_path.display()
@@ -266,10 +266,10 @@ impl WebSearchTool {
             .filter(|k| !k.is_empty())
             .ok_or_else(|| anyhow::anyhow!("Tavily API key not configured"))?;
 
-        if zeroclaw_config::secrets::SecretStore::is_encrypted(&raw_key) {
-            let zeroclaw_dir = self.config_path.parent().unwrap_or_else(|| Path::new("."));
+        if brai_config::secrets::SecretStore::is_encrypted(&raw_key) {
+            let brai_dir = self.config_path.parent().unwrap_or_else(|| Path::new("."));
             let store =
-                zeroclaw_config::secrets::SecretStore::new(zeroclaw_dir, self.secrets_encrypt);
+                brai_config::secrets::SecretStore::new(brai_dir, self.secrets_encrypt);
             let plaintext = store.decrypt(&raw_key)?;
             if plaintext.is_empty() {
                 anyhow::bail!("Tavily API key not configured (decrypted value is empty)");
@@ -305,7 +305,7 @@ impl WebSearchTool {
 
         let builder = reqwest::Client::builder().timeout(Duration::from_secs(self.timeout_secs));
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
         let client = builder.build()?;
 
         let response = client
@@ -410,7 +410,7 @@ impl WebSearchTool {
             )
         })?;
 
-        let config: zeroclaw_config::schema::Config = toml::from_str(&contents).map_err(|e| {
+        let config: brai_config::schema::Config = toml::from_str(&contents).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to parse config file {} for SearXNG instance URL: {e}",
                 self.config_path.display()
@@ -443,7 +443,7 @@ impl WebSearchTool {
             .timeout(Duration::from_secs(self.timeout_secs))
             .user_agent("ZeroClaw/1.0");
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_search");
         let client = builder.build()?;
 
         let response = client
@@ -707,7 +707,7 @@ mod tests {
     #[test]
     fn test_resolve_brave_api_key_decrypts_encrypted_key() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let store = zeroclaw_config::secrets::SecretStore::new(tmp.path(), true);
+        let store = brai_config::secrets::SecretStore::new(tmp.path(), true);
         let encrypted = store.encrypt("brave-secret-key").unwrap();
 
         let config_path = tmp.path().join("config.toml");
@@ -878,7 +878,7 @@ mod tests {
     #[test]
     fn test_resolve_tavily_api_key_decrypts_encrypted_key() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let store = zeroclaw_config::secrets::SecretStore::new(tmp.path(), true);
+        let store = brai_config::secrets::SecretStore::new(tmp.path(), true);
         let encrypted = store.encrypt("tvly-secret-key").unwrap();
 
         let config_path = tmp.path().join("config.toml");

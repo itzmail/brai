@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::whatsapp_web::*;
+pub use brai_channels::whatsapp_web::*;

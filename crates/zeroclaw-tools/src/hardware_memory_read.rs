@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use serde_json::json;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// RAM base for Nucleo-F401RE (STM32F401)
 const NUCLEO_RAM_BASE: u64 = 0x2000_0000;

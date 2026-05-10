@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-gateway"
+name = "brai-gateway"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,16 +8,14 @@ publish = false
 
 [dependencies]
 # Internal workspace crates
-zeroclaw-api.workspace = true
-zeroclaw-config.workspace = true
-zeroclaw-infra.workspace = true
-zeroclaw-memory.workspace = true
-zeroclaw-providers.workspace = true
-zeroclaw-channels = { workspace = true, default-features = true, features = ["channel-acp-server", "channel-email", "channel-telegram"] }
-zeroclaw-runtime.workspace = true
-zeroclaw-tools.workspace = true
-zeroclaw-hardware.workspace = true
-zeroclaw-plugins = { workspace = true, optional = true }
+brai-api.workspace = true
+brai-config.workspace = true
+brai-infra.workspace = true
+brai-memory.workspace = true
+brai-providers.workspace = true
+brai-channels = { workspace = true, default-features = true, features = ["channel-acp-server", "channel-email", "channel-telegram"] }
+brai-runtime.workspace = true
+brai-tools.workspace = true
 
 # HTTP server
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "ws", "macros"] }
@@ -36,7 +34,7 @@ mime_guess = "2"
 include_dir = { version = "0.7", optional = true }
 
 # Schemars JSON Schema generation for OPTIONS responses; matches the version
-# zeroclaw-config already pulls.
+# brai-config already pulls.
 schemars = { version = "1.2", optional = true }
 
 # Async runtime
@@ -79,14 +77,16 @@ tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
 
 [features]
 default = ["schema-export"]
-plugins-wasm = ["dep:zeroclaw-plugins"]
-webauthn = ["zeroclaw-runtime/webauthn"]
-observability-prometheus = ["zeroclaw-runtime/observability-prometheus"]
-channel-nostr = ["zeroclaw-channels/channel-nostr"]
+webauthn = ["brai-runtime/webauthn"]
+observability-prometheus = ["brai-runtime/observability-prometheus"]
+channel-nostr = ["brai-channels/channel-nostr"]
 gateway-voice-duplex = []
 # Enables OPTIONS /api/config* responses with the schemars-generated
 # JSON Schema body and the serde-side schemars derives transitively. Defaults
 # on; turning it off omits OPTIONS schema bodies (returns a small placeholder)
-# and saves a bit of build time. Mirrors zeroclaw-config's `schema-export`.
-schema-export = ["zeroclaw-config/schema-export", "dep:schemars"]
+# and saves a bit of build time. Mirrors brai-config's `schema-export`.
+schema-export = ["brai-config/schema-export", "dep:schemars"]
 embedded-web = ["dep:include_dir"]
+
+[lints]
+workspace = true

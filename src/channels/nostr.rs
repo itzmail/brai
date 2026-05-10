@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::nostr::*;
+pub use brai_channels::nostr::*;

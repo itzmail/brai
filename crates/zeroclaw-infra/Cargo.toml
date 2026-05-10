@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-infra"
+name = "brai-infra"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ description = "Channel infrastructure: session backends, debouncing, stall watch
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
+brai-api.workspace = true
 anyhow = "1.0"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 parking_lot = "0.12"
@@ -21,3 +21,6 @@ tracing = { version = "0.1", default-features = false }
 [dev-dependencies]
 tempfile = "3.26"
 tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true

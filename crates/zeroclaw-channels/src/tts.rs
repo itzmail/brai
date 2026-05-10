@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result, bail};
 
-use zeroclaw_config::schema::TtsConfig;
+use brai_config::schema::TtsConfig;
 
 /// Maximum text length before synthesis is rejected (default: 4096 chars).
 const DEFAULT_MAX_TEXT_LENGTH: usize = 4096;
@@ -47,7 +47,7 @@ pub struct OpenAiTtsProvider {
 impl OpenAiTtsProvider {
     /// Create a new OpenAI TTS provider from config, resolving the API key
     /// from config or `OPENAI_API_KEY` env var.
-    pub fn new(config: &zeroclaw_config::schema::OpenAiTtsConfig) -> Result<Self> {
+    pub fn new(config: &brai_config::schema::OpenAiTtsConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -146,7 +146,7 @@ pub struct ElevenLabsTtsProvider {
 impl ElevenLabsTtsProvider {
     /// Create a new ElevenLabs TTS provider from config, resolving the API key
     /// from config or `ELEVENLABS_API_KEY` env var.
-    pub fn new(config: &zeroclaw_config::schema::ElevenLabsTtsConfig) -> Result<Self> {
+    pub fn new(config: &brai_config::schema::ElevenLabsTtsConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -253,7 +253,7 @@ pub struct GoogleTtsProvider {
 impl GoogleTtsProvider {
     /// Create a new Google Cloud TTS provider from config, resolving the API key
     /// from config or `GOOGLE_TTS_API_KEY` env var.
-    pub fn new(config: &zeroclaw_config::schema::GoogleTtsConfig) -> Result<Self> {
+    pub fn new(config: &brai_config::schema::GoogleTtsConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -370,7 +370,7 @@ impl EdgeTtsProvider {
     /// `binary_path` must be a bare command name (no path separators) matching
     /// one of `ALLOWED_BINARIES`. This prevents arbitrary executable
     /// paths like `/tmp/malicious/edge-tts` from passing the basename check.
-    pub fn new(config: &zeroclaw_config::schema::EdgeTtsConfig) -> Result<Self> {
+    pub fn new(config: &brai_config::schema::EdgeTtsConfig) -> Result<Self> {
         let path = &config.binary_path;
         if path.contains('/') || path.contains('\\') {
             bail!(
@@ -397,7 +397,7 @@ impl TtsProvider for EdgeTtsProvider {
 
     async fn synthesize(&self, text: &str, voice: &str) -> Result<Vec<u8>> {
         let temp_dir = std::env::temp_dir();
-        let output_file = temp_dir.join(format!("zeroclaw_tts_{}.mp3", uuid::Uuid::new_v4()));
+        let output_file = temp_dir.join(format!("brai_tts_{}.mp3", uuid::Uuid::new_v4()));
         let output_path = output_file
             .to_str()
             .context("Failed to build temp file path for Edge TTS")?;
@@ -670,7 +670,7 @@ mod tests {
     fn tts_manager_with_edge_provider() {
         let mut config = default_tts_config();
         config.default_provider = "edge".to_string();
-        config.edge = Some(zeroclaw_config::schema::EdgeTtsConfig {
+        config.edge = Some(brai_config::schema::EdgeTtsConfig {
             binary_path: "edge-tts".into(),
         });
 
@@ -682,7 +682,7 @@ mod tests {
     async fn tts_rejects_empty_text() {
         let mut config = default_tts_config();
         config.default_provider = "edge".to_string();
-        config.edge = Some(zeroclaw_config::schema::EdgeTtsConfig {
+        config.edge = Some(brai_config::schema::EdgeTtsConfig {
             binary_path: "edge-tts".into(),
         });
 
@@ -702,7 +702,7 @@ mod tests {
         let mut config = default_tts_config();
         config.default_provider = "edge".to_string();
         config.max_text_length = 10;
-        config.edge = Some(zeroclaw_config::schema::EdgeTtsConfig {
+        config.edge = Some(brai_config::schema::EdgeTtsConfig {
             binary_path: "edge-tts".into(),
         });
 
@@ -746,7 +746,7 @@ mod tests {
     fn tts_manager_with_piper_provider() {
         let mut config = default_tts_config();
         config.default_provider = "piper".to_string();
-        config.piper = Some(zeroclaw_config::schema::PiperTtsConfig {
+        config.piper = Some(brai_config::schema::PiperTtsConfig {
             api_url: "http://127.0.0.1:5000/v1/audio/speech".into(),
         });
 
@@ -758,7 +758,7 @@ mod tests {
     async fn tts_rejects_empty_text_for_piper() {
         let mut config = default_tts_config();
         config.default_provider = "piper".to_string();
-        config.piper = Some(zeroclaw_config::schema::PiperTtsConfig {
+        config.piper = Some(brai_config::schema::PiperTtsConfig {
             api_url: "http://127.0.0.1:5000/v1/audio/speech".into(),
         });
 

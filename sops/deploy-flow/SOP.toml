@@ -1,0 +1,10 @@
+[sop]
+name = "deploy-flow"
+description = "Deploy an application to the VPS: pull latest code, run build, restart systemd service, verify health."
+version = "0.1.0"
+priority = "high"
+execution_mode = "supervised"
+cooldown_secs = 60
+
+[[triggers]]
+type = "manual"

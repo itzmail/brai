@@ -17,8 +17,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
-use zeroclaw_config::api_error::{ConfigApiCode, ConfigApiError};
-use zeroclaw_runtime::onboard::{Section, field_visibility};
+use brai_config::api_error::{ConfigApiCode, ConfigApiError};
+use brai_runtime::onboard::{Section, field_visibility};
 
 use super::AppState;
 use super::api::require_auth;
@@ -104,7 +104,7 @@ pub struct PatchResponse {
     /// HTTP 200 with the save committed, plus a `dangling_provider_fallback`
     /// warning here.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub warnings: Vec<zeroclaw_config::validation_warnings::ValidationWarning>,
+    pub warnings: Vec<brai_config::validation_warnings::ValidationWarning>,
 }
 
 /// Response for a non-secret GET / PUT / DELETE.
@@ -118,7 +118,7 @@ pub struct PropResponse {
     /// this surfaces warnings against the post-save state. Empty when
     /// nothing is flagged.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub warnings: Vec<zeroclaw_config::validation_warnings::ValidationWarning>,
+    pub warnings: Vec<brai_config::validation_warnings::ValidationWarning>,
 }
 
 /// Response for a secret GET / PUT / DELETE — never carries the value or its
@@ -169,8 +169,8 @@ pub struct ListEntry {
 
 /// Stable wire-form name for a `PropKind` variant. Matches the lower-kebab
 /// convention the rest of the API uses for stable string IDs.
-fn prop_kind_wire(kind: zeroclaw_config::traits::PropKind) -> &'static str {
-    use zeroclaw_config::traits::PropKind;
+fn prop_kind_wire(kind: brai_config::traits::PropKind) -> &'static str {
+    use brai_config::traits::PropKind;
     match kind {
         PropKind::String => "string",
         PropKind::Bool => "bool",
@@ -245,18 +245,18 @@ fn map_prop_error(err: anyhow::Error, path: &str) -> ConfigApiError {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-// Typed-value coercion lives in `zeroclaw_config::typed_value` — both the
+// Typed-value coercion lives in `brai_config::typed_value` — both the
 // gateway PATCH/PUT handlers and the CLI `config patch` flow consume it.
 // Single source of truth for the "JSON in, set_prop string out, validated
 // against the declared PropKind" contract.
-use zeroclaw_config::typed_value::coerce_for_set_prop as json_to_setprop_string;
+use brai_config::typed_value::coerce_for_set_prop as json_to_setprop_string;
 
 /// Look up the prop_field metadata for a path. Used by the per-prop GET / PUT
 /// handlers to decide whether the field is a secret.
 fn lookup_prop_field(
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
     path: &str,
-) -> Option<zeroclaw_config::traits::PropFieldInfo> {
+) -> Option<brai_config::traits::PropFieldInfo> {
     config
         .prop_fields()
         .into_iter()
@@ -274,7 +274,7 @@ fn lookup_prop_field(
 /// readable), keep in-memory state untouched, return `reload_failed`.
 async fn persist_and_swap(
     state: &AppState,
-    new_config: zeroclaw_config::schema::Config,
+    new_config: brai_config::schema::Config,
 ) -> Result<(), ConfigApiError> {
     let config_path = new_config.config_path.clone();
 
@@ -320,7 +320,7 @@ async fn persist_and_swap(
 /// on-disk side is round-tripped through the full deserializer + decrypt
 /// pass before comparison, so we only surface drift the daemon would
 /// actually pick up on its next read of the file.
-pub async fn compute_drift(in_memory: &zeroclaw_config::schema::Config) -> Vec<DriftEntry> {
+pub async fn compute_drift(in_memory: &brai_config::schema::Config) -> Vec<DriftEntry> {
     let path = &in_memory.config_path;
     if !path.exists() {
         return Vec::new();
@@ -332,8 +332,8 @@ pub async fn compute_drift(in_memory: &zeroclaw_config::schema::Config) -> Vec<D
     };
 
     // Re-parse the on-disk form into a fresh Config for value-by-value comparison.
-    let on_disk: zeroclaw_config::schema::Config =
-        match toml::from_str::<zeroclaw_config::schema::Config>(&raw) {
+    let on_disk: brai_config::schema::Config =
+        match toml::from_str::<brai_config::schema::Config>(&raw) {
             Ok(mut cfg) => {
                 cfg.config_path = path.clone();
                 cfg
@@ -341,13 +341,13 @@ pub async fn compute_drift(in_memory: &zeroclaw_config::schema::Config) -> Vec<D
             Err(_) => return Vec::new(),
         };
 
-    let in_memory_props: std::collections::HashMap<String, zeroclaw_config::traits::PropFieldInfo> =
+    let in_memory_props: std::collections::HashMap<String, brai_config::traits::PropFieldInfo> =
         in_memory
             .prop_fields()
             .into_iter()
             .map(|p| (p.name.clone(), p))
             .collect();
-    let on_disk_props: std::collections::HashMap<String, zeroclaw_config::traits::PropFieldInfo> =
+    let on_disk_props: std::collections::HashMap<String, brai_config::traits::PropFieldInfo> =
         on_disk
             .prop_fields()
             .into_iter()
@@ -492,7 +492,7 @@ pub async fn handle_prop_put(
     if let Some(comment) = body.comment.as_ref() {
         let annotations = [(body.path.clone(), comment.clone())];
         if let Err(e) =
-            zeroclaw_config::comment_writer::apply_comments(&config_path, &annotations).await
+            brai_config::comment_writer::apply_comments(&config_path, &annotations).await
         {
             tracing::warn!(error = %e, "failed to apply PUT comment to config.toml");
         }
@@ -688,13 +688,13 @@ pub async fn handle_templates(State(state): State<AppState>, headers: HeaderMap)
     }
     let _ = state; // templates are static per build, but auth-gated for consistency
 
-    let templates: Vec<TemplateEntry> = zeroclaw_config::schema::Config::map_key_sections()
+    let templates: Vec<TemplateEntry> = brai_config::schema::Config::map_key_sections()
         .into_iter()
         .map(|s| TemplateEntry {
             path: s.path,
             kind: match s.kind {
-                zeroclaw_config::traits::MapKeyKind::Map => "map",
-                zeroclaw_config::traits::MapKeyKind::List => "list",
+                brai_config::traits::MapKeyKind::Map => "map",
+                brai_config::traits::MapKeyKind::List => "list",
             },
             value_type: s.value_type,
             description: s.description,
@@ -972,7 +972,7 @@ pub async fn handle_patch(
     }
     if !annotations.is_empty()
         && let Err(e) =
-            zeroclaw_config::comment_writer::apply_comments(&config_path, &annotations).await
+            brai_config::comment_writer::apply_comments(&config_path, &annotations).await
     {
         // Comments are best-effort decoration; surface as a non-fatal warn.
         // The patch itself succeeded — return success but log the failure.
@@ -1080,7 +1080,7 @@ pub async fn handle_migrate(State(state): State<AppState>, headers: HeaderMap) -
         }
     };
 
-    let migrated = match zeroclaw_config::migration::migrate_file(&raw) {
+    let migrated = match brai_config::migration::migrate_file(&raw) {
         Ok(out) => out,
         Err(e) => {
             return error_response(ConfigApiError::new(
@@ -1107,7 +1107,7 @@ pub async fn handle_migrate(State(state): State<AppState>, headers: HeaderMap) -
             }
 
             // Re-read into memory so subsequent requests see the migrated state.
-            let new_cfg: zeroclaw_config::schema::Config = match toml::from_str(&new_content) {
+            let new_cfg: brai_config::schema::Config = match toml::from_str(&new_content) {
                 Ok(c) => c,
                 Err(e) => {
                     return error_response(ConfigApiError::new(
@@ -1121,14 +1121,14 @@ pub async fn handle_migrate(State(state): State<AppState>, headers: HeaderMap) -
             axum::Json(MigrateResponse {
                 migrated: true,
                 backup_path: Some(backup_path.display().to_string()),
-                schema_version: zeroclaw_config::migration::CURRENT_SCHEMA_VERSION,
+                schema_version: brai_config::migration::CURRENT_SCHEMA_VERSION,
             })
             .into_response()
         }
         None => axum::Json(MigrateResponse {
             migrated: false,
             backup_path: None,
-            schema_version: zeroclaw_config::migration::CURRENT_SCHEMA_VERSION,
+            schema_version: brai_config::migration::CURRENT_SCHEMA_VERSION,
         })
         .into_response(),
     }
@@ -1157,7 +1157,7 @@ pub async fn handle_options_config(headers: HeaderMap) -> Response {
         return response;
     }
 
-    schema_response("zeroclaw_config_schema_full")
+    schema_response("brai_config_schema_full")
 }
 
 /// OPTIONS /api/config/prop?path=providers.fallback — per-field schema fragment.
@@ -1260,7 +1260,7 @@ fn cached_schema() -> (&'static serde_json::Value, &'static str) {
 
 #[cfg(feature = "schema-export")]
 fn schema_body_value() -> serde_json::Value {
-    let schema = schemars::schema_for!(zeroclaw_config::schema::Config);
+    let schema = schemars::schema_for!(brai_config::schema::Config);
     serde_json::to_value(schema).unwrap_or(serde_json::Value::Null)
 }
 
@@ -1286,10 +1286,10 @@ fn build_etag_for(body: &serde_json::Value) -> String {
 mod tests {
     use super::*;
 
-    // typed-value coercion tests live in zeroclaw_config::typed_value
+    // typed-value coercion tests live in brai_config::typed_value
     // — shared helper, single source of truth.
     //
-    // build_comment_prefix tests live in zeroclaw_config::comment_writer
+    // build_comment_prefix tests live in brai_config::comment_writer
     // — same reason.
 
     #[test]
@@ -1359,11 +1359,11 @@ mod tests {
     // These tests pin the invariant: for every PropKind that surfaces on
     // the API, `json_to_setprop_string(<typed JSON>, Some(kind))` equals
     // the string `Config::get_prop` returns.
-    use zeroclaw_config::traits::PropKind;
+    use brai_config::traits::PropKind;
 
     #[test]
     fn test_op_coercion_bool_typed_value_matches_stored() {
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         cfg.set_prop("autonomy.workspace-only", "true")
             .expect("set_prop bool");
         let actual = cfg.get_prop("autonomy.workspace-only").expect("get_prop");
@@ -1385,7 +1385,7 @@ mod tests {
 
     #[test]
     fn test_op_coercion_integer_typed_value_matches_stored() {
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         cfg.set_prop("gateway.port", "42617")
             .expect("set_prop integer");
         let actual = cfg.get_prop("gateway.port").expect("get_prop");
@@ -1410,7 +1410,7 @@ mod tests {
         // the default config. If the schema gains/loses a float field this
         // test will need updating; that's fine — we just need one float to
         // pin the contract.
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         // autonomy doesn't carry floats today; use a provider temperature
         // by setting a known model-provider entry. The model-providers map
         // is set up via map keys, so use a path that's unambiguously float.
@@ -1438,7 +1438,7 @@ mod tests {
 
     #[test]
     fn test_op_coercion_string_field_no_regression() {
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         cfg.set_prop("gateway.host", "10.0.0.1")
             .expect("set_prop string");
         let actual = cfg.get_prop("gateway.host").expect("get_prop string");
@@ -1454,7 +1454,7 @@ mod tests {
         // where `providers.fallback` references a key not present in
         // `providers.models` returns a structured warning with a stable
         // code, suitable for inclusion in PUT/PATCH/GET responses.
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         cfg.set_prop("providers.fallback", "nonexistent")
             .expect("set_prop fallback");
 
@@ -1477,7 +1477,7 @@ mod tests {
         // warning (the check is gated on `Some(fallback_key)`). Pin the
         // negative case so a regression that always-emits the warning
         // gets caught.
-        let cfg = zeroclaw_config::schema::Config::default();
+        let cfg = brai_config::schema::Config::default();
         let warnings = cfg.collect_warnings();
         assert!(
             !warnings
@@ -1489,7 +1489,7 @@ mod tests {
 
     #[test]
     fn test_op_coercion_mismatched_value_correctly_fails() {
-        let mut cfg = zeroclaw_config::schema::Config::default();
+        let mut cfg = brai_config::schema::Config::default();
         cfg.set_prop("autonomy.workspace-only", "true")
             .expect("set_prop");
         let actual = cfg.get_prop("autonomy.workspace-only").expect("get_prop");
@@ -1515,7 +1515,7 @@ mod tests {
     #[tokio::test]
     async fn compute_drift_returns_empty_when_in_memory_matches_disk() {
         let (_tmp, path) = temp_config_path();
-        let cfg = zeroclaw_config::schema::Config {
+        let cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
@@ -1532,7 +1532,7 @@ mod tests {
     #[tokio::test]
     async fn compute_drift_surfaces_mismatched_non_secret_field() {
         let (_tmp, path) = temp_config_path();
-        let mut cfg = zeroclaw_config::schema::Config {
+        let mut cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
@@ -1555,7 +1555,7 @@ mod tests {
     #[tokio::test]
     async fn compute_drift_returns_empty_when_no_disk_file() {
         let (_tmp, path) = temp_config_path();
-        let cfg = zeroclaw_config::schema::Config {
+        let cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
@@ -1567,14 +1567,14 @@ mod tests {
     #[tokio::test]
     async fn apply_comments_writes_decoration_to_existing_value() {
         let (_tmp, path) = temp_config_path();
-        let mut cfg = zeroclaw_config::schema::Config {
+        let mut cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
         cfg.set_prop("gateway.host", "10.0.0.5").expect("set_prop");
         cfg.save().await.expect("save");
 
-        zeroclaw_config::comment_writer::apply_comments(
+        brai_config::comment_writer::apply_comments(
             &path,
             &[("gateway.host".into(), "raised after Q3 backlog".into())],
         )
@@ -1622,7 +1622,7 @@ mod tests {
         // here so a regression in either the regex or the assumed shapes
         // gets caught — important for the new HTTP CRUD surface where the
         // dashboard sends real bearer tokens, secret PUT bodies, etc.
-        use zeroclaw_runtime::agent::loop_::scrub_credentials;
+        use brai_runtime::agent::loop_::scrub_credentials;
 
         // Three realistic shapes a tracing call might emit. All must be
         // redacted by the existing scrubber.
@@ -1670,7 +1670,7 @@ mod tests {
         // Persist initial state, externally edit the file, drift surfaces
         // the touched path. This is the substrate the PATCH 409 guard fires on.
         let (_tmp, path) = temp_config_path();
-        let mut cfg = zeroclaw_config::schema::Config {
+        let mut cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
@@ -1773,20 +1773,20 @@ mod tests {
     #[tokio::test]
     async fn apply_comments_clears_existing_comment_when_passed_empty() {
         let (_tmp, path) = temp_config_path();
-        let mut cfg = zeroclaw_config::schema::Config {
+        let mut cfg = brai_config::schema::Config {
             config_path: path.clone(),
             ..Default::default()
         };
         cfg.set_prop("gateway.host", "10.0.0.5").expect("set_prop");
         cfg.save().await.expect("save");
 
-        zeroclaw_config::comment_writer::apply_comments(
+        brai_config::comment_writer::apply_comments(
             &path,
             &[("gateway.host".into(), "first reason".into())],
         )
         .await
         .expect("apply first comment");
-        zeroclaw_config::comment_writer::apply_comments(
+        brai_config::comment_writer::apply_comments(
             &path,
             &[("gateway.host".into(), String::new())],
         )

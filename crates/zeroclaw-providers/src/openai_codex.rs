@@ -11,8 +11,8 @@ use serde_json::Value;
 use std::path::PathBuf;
 
 const DEFAULT_CODEX_RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
-const CODEX_RESPONSES_URL_ENV: &str = "ZEROCLAW_CODEX_RESPONSES_URL";
-const CODEX_BASE_URL_ENV: &str = "ZEROCLAW_CODEX_BASE_URL";
+const CODEX_RESPONSES_URL_ENV: &str = "BRAI_CODEX_RESPONSES_URL";
+const CODEX_BASE_URL_ENV: &str = "BRAI_CODEX_BASE_URL";
 const DEFAULT_CODEX_INSTRUCTIONS: &str =
     "You are ZeroClaw, a concise and helpful coding assistant.";
 /// OpenAI Codex speaks the "responses" wire protocol, not chat_completions.
@@ -96,9 +96,9 @@ impl OpenAiCodexProvider {
         gateway_api_key: Option<&str>,
     ) -> anyhow::Result<Self> {
         let state_dir = options
-            .zeroclaw_dir
+            .brai_dir
             .clone()
-            .unwrap_or_else(default_zeroclaw_dir);
+            .unwrap_or_else(default_brai_dir);
         let auth = AuthService::new(&state_dir, options.secrets_encrypt);
         let responses_url = resolve_responses_url(options)?;
 
@@ -118,10 +118,10 @@ impl OpenAiCodexProvider {
     }
 }
 
-fn default_zeroclaw_dir() -> PathBuf {
+fn default_brai_dir() -> PathBuf {
     directories::UserDirs::new().map_or_else(
-        || PathBuf::from(".zeroclaw"),
-        |dirs| dirs.home_dir().join(".zeroclaw"),
+        || PathBuf::from(".brai"),
+        |dirs| dirs.home_dir().join(".brai"),
     )
 }
 
@@ -312,7 +312,7 @@ fn clamp_reasoning_effort(model: &str, effort: &str) -> String {
 fn resolve_reasoning_effort(model_id: &str, configured: Option<&str>) -> String {
     let raw = configured
         .map(ToString::to_string)
-        .or_else(|| std::env::var("ZEROCLAW_CODEX_REASONING_EFFORT").ok())
+        .or_else(|| std::env::var("BRAI_CODEX_REASONING_EFFORT").ok())
         .and_then(|value| first_nonempty(Some(&value)))
         .unwrap_or_else(|| "xhigh".to_string())
         .to_ascii_lowercase();
@@ -749,7 +749,7 @@ impl Provider for OpenAiCodexProvider {
         messages.push(ChatMessage::user(message));
 
         // Normalize images: convert file paths to data URIs
-        let config = zeroclaw_config::schema::MultimodalConfig::default();
+        let config = brai_config::schema::MultimodalConfig::default();
         let prepared = crate::multimodal::prepare_messages_for_provider(&messages, &config).await?;
 
         let (instructions, input) = build_responses_input(&prepared.messages);
@@ -764,7 +764,7 @@ impl Provider for OpenAiCodexProvider {
         _temperature: Option<f64>,
     ) -> anyhow::Result<String> {
         // Normalize image markers: convert file paths to data URIs
-        let config = zeroclaw_config::schema::MultimodalConfig::default();
+        let config = brai_config::schema::MultimodalConfig::default();
         let prepared = crate::multimodal::prepare_messages_for_provider(messages, &config).await?;
 
         let (instructions, input) = build_responses_input(&prepared.messages);
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     fn default_state_dir_is_non_empty() {
-        let path = default_zeroclaw_dir();
+        let path = default_brai_dir();
         assert!(!path.as_os_str().is_empty());
     }
 
@@ -946,7 +946,7 @@ mod tests {
     #[test]
     fn resolve_reasoning_effort_prefers_configured_override() {
         let _lock = env_lock();
-        let _guard = EnvGuard::set("ZEROCLAW_CODEX_REASONING_EFFORT", Some("low"));
+        let _guard = EnvGuard::set("BRAI_CODEX_REASONING_EFFORT", Some("low"));
         assert_eq!(
             resolve_reasoning_effort("gpt-5-codex", Some("high")),
             "high".to_string()
@@ -956,7 +956,7 @@ mod tests {
     #[test]
     fn resolve_reasoning_effort_uses_legacy_env_when_unconfigured() {
         let _lock = env_lock();
-        let _guard = EnvGuard::set("ZEROCLAW_CODEX_REASONING_EFFORT", Some("minimal"));
+        let _guard = EnvGuard::set("BRAI_CODEX_REASONING_EFFORT", Some("minimal"));
         assert_eq!(
             resolve_reasoning_effort("gpt-5-codex", None),
             "low".to_string()
@@ -1144,7 +1144,7 @@ data: [DONE]
             native_tools: None,
             wire_api: None,
             provider_api_url: None,
-            zeroclaw_dir: None,
+            brai_dir: None,
             think: None,
             chat_template_kwargs: None,
             ollama_num_ctx: None,

@@ -3,9 +3,9 @@ use futures_util::StreamExt;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::FirecrawlConfig;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::FirecrawlConfig;
 
 /// Minimum body length to consider a standard fetch successful.
 /// Bodies shorter than this are treated as JS-only pages that need Firecrawl.
@@ -358,7 +358,7 @@ impl Tool for WebFetchTool {
             .redirect(redirect_policy)
             .user_agent("ZeroClaw/0.1 (web_fetch)");
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_fetch");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.web_fetch");
         let client = match builder.build() {
             Ok(c) => c,
             Err(e) => {
@@ -660,9 +660,9 @@ fn is_non_global_v6(v6: std::net::Ipv6Addr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
-    use zeroclaw_config::schema::FirecrawlConfig;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
+    use brai_config::schema::FirecrawlConfig;
 
     fn test_tool(allowed_domains: Vec<&str>) -> WebFetchTool {
         test_tool_with_blocklist(allowed_domains, vec![])
@@ -1095,7 +1095,7 @@ mod tests {
         assert!(!cfg.enabled);
         assert_eq!(cfg.api_key_env, "FIRECRAWL_API_KEY");
         assert_eq!(cfg.api_url, "https://api.firecrawl.dev/v1");
-        assert_eq!(cfg.mode, zeroclaw_config::schema::FirecrawlMode::Scrape);
+        assert_eq!(cfg.mode, brai_config::schema::FirecrawlMode::Scrape);
     }
 
     #[test]
@@ -1110,7 +1110,7 @@ mod tests {
         assert!(cfg.enabled);
         assert_eq!(cfg.api_key_env, "MY_FC_KEY");
         assert_eq!(cfg.api_url, "https://custom.firecrawl.io/v2");
-        assert_eq!(cfg.mode, zeroclaw_config::schema::FirecrawlMode::Crawl);
+        assert_eq!(cfg.mode, brai_config::schema::FirecrawlMode::Crawl);
     }
 
     #[test]
@@ -1122,7 +1122,7 @@ mod tests {
 
     #[test]
     fn web_fetch_config_with_firecrawl_section() {
-        use zeroclaw_config::schema::WebFetchConfig;
+        use brai_config::schema::WebFetchConfig;
         let toml_str = r#"
             enabled = true
             [firecrawl]

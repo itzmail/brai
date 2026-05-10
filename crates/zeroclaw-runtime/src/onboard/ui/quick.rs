@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
-use zeroclaw_config::traits::{Answer, OnboardUi, SelectItem};
+use brai_config::traits::{Answer, OnboardUi, SelectItem};
 
 #[derive(Debug, Default)]
 pub struct QuickUi {

@@ -1,7 +1,7 @@
 use crate::schema::DockerRuntimeConfig;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use zeroclaw_api::runtime_traits::RuntimeAdapter;
+use brai_api::runtime_traits::RuntimeAdapter;
 
 /// Docker runtime with lightweight container isolation.
 #[derive(Debug, Clone)]
@@ -67,9 +67,9 @@ impl RuntimeAdapter for DockerRuntime {
 
     fn storage_path(&self) -> PathBuf {
         if self.config.mount_workspace {
-            PathBuf::from("/workspace/.zeroclaw")
+            PathBuf::from("/workspace/.brai")
         } else {
-            PathBuf::from("/tmp/.zeroclaw")
+            PathBuf::from("/tmp/.brai")
         }
     }
 

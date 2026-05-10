@@ -15,7 +15,7 @@
 //! 4. Global default (`Medium`)
 
 // Re-exported from zeroclaw-config.
-pub use zeroclaw_config::scattered_types::{ThinkingConfig, ThinkingLevel};
+pub use brai_config::scattered_types::{ThinkingConfig, ThinkingLevel};
 
 /// Parameters derived from a thinking level, applied to the LLM request.
 #[derive(Debug, Clone, PartialEq)]

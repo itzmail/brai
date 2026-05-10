@@ -2,7 +2,7 @@ pub mod platform;
 pub mod registry;
 
 use anyhow::Result;
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 /// Integration status
 ///
@@ -139,7 +139,7 @@ pub fn show_integration_info(config: &Config, name: &str) -> Result<()> {
         }
         "Cron" => {
             println!("  Built-in:");
-            println!("    Schedule tasks in ~/.zeroclaw/workspace/cron/");
+            println!("    Schedule tasks in ~/.brai/workspace/cron/");
             println!("    Run: zeroclaw cron list");
         }
         "Weather" => {
@@ -159,7 +159,7 @@ pub fn show_integration_info(config: &Config, name: &str) -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(test, zeroclaw_root_crate))]
+#[cfg(all(test, brai_root_crate))]
 mod tests {
     use super::*;
 

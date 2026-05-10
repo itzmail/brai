@@ -6,7 +6,7 @@
 //! See `wasm_tool.rs` and `runtime.rs` for the working tool plugin bridge.
 
 use async_trait::async_trait;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// A channel backed by a WASM plugin.
 pub struct WasmChannel {

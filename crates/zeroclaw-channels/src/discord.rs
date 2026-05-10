@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::{Mutex as AsyncMutex, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use zeroclaw_api::channel::{
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
 
@@ -27,12 +27,12 @@ pub struct DiscordChannel {
     proxy_url: Option<String>,
     /// Voice transcription config — when set, audio attachments are
     /// downloaded, transcribed, and their text inlined into the message.
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<std::sync::Arc<super::transcription::TranscriptionManager>>,
     /// Workspace directory for saving downloaded inbound media attachments.
     workspace_dir: Option<PathBuf>,
     /// Streaming mode: Off, Partial (draft edits), or MultiMessage (paragraph splits).
-    stream_mode: zeroclaw_config::schema::StreamMode,
+    stream_mode: brai_config::schema::StreamMode,
     /// Minimum interval (ms) between draft message edits (Partial mode only).
     draft_update_interval_ms: u64,
     /// Delay (ms) between sending each message chunk (MultiMessage mode only).
@@ -70,7 +70,7 @@ impl DiscordChannel {
             transcription: None,
             transcription_manager: None,
             workspace_dir: None,
-            stream_mode: zeroclaw_config::schema::StreamMode::Off,
+            stream_mode: brai_config::schema::StreamMode::Off,
             draft_update_interval_ms: 1000,
             multi_message_delay_ms: 800,
             last_draft_edit: Mutex::new(HashMap::new()),
@@ -102,7 +102,7 @@ impl DiscordChannel {
     /// Configure voice transcription for audio attachments.
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -124,7 +124,7 @@ impl DiscordChannel {
     /// Configure streaming mode for progressive draft updates or multi-message delivery.
     pub fn with_streaming(
         mut self,
-        stream_mode: zeroclaw_config::schema::StreamMode,
+        stream_mode: brai_config::schema::StreamMode,
         draft_update_interval_ms: u64,
         multi_message_delay_ms: u64,
     ) -> Self {
@@ -141,7 +141,7 @@ impl DiscordChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             "channel.discord",
             self.proxy_url.as_deref(),
         )
@@ -908,7 +908,7 @@ impl Channel for DiscordChannel {
 
         // MultiMessage mode: split at paragraph boundaries and send each as a
         // separate message with a configurable delay between them.
-        if self.stream_mode == zeroclaw_config::schema::StreamMode::MultiMessage {
+        if self.stream_mode == brai_config::schema::StreamMode::MultiMessage {
             let chunks = split_message_for_discord_multi(&content, DISCORD_MAX_MESSAGE_LENGTH);
             let client = self.http_client();
 
@@ -1000,7 +1000,7 @@ impl Channel for DiscordChannel {
         let ws_url = format!("{gw_url}/?v=10&encoding=json");
         tracing::info!("Discord: connecting to gateway...");
 
-        let (ws_stream, _) = zeroclaw_config::schema::ws_connect_with_proxy(
+        let (ws_stream, _) = brai_config::schema::ws_connect_with_proxy(
             &ws_url,
             "channel.discord",
             self.proxy_url.as_deref(),
@@ -1058,7 +1058,7 @@ impl Channel for DiscordChannel {
 
         // --- Stall watchdog --------------------------------------------------
         let watchdog = if self.stall_timeout_secs > 0 {
-            Some(zeroclaw_infra::stall_watchdog::StallWatchdog::new(
+            Some(brai_infra::stall_watchdog::StallWatchdog::new(
                 self.stall_timeout_secs,
             ))
         } else {
@@ -1364,11 +1364,11 @@ impl Channel for DiscordChannel {
     }
 
     fn supports_draft_updates(&self) -> bool {
-        self.stream_mode != zeroclaw_config::schema::StreamMode::Off
+        self.stream_mode != brai_config::schema::StreamMode::Off
     }
 
     fn supports_multi_message_streaming(&self) -> bool {
-        self.stream_mode == zeroclaw_config::schema::StreamMode::MultiMessage
+        self.stream_mode == brai_config::schema::StreamMode::MultiMessage
     }
 
     fn multi_message_delay_ms(&self) -> u64 {
@@ -1376,7 +1376,7 @@ impl Channel for DiscordChannel {
     }
 
     async fn send_draft(&self, message: &SendMessage) -> anyhow::Result<Option<String>> {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
         match self.stream_mode {
             StreamMode::Off => Ok(None),
             StreamMode::Partial => {
@@ -1419,7 +1419,7 @@ impl Channel for DiscordChannel {
         message_id: &str,
         text: &str,
     ) -> anyhow::Result<()> {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
         match self.stream_mode {
             StreamMode::Off => Ok(()),
             StreamMode::Partial => {
@@ -1558,7 +1558,7 @@ impl Channel for DiscordChannel {
         message_id: &str,
         text: &str,
     ) -> anyhow::Result<()> {
-        if self.stream_mode == zeroclaw_config::schema::StreamMode::MultiMessage {
+        if self.stream_mode == brai_config::schema::StreamMode::MultiMessage {
             // Flush remaining buffered text.
             let thread_ts = self
                 .multi_message_thread_ts
@@ -1650,7 +1650,7 @@ impl Channel for DiscordChannel {
     }
 
     async fn cancel_draft(&self, recipient: &str, message_id: &str) -> anyhow::Result<()> {
-        if self.stream_mode == zeroclaw_config::schema::StreamMode::MultiMessage {
+        if self.stream_mode == brai_config::schema::StreamMode::MultiMessage {
             self.multi_message_sent_len.lock().remove(recipient);
             self.multi_message_thread_ts.lock().remove(recipient);
             return Ok(());
@@ -2441,7 +2441,7 @@ mod tests {
 
     #[test]
     fn supports_draft_updates_respects_stream_mode() {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
 
         let off = DiscordChannel::new("t".into(), None, vec![], false, false);
         assert!(!off.supports_draft_updates());
@@ -2465,8 +2465,8 @@ mod tests {
 
     #[tokio::test]
     async fn send_draft_returns_none_when_not_partial() {
-        use zeroclaw_api::channel::SendMessage;
-        use zeroclaw_config::schema::StreamMode;
+        use brai_api::channel::SendMessage;
+        use brai_config::schema::StreamMode;
 
         let off = DiscordChannel::new("t".into(), None, vec![], false, false);
         let msg = SendMessage::new("hello", "123");
@@ -2486,7 +2486,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_draft_rate_limit_short_circuits() {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
 
         let ch = DiscordChannel::new("t".into(), None, vec![], false, false).with_streaming(
             StreamMode::Partial,
@@ -2506,7 +2506,7 @@ mod tests {
 
     #[tokio::test]
     async fn cancel_draft_cleans_up_tracking() {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
 
         let ch = DiscordChannel::new("t".into(), None, vec![], false, false).with_streaming(
             StreamMode::Partial,

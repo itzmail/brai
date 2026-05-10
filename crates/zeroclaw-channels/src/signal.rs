@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, mpsc, oneshot};
 use uuid::Uuid;
-use zeroclaw_api::channel::{
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
 
@@ -116,7 +116,7 @@ impl SignalChannel {
 
     fn http_client(&self) -> Client {
         let builder = Client::builder().connect_timeout(Duration::from_secs(10));
-        let builder = zeroclaw_config::schema::apply_channel_proxy_to_builder(
+        let builder = brai_config::schema::apply_channel_proxy_to_builder(
             builder,
             "channel.signal",
             self.proxy_url.as_deref(),

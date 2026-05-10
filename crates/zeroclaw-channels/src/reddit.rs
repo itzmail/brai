@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::time::{Duration, Instant};
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Reddit channel — polls for mentions, DMs, and comment replies via Reddit OAuth2 API.
 pub struct RedditChannel {
@@ -86,7 +86,7 @@ impl RedditChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client("channel.reddit")
+        brai_config::schema::build_runtime_proxy_client("channel.reddit")
     }
 
     /// Refresh the OAuth2 access token using the refresh token.

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use zeroclaw_config::schema::OtpConfig;
+use brai_config::schema::OtpConfig;
 
 const OTP_SECRET_FILE: &str = "otp-secret";
 const OTP_DIGITS: u32 = 6;
@@ -22,10 +22,10 @@ pub struct OtpValidator {
 impl OtpValidator {
     pub fn from_config(
         config: &OtpConfig,
-        zeroclaw_dir: &Path,
+        brai_dir: &Path,
         store: &SecretStore,
     ) -> Result<(Self, Option<String>)> {
-        let secret_path = secret_file_path(zeroclaw_dir);
+        let secret_path = secret_file_path(brai_dir);
         let (secret, generated) = if secret_path.exists() {
             let encoded = fs::read_to_string(&secret_path).with_context(|| {
                 format!("Failed to read OTP secret file {}", secret_path.display())
@@ -121,8 +121,8 @@ impl OtpValidator {
     }
 }
 
-pub fn secret_file_path(zeroclaw_dir: &Path) -> PathBuf {
-    zeroclaw_dir.join(OTP_SECRET_FILE)
+pub fn secret_file_path(brai_dir: &Path) -> PathBuf {
+    brai_dir.join(OTP_SECRET_FILE)
 }
 
 fn write_secret_file(path: &Path, value: &str) -> Result<()> {

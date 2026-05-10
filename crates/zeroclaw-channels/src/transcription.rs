@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use reqwest::multipart::{Form, Part};
 
-use zeroclaw_config::schema::TranscriptionConfig;
+use brai_config::schema::TranscriptionConfig;
 
 /// Maximum upload size accepted by most Whisper-compatible APIs (25 MB).
 const MAX_AUDIO_BYTES: usize = 25 * 1024 * 1024;
@@ -144,7 +144,7 @@ impl TranscriptionProvider for GroqProvider {
     async fn transcribe(&self, audio_data: &[u8], file_name: &str) -> Result<String> {
         let (normalized_name, mime) = validate_audio(audio_data, file_name)?;
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("transcription.groq");
+        let client = brai_config::schema::build_runtime_proxy_client("transcription.groq");
 
         let file_part = Part::bytes(audio_data.to_vec())
             .file_name(normalized_name)
@@ -181,7 +181,7 @@ pub struct OpenAiWhisperProvider {
 }
 
 impl OpenAiWhisperProvider {
-    pub fn from_config(config: &zeroclaw_config::schema::OpenAiSttConfig) -> Result<Self> {
+    pub fn from_config(config: &brai_config::schema::OpenAiSttConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -206,7 +206,7 @@ impl TranscriptionProvider for OpenAiWhisperProvider {
     async fn transcribe(&self, audio_data: &[u8], file_name: &str) -> Result<String> {
         let (normalized_name, mime) = validate_audio(audio_data, file_name)?;
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("transcription.openai");
+        let client = brai_config::schema::build_runtime_proxy_client("transcription.openai");
 
         let file_part = Part::bytes(audio_data.to_vec())
             .file_name(normalized_name)
@@ -239,7 +239,7 @@ pub struct DeepgramProvider {
 }
 
 impl DeepgramProvider {
-    pub fn from_config(config: &zeroclaw_config::schema::DeepgramSttConfig) -> Result<Self> {
+    pub fn from_config(config: &brai_config::schema::DeepgramSttConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -264,7 +264,7 @@ impl TranscriptionProvider for DeepgramProvider {
     async fn transcribe(&self, audio_data: &[u8], file_name: &str) -> Result<String> {
         let (_, mime) = validate_audio(audio_data, file_name)?;
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("transcription.deepgram");
+        let client = brai_config::schema::build_runtime_proxy_client("transcription.deepgram");
 
         let url = format!(
             "https://api.deepgram.com/v1/listen?model={}&punctuate=true",
@@ -312,7 +312,7 @@ pub struct AssemblyAiProvider {
 }
 
 impl AssemblyAiProvider {
-    pub fn from_config(config: &zeroclaw_config::schema::AssemblyAiSttConfig) -> Result<Self> {
+    pub fn from_config(config: &brai_config::schema::AssemblyAiSttConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -335,7 +335,7 @@ impl TranscriptionProvider for AssemblyAiProvider {
         let (_, _) = validate_audio(audio_data, file_name)?;
 
         let client =
-            zeroclaw_config::schema::build_runtime_proxy_client("transcription.assemblyai");
+            brai_config::schema::build_runtime_proxy_client("transcription.assemblyai");
 
         // Step 1: Upload the audio file.
         let upload_resp = client
@@ -456,7 +456,7 @@ pub struct GoogleSttProvider {
 }
 
 impl GoogleSttProvider {
-    pub fn from_config(config: &zeroclaw_config::schema::GoogleSttConfig) -> Result<Self> {
+    pub fn from_config(config: &brai_config::schema::GoogleSttConfig) -> Result<Self> {
         let api_key = config
             .api_key
             .as_deref()
@@ -489,7 +489,7 @@ impl TranscriptionProvider for GoogleSttProvider {
     async fn transcribe(&self, audio_data: &[u8], file_name: &str) -> Result<String> {
         let (normalized_name, _) = validate_audio(audio_data, file_name)?;
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("transcription.google");
+        let client = brai_config::schema::build_runtime_proxy_client("transcription.google");
 
         let encoding = match normalized_name
             .rsplit_once('.')
@@ -571,7 +571,7 @@ impl LocalWhisperProvider {
     /// Build from config. Fails if `url` or `bearer_token` is empty, if `url`
     /// is not a valid HTTP/HTTPS URL (scheme must be `http` or `https`), if
     /// `max_audio_bytes` is zero, or if `timeout_secs` is zero.
-    pub fn from_config(config: &zeroclaw_config::schema::LocalWhisperConfig) -> Result<Self> {
+    pub fn from_config(config: &brai_config::schema::LocalWhisperConfig) -> Result<Self> {
         let url = config.url.trim().to_string();
         anyhow::ensure!(!url.is_empty(), "local_whisper: `url` must not be empty");
         let parsed = url
@@ -626,7 +626,7 @@ impl TranscriptionProvider for LocalWhisperProvider {
         let (normalized_name, mime) = resolve_audio_format(file_name)?;
 
         let client =
-            zeroclaw_config::schema::build_runtime_proxy_client("transcription.local_whisper");
+            brai_config::schema::build_runtime_proxy_client("transcription.local_whisper");
 
         // to_vec() clones the buffer for the multipart payload; peak memory per
         // call is ~2× max_audio_bytes. TODO: replace with streaming upload once
@@ -907,7 +907,7 @@ mod tests {
         let data = vec![0u8; 100];
         let config = TranscriptionConfig {
             default_provider: "openai".to_string(),
-            openai: Some(zeroclaw_config::schema::OpenAiSttConfig {
+            openai: Some(brai_config::schema::OpenAiSttConfig {
                 api_key: None,
                 model: "gpt-4o-mini-transcribe".to_string(),
             }),
@@ -1035,11 +1035,11 @@ mod tests {
 
         let config = TranscriptionConfig {
             api_key: Some("test-groq-key".to_string()),
-            openai: Some(zeroclaw_config::schema::OpenAiSttConfig {
+            openai: Some(brai_config::schema::OpenAiSttConfig {
                 api_key: Some("test-openai-key".to_string()),
                 model: "whisper-1".to_string(),
             }),
-            deepgram: Some(zeroclaw_config::schema::DeepgramSttConfig {
+            deepgram: Some(brai_config::schema::DeepgramSttConfig {
                 api_key: Some("test-deepgram-key".to_string()),
                 model: "nova-2".to_string(),
             }),
@@ -1081,7 +1081,7 @@ mod tests {
 
         let config = TranscriptionConfig {
             default_provider: "openai".to_string(),
-            openai: Some(zeroclaw_config::schema::OpenAiSttConfig {
+            openai: Some(brai_config::schema::OpenAiSttConfig {
                 api_key: Some("test-openai-key".to_string()),
                 model: "whisper-1".to_string(),
             }),
@@ -1140,8 +1140,8 @@ mod tests {
 
     // ── LocalWhisperProvider tests (TDD — added below as red/green cycles) ──
 
-    fn local_whisper_config(url: &str) -> zeroclaw_config::schema::LocalWhisperConfig {
-        zeroclaw_config::schema::LocalWhisperConfig {
+    fn local_whisper_config(url: &str) -> brai_config::schema::LocalWhisperConfig {
+        brai_config::schema::LocalWhisperConfig {
             url: url.to_string(),
             bearer_token: Some("test-token".to_string()),
             max_audio_bytes: 10 * 1024 * 1024,

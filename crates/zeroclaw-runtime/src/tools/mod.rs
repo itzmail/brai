@@ -38,82 +38,82 @@ pub mod sop_status;
 pub mod verifiable_intent;
 
 // Tool types from zeroclaw-tools (direct imports, no shims)
-pub use zeroclaw_tools::ask_user::AskUserTool;
-pub use zeroclaw_tools::ask_user::ChannelMapHandle;
-pub use zeroclaw_tools::backup_tool::BackupTool;
-pub use zeroclaw_tools::browser::{BrowserTool, ComputerUseConfig};
-pub use zeroclaw_tools::browser_delegate::BrowserDelegateTool;
-pub use zeroclaw_tools::browser_open::BrowserOpenTool;
-pub use zeroclaw_tools::calculator::CalculatorTool;
-pub use zeroclaw_tools::canvas::{ALLOWED_CONTENT_TYPES, MAX_CONTENT_SIZE};
-pub use zeroclaw_tools::canvas::{CanvasStore, CanvasTool};
-pub use zeroclaw_tools::claude_code::ClaudeCodeTool;
-pub use zeroclaw_tools::claude_code_runner::ClaudeCodeRunnerTool;
-pub use zeroclaw_tools::cli_discovery::{DiscoveredCli, discover_cli_tools};
-pub use zeroclaw_tools::cloud_ops::CloudOpsTool;
-pub use zeroclaw_tools::cloud_patterns::CloudPatternsTool;
-pub use zeroclaw_tools::codex_cli::CodexCliTool;
-pub use zeroclaw_tools::composio::ComposioTool;
-pub use zeroclaw_tools::content_search::ContentSearchTool;
-pub use zeroclaw_tools::data_management::DataManagementTool;
-pub use zeroclaw_tools::discord_search::DiscordSearchTool;
-pub use zeroclaw_tools::escalate::EscalateToHumanTool;
-pub use zeroclaw_tools::file_edit::FileEditTool;
-pub use zeroclaw_tools::file_write::FileWriteTool;
-pub use zeroclaw_tools::gemini_cli::GeminiCliTool;
-pub use zeroclaw_tools::git_operations::GitOperationsTool;
-pub use zeroclaw_tools::glob_search::GlobSearchTool;
-pub use zeroclaw_tools::google_workspace::GoogleWorkspaceTool;
-pub use zeroclaw_tools::hardware_board_info::HardwareBoardInfoTool;
-pub use zeroclaw_tools::hardware_memory_map::HardwareMemoryMapTool;
-pub use zeroclaw_tools::hardware_memory_read::HardwareMemoryReadTool;
-pub use zeroclaw_tools::http_request::HttpRequestTool;
-pub use zeroclaw_tools::image_gen::ImageGenTool;
-pub use zeroclaw_tools::image_info::ImageInfoTool;
-pub use zeroclaw_tools::jira_tool::JiraTool;
-pub use zeroclaw_tools::knowledge_tool::KnowledgeTool;
-pub use zeroclaw_tools::linkedin::LinkedInTool;
-pub use zeroclaw_tools::llm_task::LlmTaskTool;
-pub use zeroclaw_tools::mcp_client::McpRegistry;
-pub use zeroclaw_tools::mcp_deferred::{
+pub use brai_tools::ask_user::AskUserTool;
+pub use brai_tools::ask_user::ChannelMapHandle;
+pub use brai_tools::backup_tool::BackupTool;
+pub use brai_tools::browser::{BrowserTool, ComputerUseConfig};
+pub use brai_tools::browser_delegate::BrowserDelegateTool;
+pub use brai_tools::browser_open::BrowserOpenTool;
+pub use brai_tools::calculator::CalculatorTool;
+pub use brai_tools::canvas::{ALLOWED_CONTENT_TYPES, MAX_CONTENT_SIZE};
+pub use brai_tools::canvas::{CanvasStore, CanvasTool};
+pub use brai_tools::claude_code::ClaudeCodeTool;
+pub use brai_tools::claude_code_runner::ClaudeCodeRunnerTool;
+pub use brai_tools::cli_discovery::{DiscoveredCli, discover_cli_tools};
+pub use brai_tools::cloud_ops::CloudOpsTool;
+pub use brai_tools::cloud_patterns::CloudPatternsTool;
+pub use brai_tools::codex_cli::CodexCliTool;
+pub use brai_tools::composio::ComposioTool;
+pub use brai_tools::content_search::ContentSearchTool;
+pub use brai_tools::data_management::DataManagementTool;
+pub use brai_tools::discord_search::DiscordSearchTool;
+pub use brai_tools::escalate::EscalateToHumanTool;
+pub use brai_tools::file_edit::FileEditTool;
+pub use brai_tools::file_write::FileWriteTool;
+pub use brai_tools::gemini_cli::GeminiCliTool;
+pub use brai_tools::git_operations::GitOperationsTool;
+pub use brai_tools::glob_search::GlobSearchTool;
+pub use brai_tools::google_workspace::GoogleWorkspaceTool;
+pub use brai_tools::hardware_board_info::HardwareBoardInfoTool;
+pub use brai_tools::hardware_memory_map::HardwareMemoryMapTool;
+pub use brai_tools::hardware_memory_read::HardwareMemoryReadTool;
+pub use brai_tools::http_request::HttpRequestTool;
+pub use brai_tools::image_gen::ImageGenTool;
+pub use brai_tools::image_info::ImageInfoTool;
+pub use brai_tools::jira_tool::JiraTool;
+pub use brai_tools::knowledge_tool::KnowledgeTool;
+pub use brai_tools::linkedin::LinkedInTool;
+pub use brai_tools::llm_task::LlmTaskTool;
+pub use brai_tools::mcp_client::McpRegistry;
+pub use brai_tools::mcp_deferred::{
     ActivatedToolSet, DeferredMcpToolSet, build_deferred_tools_section,
 };
-pub use zeroclaw_tools::mcp_tool::McpToolWrapper;
-pub use zeroclaw_tools::memory_export::MemoryExportTool;
-pub use zeroclaw_tools::memory_forget::MemoryForgetTool;
-pub use zeroclaw_tools::memory_purge::MemoryPurgeTool;
-pub use zeroclaw_tools::memory_recall::MemoryRecallTool;
-pub use zeroclaw_tools::memory_store::MemoryStoreTool;
-pub use zeroclaw_tools::microsoft365::Microsoft365Tool;
-pub use zeroclaw_tools::model_routing_config::ModelRoutingConfigTool;
-pub use zeroclaw_tools::notion_tool::NotionTool;
-pub use zeroclaw_tools::opencode_cli::OpenCodeCliTool;
+pub use brai_tools::mcp_tool::McpToolWrapper;
+pub use brai_tools::memory_export::MemoryExportTool;
+pub use brai_tools::memory_forget::MemoryForgetTool;
+pub use brai_tools::memory_purge::MemoryPurgeTool;
+pub use brai_tools::memory_recall::MemoryRecallTool;
+pub use brai_tools::memory_store::MemoryStoreTool;
+pub use brai_tools::microsoft365::Microsoft365Tool;
+pub use brai_tools::model_routing_config::ModelRoutingConfigTool;
+pub use brai_tools::notion_tool::NotionTool;
+pub use brai_tools::opencode_cli::OpenCodeCliTool;
 #[cfg(feature = "rag-pdf")]
-pub use zeroclaw_tools::pdf_read::PdfReadTool;
-pub use zeroclaw_tools::pipeline::PipelineTool;
-pub use zeroclaw_tools::poll::PollTool;
-pub use zeroclaw_tools::project_intel::ProjectIntelTool;
-pub use zeroclaw_tools::proxy_config::ProxyConfigTool;
-pub use zeroclaw_tools::pushover::PushoverTool;
-pub use zeroclaw_tools::reaction::ReactionTool;
-pub use zeroclaw_tools::report_template_tool::ReportTemplateTool;
-pub use zeroclaw_tools::screenshot::ScreenshotTool;
-pub use zeroclaw_tools::sessions::{
+pub use brai_tools::pdf_read::PdfReadTool;
+pub use brai_tools::pipeline::PipelineTool;
+pub use brai_tools::poll::PollTool;
+pub use brai_tools::project_intel::ProjectIntelTool;
+pub use brai_tools::proxy_config::ProxyConfigTool;
+pub use brai_tools::pushover::PushoverTool;
+pub use brai_tools::reaction::ReactionTool;
+pub use brai_tools::report_template_tool::ReportTemplateTool;
+pub use brai_tools::screenshot::ScreenshotTool;
+pub use brai_tools::sessions::{
     SessionDeleteTool, SessionResetTool, SessionsCurrentTool, SessionsHistoryTool,
     SessionsListTool, SessionsSendTool,
 };
-pub use zeroclaw_tools::swarm::SwarmTool;
-pub use zeroclaw_tools::text_browser::TextBrowserTool;
-pub use zeroclaw_tools::tool_search::ToolSearchTool;
-pub use zeroclaw_tools::weather_tool::WeatherTool;
-pub use zeroclaw_tools::web_fetch::WebFetchTool;
-pub use zeroclaw_tools::web_search_tool::WebSearchTool;
-pub use zeroclaw_tools::workspace_tool::WorkspaceTool;
-pub use zeroclaw_tools::wrappers::{PathGuardedTool, RateLimitedTool};
+pub use brai_tools::swarm::SwarmTool;
+pub use brai_tools::text_browser::TextBrowserTool;
+pub use brai_tools::tool_search::ToolSearchTool;
+pub use brai_tools::weather_tool::WeatherTool;
+pub use brai_tools::web_fetch::WebFetchTool;
+pub use brai_tools::web_search_tool::WebSearchTool;
+pub use brai_tools::workspace_tool::WorkspaceTool;
+pub use brai_tools::wrappers::{PathGuardedTool, RateLimitedTool};
 
 // Traits from zeroclaw-api
-pub use zeroclaw_api::schema::{CleaningStrategy, SchemaCleanr};
-pub use zeroclaw_api::tool::{Tool, ToolResult, ToolSpec};
+pub use brai_api::schema::{CleaningStrategy, SchemaCleanr};
+pub use brai_api::tool::{Tool, ToolResult, ToolSpec};
 
 // Local tool re-exports (tools with root deps, kept in misc)
 pub use cron_add::CronAddTool;
@@ -144,8 +144,8 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use zeroclaw_config::schema::{Config, DelegateAgentConfig};
-use zeroclaw_memory::Memory;
+use brai_config::schema::{Config, DelegateAgentConfig};
+use brai_memory::Memory;
 
 /// Shared handle to the delegate tool's parent-tools list.
 /// Callers can push additional tools (e.g. MCP wrappers) after construction.
@@ -288,13 +288,13 @@ pub fn all_tools(
     memory: Arc<dyn Memory>,
     composio_key: Option<&str>,
     composio_entity_id: Option<&str>,
-    browser_config: &zeroclaw_config::schema::BrowserConfig,
-    http_config: &zeroclaw_config::schema::HttpRequestConfig,
-    web_fetch_config: &zeroclaw_config::schema::WebFetchConfig,
+    browser_config: &brai_config::schema::BrowserConfig,
+    http_config: &brai_config::schema::HttpRequestConfig,
+    web_fetch_config: &brai_config::schema::WebFetchConfig,
     workspace_dir: &std::path::Path,
     agents: &HashMap<String, DelegateAgentConfig>,
     fallback_api_key: Option<&str>,
-    root_config: &zeroclaw_config::schema::Config,
+    root_config: &brai_config::schema::Config,
     canvas_store: Option<CanvasStore>,
 ) -> (
     Vec<Box<dyn Tool>>,
@@ -335,13 +335,13 @@ pub fn all_tools_with_runtime(
     memory: Arc<dyn Memory>,
     composio_key: Option<&str>,
     composio_entity_id: Option<&str>,
-    browser_config: &zeroclaw_config::schema::BrowserConfig,
-    http_config: &zeroclaw_config::schema::HttpRequestConfig,
-    web_fetch_config: &zeroclaw_config::schema::WebFetchConfig,
+    browser_config: &brai_config::schema::BrowserConfig,
+    http_config: &brai_config::schema::HttpRequestConfig,
+    web_fetch_config: &brai_config::schema::WebFetchConfig,
     workspace_dir: &std::path::Path,
     agents: &HashMap<String, DelegateAgentConfig>,
     fallback_api_key: Option<&str>,
-    root_config: &zeroclaw_config::schema::Config,
+    root_config: &brai_config::schema::Config,
     canvas_store: Option<CanvasStore>,
 ) -> (
     Vec<Box<dyn Tool>>,
@@ -411,7 +411,7 @@ pub fn all_tools_with_runtime(
 
     // Register discord_search if discord_history channel is configured
     if root_config.channels.discord_history.is_some() {
-        match zeroclaw_memory::SqliteMemory::new_named(workspace_dir, "discord") {
+        match brai_memory::SqliteMemory::new_named(workspace_dir, "discord") {
             Ok(discord_mem) => {
                 tool_arcs.push(Arc::new(DiscordSearchTool::new(Arc::new(discord_mem))));
             }
@@ -434,7 +434,7 @@ pub fn all_tools_with_runtime(
             .and_then(|e| e.model.clone())
             .unwrap_or_else(|| "openai/gpt-4o-mini".to_string());
         let llm_task_runtime_options =
-            zeroclaw_providers::provider_runtime_options_from_config(root_config);
+            brai_providers::provider_runtime_options_from_config(root_config);
         tool_arcs.push(Arc::new(LlmTaskTool::new(
             security.clone(),
             llm_task_provider,
@@ -454,7 +454,7 @@ pub fn all_tools_with_runtime(
 
     if matches!(
         root_config.skills.prompt_injection_mode,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Compact
+        brai_config::schema::SkillsPromptInjectionMode::Compact
     ) {
         tool_arcs.push(Arc::new(ReadSkillTool::new(
             root_config.workspace_dir.clone(),
@@ -722,7 +722,7 @@ pub fn all_tools_with_runtime(
     // `sessions_history`. Routing both call sites through the factory
     // closes that gap and honors the operator's configured backend.
     if let Ok(backend) =
-        zeroclaw_infra::make_session_backend(workspace_dir, &config.channels.session_backend)
+        brai_infra::make_session_backend(workspace_dir, &config.channels.session_backend)
     {
         tool_arcs.push(Arc::new(SessionsCurrentTool::new(backend.clone())));
         tool_arcs.push(Arc::new(SessionsListTool::new(backend.clone())));
@@ -732,7 +732,7 @@ pub fn all_tools_with_runtime(
         )));
         tool_arcs.push(Arc::new(SessionsSendTool::new(backend, security.clone())));
         // NOTE: SessionResetTool and SessionDeleteTool are available via
-        // zeroclaw_tools::sessions but NOT registered by default. They are
+        // brai_tools::sessions but NOT registered by default. They are
         // destructive operations (clear/delete conversation history) and
         // should only be enabled by callers that explicitly need them
         // (e.g., orchestration dashboards). To enable:
@@ -844,7 +844,7 @@ pub fn all_tools_with_runtime(
                 );
             }
 
-            let resolved = zeroclaw_tools::microsoft365::types::Microsoft365ResolvedConfig {
+            let resolved = brai_tools::microsoft365::types::Microsoft365ResolvedConfig {
                 tenant_id,
                 client_id,
                 client_secret: ms_cfg.client_secret.clone(),
@@ -879,7 +879,7 @@ pub fn all_tools_with_runtime(
                 .unwrap_or_else(|| ".".to_string()),
         );
         let db_path = std::path::PathBuf::from(&db_path_str);
-        match zeroclaw_memory::knowledge_graph::KnowledgeGraph::new(
+        match brai_memory::knowledge_graph::KnowledgeGraph::new(
             &db_path,
             root_config.knowledge.max_nodes,
         ) {
@@ -898,7 +898,7 @@ pub fn all_tools_with_runtime(
         (!trimmed_value.is_empty()).then(|| trimmed_value.to_owned())
     });
     let provider_runtime_options =
-        zeroclaw_providers::provider_runtime_options_from_config(root_config);
+        brai_providers::provider_runtime_options_from_config(root_config);
 
     let delegate_handle: Option<DelegateParentToolsHandle> = if agents.is_empty() {
         None
@@ -948,7 +948,7 @@ pub fn all_tools_with_runtime(
         } else {
             std::path::PathBuf::from(&root_config.workspace.workspaces_dir)
         };
-        let ws_manager = zeroclaw_config::workspace::WorkspaceManager::new(workspaces_dir);
+        let ws_manager = brai_config::workspace::WorkspaceManager::new(workspaces_dir);
         tool_arcs.push(Arc::new(WorkspaceTool::new(
             Arc::new(tokio::sync::RwLock::new(ws_manager)),
             security.clone(),
@@ -981,14 +981,14 @@ pub fn all_tools_with_runtime(
         };
 
         if plugin_path.exists() && config.plugins.enabled {
-            match zeroclaw_plugins::host::PluginHost::new(
+            match brai_plugins::host::PluginHost::new(
                 plugin_path.parent().unwrap_or(&plugin_path),
             ) {
                 Ok(host) => {
                     let details = host.tool_plugin_details();
                     let count = details.len();
                     for (manifest, wasm_path) in details {
-                        tool_arcs.push(Arc::new(zeroclaw_plugins::wasm_tool::WasmTool::from_wasm(
+                        tool_arcs.push(Arc::new(brai_plugins::wasm_tool::WasmTool::from_wasm(
                             wasm_path.to_path_buf(),
                             manifest.permissions.clone(),
                             manifest.name.clone(),
@@ -1027,7 +1027,7 @@ pub fn all_tools_with_runtime(
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::{BrowserConfig, Config, MemoryConfig};
+    use brai_config::schema::{BrowserConfig, Config, MemoryConfig};
 
     fn test_config(tmp: &TempDir) -> Config {
         Config {
@@ -1053,7 +1053,7 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig {
             enabled: false,
@@ -1061,7 +1061,7 @@ mod tests {
             session_name: None,
             ..BrowserConfig::default()
         };
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let cfg = test_config(&tmp);
 
         let (tools, _, _, _, _, _) = all_tools(
@@ -1072,7 +1072,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &HashMap::new(),
             None,
@@ -1096,7 +1096,7 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig {
             enabled: true,
@@ -1104,7 +1104,7 @@ mod tests {
             session_name: None,
             ..BrowserConfig::default()
         };
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let cfg = test_config(&tmp);
 
         let (tools, _, _, _, _, _) = all_tools(
@@ -1115,7 +1115,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &HashMap::new(),
             None,
@@ -1236,10 +1236,10 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig::default();
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let cfg = test_config(&tmp);
 
         let mut agents = HashMap::new();
@@ -1270,7 +1270,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &agents,
             Some("delegate-test-credential"),
@@ -1290,10 +1290,10 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig::default();
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let cfg = test_config(&tmp);
 
         let (tools, _, _, _, _, _) = all_tools(
@@ -1304,7 +1304,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &HashMap::new(),
             None,
@@ -1324,13 +1324,13 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig::default();
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let mut cfg = test_config(&tmp);
         cfg.skills.prompt_injection_mode =
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Compact;
+            brai_config::schema::SkillsPromptInjectionMode::Compact;
 
         let (tools, _, _, _, _, _) = all_tools(
             Arc::new(cfg.clone()),
@@ -1340,7 +1340,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &HashMap::new(),
             None,
@@ -1360,12 +1360,12 @@ mod tests {
             ..MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let browser = BrowserConfig::default();
-        let http = zeroclaw_config::schema::HttpRequestConfig::default();
+        let http = brai_config::schema::HttpRequestConfig::default();
         let mut cfg = test_config(&tmp);
-        cfg.skills.prompt_injection_mode = zeroclaw_config::schema::SkillsPromptInjectionMode::Full;
+        cfg.skills.prompt_injection_mode = brai_config::schema::SkillsPromptInjectionMode::Full;
 
         let (tools, _, _, _, _, _) = all_tools(
             Arc::new(cfg.clone()),
@@ -1375,7 +1375,7 @@ mod tests {
             None,
             &browser,
             &http,
-            &zeroclaw_config::schema::WebFetchConfig::default(),
+            &brai_config::schema::WebFetchConfig::default(),
             tmp.path(),
             &HashMap::new(),
             None,

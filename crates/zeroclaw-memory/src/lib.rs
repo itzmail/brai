@@ -79,7 +79,7 @@ pub use traits::{
 use anyhow::Context;
 use std::path::Path;
 use std::sync::Arc;
-use zeroclaw_config::schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
+use brai_config::schema::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
 
 #[cfg(feature = "memory-postgres")]
 fn build_postgres_memory(
@@ -504,7 +504,7 @@ pub fn create_response_cache(config: &MemoryConfig, workspace_dir: &Path) -> Opt
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::{EmbeddingRouteConfig, StorageProviderConfig};
+    use brai_config::schema::{EmbeddingRouteConfig, StorageProviderConfig};
 
     #[test]
     fn factory_sqlite() {

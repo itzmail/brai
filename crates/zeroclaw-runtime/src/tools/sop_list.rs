@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde_json::json;
 
 use crate::sop::SopEngine;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Lists all loaded SOPs with their triggers, priority, step count, and active runs.
 pub struct SopListTool {
@@ -121,7 +121,7 @@ mod tests {
     use crate::sop::engine::SopEngine;
     use crate::sop::types::*;
     use std::sync::Arc;
-    use zeroclaw_config::schema::SopConfig;
+    use brai_config::schema::SopConfig;
 
     fn test_sop(name: &str, priority: SopPriority) -> Sop {
         Sop {

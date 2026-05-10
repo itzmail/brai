@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::dingtalk::*;
+pub use brai_channels::dingtalk::*;

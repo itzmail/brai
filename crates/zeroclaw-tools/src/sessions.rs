@@ -12,10 +12,10 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::fmt::Write;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
-use zeroclaw_infra::session_backend::SessionBackend;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
+use brai_infra::session_backend::SessionBackend;
 
 /// Validate that a session ID is non-empty and contains at least one
 /// alphanumeric character (prevents blank keys after sanitization).
@@ -301,7 +301,7 @@ impl Tool for SessionsSendTool {
             });
         }
 
-        let chat_msg = zeroclaw_api::provider::ChatMessage::user(message);
+        let chat_msg = brai_api::provider::ChatMessage::user(message);
 
         match self.backend.append(session_id, &chat_msg) {
             Ok(()) => Ok(ToolResult {
@@ -351,7 +351,7 @@ impl Tool for SessionsCurrentTool {
     }
 
     async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        let session_key = zeroclaw_api::TOOL_LOOP_SESSION_KEY
+        let session_key = brai_api::TOOL_LOOP_SESSION_KEY
             .try_with(Clone::clone)
             .ok()
             .flatten();
@@ -559,8 +559,8 @@ impl Tool for SessionDeleteTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_api::provider::ChatMessage;
-    use zeroclaw_infra::session_store::SessionStore;
+    use brai_api::provider::ChatMessage;
+    use brai_infra::session_store::SessionStore;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy::default())
@@ -891,7 +891,7 @@ mod tests {
             .unwrap();
 
         let tool = SessionsCurrentTool::new(backend);
-        let result = zeroclaw_api::TOOL_LOOP_SESSION_KEY
+        let result = brai_api::TOOL_LOOP_SESSION_KEY
             .scope(Some("gw_test-123".into()), tool.execute(json!({})))
             .await
             .unwrap();
@@ -914,7 +914,7 @@ mod tests {
     #[tokio::test]
     async fn sessions_current_includes_name() {
         let tmp = TempDir::new().unwrap();
-        let sqlite = zeroclaw_infra::session_sqlite::SqliteSessionBackend::new(tmp.path()).unwrap();
+        let sqlite = brai_infra::session_sqlite::SqliteSessionBackend::new(tmp.path()).unwrap();
         let backend: Arc<dyn SessionBackend> = Arc::new(sqlite);
         backend
             .append("gw_named", &ChatMessage::user("hi"))
@@ -922,7 +922,7 @@ mod tests {
         backend.set_session_name("gw_named", "My Chat").unwrap();
 
         let tool = SessionsCurrentTool::new(backend);
-        let result = zeroclaw_api::TOOL_LOOP_SESSION_KEY
+        let result = brai_api::TOOL_LOOP_SESSION_KEY
             .scope(Some("gw_named".into()), tool.execute(json!({})))
             .await
             .unwrap();
@@ -936,7 +936,7 @@ mod tests {
         let (_tmp, backend) = test_backend();
         let tool = SessionsCurrentTool::new(backend);
 
-        let result = zeroclaw_api::TOOL_LOOP_SESSION_KEY
+        let result = brai_api::TOOL_LOOP_SESSION_KEY
             .scope(Some("gw_unknown".into()), tool.execute(json!({})))
             .await
             .unwrap();

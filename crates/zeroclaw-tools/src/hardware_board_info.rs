@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use serde_json::json;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Static board info (datasheets). Used when probe-rs is unavailable.
 const BOARD_INFO: &[(&str, &str, &str)] = &[

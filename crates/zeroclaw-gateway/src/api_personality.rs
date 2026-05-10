@@ -3,7 +3,7 @@
 //! `HEARTBEAT.md`, `BOOTSTRAP.md`, `MEMORY.md`).
 //!
 //! The runtime injects these into the system prompt at request time
-//! (see `zeroclaw_runtime::agent::personality::load_personality`). This
+//! (see `brai_runtime::agent::personality::load_personality`). This
 //! module is the dashboard's authoring surface for them.
 //!
 //! Sandbox: filenames are matched against the static `EDITABLE_PERSONALITY_FILES`
@@ -25,8 +25,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use zeroclaw_runtime::agent::personality::{EDITABLE_PERSONALITY_FILES, MAX_FILE_CHARS};
-use zeroclaw_runtime::agent::personality_templates::{TemplateContext, render_preset_default};
+use brai_runtime::agent::personality::{EDITABLE_PERSONALITY_FILES, MAX_FILE_CHARS};
+use brai_runtime::agent::personality_templates::{TemplateContext, render_preset_default};
 
 use super::AppState;
 use super::api::require_auth;

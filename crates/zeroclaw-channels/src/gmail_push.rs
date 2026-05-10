@@ -28,9 +28,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error, info, warn};
 
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
-pub use zeroclaw_config::scattered_types::GmailPushConfig;
+pub use brai_config::scattered_types::GmailPushConfig;
 
 // ── Pub/Sub notification payload ─────────────────────────────────
 

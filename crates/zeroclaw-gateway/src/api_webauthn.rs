@@ -13,7 +13,7 @@ use axum::{
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::collections::HashMap;
-use zeroclaw_runtime::security::webauthn::{
+use brai_runtime::security::webauthn::{
     AuthenticateCredentialResponse, AuthenticationState, RegisterCredentialResponse,
     RegistrationState, WebAuthnManager,
 };

@@ -12,7 +12,7 @@ use super::types::{
     SopRun, SopRunAction, SopRunStatus, SopStep, SopStepKind, SopStepResult, SopStepStatus,
     SopTrigger, SopTriggerSource,
 };
-use zeroclaw_config::schema::SopConfig;
+use brai_config::schema::SopConfig;
 
 /// Central SOP orchestrator: loads SOPs, matches triggers, manages run lifecycle.
 pub struct SopEngine {

@@ -5,7 +5,7 @@
 //! and SQLite (and future backends) share a common interface.
 
 use chrono::{DateTime, Utc};
-use zeroclaw_api::provider::ChatMessage;
+use brai_api::provider::ChatMessage;
 
 /// Metadata about a persisted session.
 #[derive(Debug, Clone)]

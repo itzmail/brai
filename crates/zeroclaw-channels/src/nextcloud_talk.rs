@@ -4,8 +4,8 @@ use parking_lot::Mutex;
 use sha2::Sha256;
 use std::collections::HashMap;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
-use zeroclaw_config::schema::StreamMode;
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_config::schema::StreamMode;
 
 /// Maximum message length accepted by Nextcloud Talk (characters, not bytes).
 /// The OCS API rejects messages longer than 32 000 characters.
@@ -54,7 +54,7 @@ impl NextcloudTalkChannel {
             app_token,
             bot_name: bot_name.to_ascii_lowercase(),
             allowed_users,
-            client: zeroclaw_config::schema::build_channel_proxy_client(
+            client: brai_config::schema::build_channel_proxy_client(
                 "channel.nextcloud_talk",
                 proxy_url.as_deref(),
             ),
@@ -753,7 +753,7 @@ mod tests {
 
     #[test]
     fn supports_draft_updates_true_when_partial() {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
         let channel = make_channel().with_streaming(StreamMode::Partial, 800);
         assert!(channel.supports_draft_updates());
     }
@@ -790,7 +790,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_draft_rate_limit_short_circuits_network() {
-        use zeroclaw_config::schema::StreamMode;
+        use brai_config::schema::StreamMode;
         // Use a large interval (60 s) so the rate-limit always fires immediately.
         let channel = make_channel().with_streaming(StreamMode::Partial, 60_000);
         channel
@@ -807,7 +807,7 @@ mod tests {
 
     #[tokio::test]
     async fn send_draft_returns_none_when_stream_mode_off() {
-        use zeroclaw_api::channel::SendMessage;
+        use brai_api::channel::SendMessage;
         // Default mode is Off — send_draft must short-circuit.
         let channel = make_channel();
         let result = channel

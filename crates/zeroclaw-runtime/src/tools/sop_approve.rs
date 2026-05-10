@@ -6,7 +6,7 @@ use tracing::warn;
 
 use crate::sop::types::SopRunAction;
 use crate::sop::{SopAuditLogger, SopEngine, SopMetricsCollector};
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Approve a pending SOP step that is waiting for operator approval.
 pub struct SopApproveTool {
@@ -125,8 +125,8 @@ mod tests {
     use super::*;
     use crate::sop::engine::SopEngine;
     use crate::sop::types::*;
-    use zeroclaw_config::schema::SopConfig;
-    use zeroclaw_memory::Memory;
+    use brai_config::schema::SopConfig;
+    use brai_memory::Memory;
 
     fn test_sop() -> Sop {
         Sop {
@@ -214,12 +214,12 @@ mod tests {
     async fn approve_writes_audit() {
         let (engine, run_id) = engine_with_run();
         let tmp = tempfile::tempdir().unwrap();
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
         let audit = Arc::new(SopAuditLogger::new(memory.clone()));
 
         let tool = SopApproveTool::new(engine).with_audit(audit.clone());
@@ -229,7 +229,7 @@ mod tests {
         // Verify approval audit entry was written (stored under sop_approval_ key)
         let entries = memory
             .list(
-                Some(&zeroclaw_memory::traits::MemoryCategory::Custom(
+                Some(&brai_memory::traits::MemoryCategory::Custom(
                     "sop".into(),
                 )),
                 None,
@@ -250,12 +250,12 @@ mod tests {
     async fn approve_failure_does_not_write_audit() {
         let engine = Arc::new(Mutex::new(SopEngine::new(SopConfig::default())));
         let tmp = tempfile::tempdir().unwrap();
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
         let audit = Arc::new(SopAuditLogger::new(memory.clone()));
 
         let tool = SopApproveTool::new(engine).with_audit(audit.clone());

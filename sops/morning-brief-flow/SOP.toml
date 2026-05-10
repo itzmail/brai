@@ -1,0 +1,14 @@
+[sop]
+name = "morning-brief-flow"
+description = "Daily morning brief: recap pending todos, top 3 AI news, and day suggestions. Sent to Telegram at 06:00 WIB."
+version = "0.1.0"
+priority = "normal"
+execution_mode = "auto"
+cooldown_secs = 3600
+
+[[triggers]]
+type = "cron"
+expression = "0 6 * * *"
+
+[[triggers]]
+type = "manual"

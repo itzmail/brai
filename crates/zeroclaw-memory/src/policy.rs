@@ -5,7 +5,7 @@
 //! and per-category retention rules.
 
 use super::traits::MemoryCategory;
-use zeroclaw_config::schema::MemoryPolicyConfig;
+use brai_config::schema::MemoryPolicyConfig;
 
 /// Policy enforcer that validates memory operations.
 pub struct PolicyEnforcer {

@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::process::Command;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Tool: upload Arduino sketch (agent-generated code) to the board.
 pub struct ArduinoUploadTool {
@@ -70,8 +70,8 @@ impl Tool for ArduinoUploadTool {
             });
         }
 
-        let sketch_name = "zeroclaw_sketch";
-        let temp_dir = std::env::temp_dir().join(format!("zeroclaw_{}", uuid::Uuid::new_v4()));
+        let sketch_name = "brai_sketch";
+        let temp_dir = std::env::temp_dir().join(format!("brai_{}", uuid::Uuid::new_v4()));
         let sketch_dir = temp_dir.join(sketch_name);
         let ino_path = sketch_dir.join(format!("{}.ino", sketch_name));
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 const DINGTALK_BOT_CALLBACK_TOPIC: &str = "/v1.0/im/bot/messages/get";
 
@@ -47,7 +47,7 @@ impl DingTalkChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             "channel.dingtalk",
             self.proxy_url.as_deref(),
         )
@@ -165,7 +165,7 @@ impl Channel for DingTalkChannel {
         let ws_url = format!("{}?ticket={}", gw.endpoint, gw.ticket);
 
         tracing::info!("DingTalk: connecting to stream WebSocket...");
-        let (ws_stream, _) = zeroclaw_config::schema::ws_connect_with_proxy(
+        let (ws_stream, _) = brai_config::schema::ws_connect_with_proxy(
             &ws_url,
             "channel.dingtalk",
             self.proxy_url.as_deref(),
@@ -349,7 +349,7 @@ client_id = "app_id_123"
 client_secret = "secret_456"
 allowed_users = ["user1", "*"]
 "#;
-        let config: zeroclaw_config::schema::DingTalkConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::DingTalkConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.client_id, "app_id_123");
         assert_eq!(config.client_secret, "secret_456");
         assert_eq!(config.allowed_users, vec!["user1", "*"]);
@@ -361,7 +361,7 @@ allowed_users = ["user1", "*"]
 client_id = "id"
 client_secret = "secret"
 "#;
-        let config: zeroclaw_config::schema::DingTalkConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::DingTalkConfig = toml::from_str(toml_str).unwrap();
         assert!(config.allowed_users.is_empty());
     }
 

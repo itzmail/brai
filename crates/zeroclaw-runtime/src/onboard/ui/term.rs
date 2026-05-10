@@ -8,7 +8,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use dialoguer::{Confirm, Editor, FuzzySelect, Input, Password};
-use zeroclaw_config::traits::{Answer, OnboardUi, SelectItem};
+use brai_config::traits::{Answer, OnboardUi, SelectItem};
 
 pub struct TermUi;
 

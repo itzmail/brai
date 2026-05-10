@@ -16,13 +16,13 @@ use std::io::Write as IoWrite;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
-use zeroclaw_config::schema::Config;
-use zeroclaw_memory::{self, Memory, MemoryCategory};
-use zeroclaw_providers::{self, ChatMessage, ChatRequest, ConversationMessage, Provider};
-use zeroclaw_tool_call_parser::strip_think_tags;
+use brai_config::schema::Config;
+use brai_memory::{self, Memory, MemoryCategory};
+use brai_providers::{self, ChatMessage, ChatRequest, ConversationMessage, Provider};
+use brai_tool_call_parser::strip_think_tags;
 
 // Re-export TurnEvent from zeroclaw-types for backwards compatibility.
-pub use zeroclaw_api::agent::TurnEvent;
+pub use brai_api::agent::TurnEvent;
 
 pub struct Agent {
     provider: Box<dyn Provider>,
@@ -33,22 +33,22 @@ pub struct Agent {
     prompt_builder: SystemPromptBuilder,
     tool_dispatcher: Box<dyn ToolDispatcher>,
     memory_loader: Box<dyn MemoryLoader>,
-    config: zeroclaw_config::schema::AgentConfig,
+    config: brai_config::schema::AgentConfig,
     model_name: String,
     temperature: f64,
     workspace_dir: std::path::PathBuf,
-    identity_config: zeroclaw_config::schema::IdentityConfig,
+    identity_config: brai_config::schema::IdentityConfig,
     skills: Vec<crate::skills::Skill>,
-    skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+    skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode,
     auto_save: bool,
     memory_session_id: Option<String>,
     history: Vec<ConversationMessage>,
-    classification_config: zeroclaw_config::schema::QueryClassificationConfig,
+    classification_config: brai_config::schema::QueryClassificationConfig,
     available_hints: Vec<String>,
     route_model_by_hint: HashMap<String, String>,
     #[allow(dead_code)] // WIP: stored for future runtime tool filtering
     allowed_tools: Option<Vec<String>>,
-    response_cache: Option<Arc<zeroclaw_memory::response_cache::ResponseCache>>,
+    response_cache: Option<Arc<brai_memory::response_cache::ResponseCache>>,
     /// Pre-rendered security policy summary injected into the system prompt
     /// so the LLM knows the concrete constraints before making tool calls.
     security_summary: Option<String>,
@@ -88,7 +88,7 @@ impl AgentChannelHandles {
     pub fn register_channel(
         &self,
         name: impl Into<String>,
-        channel: Arc<dyn zeroclaw_api::channel::Channel>,
+        channel: Arc<dyn brai_api::channel::Channel>,
     ) {
         let name = name.into();
         for handle in [&self.ask_user, &self.reaction, &self.escalate, &self.poll]
@@ -110,7 +110,7 @@ impl AgentChannelHandles {
     }
 
     /// Look up a registered channel by name from any populated channel map.
-    pub fn get_channel(&self, name: &str) -> Option<Arc<dyn zeroclaw_api::channel::Channel>> {
+    pub fn get_channel(&self, name: &str) -> Option<Arc<dyn brai_api::channel::Channel>> {
         for handle in [&self.ask_user, &self.reaction, &self.escalate, &self.poll]
             .into_iter()
             .flatten()
@@ -131,20 +131,20 @@ pub struct AgentBuilder {
     prompt_builder: Option<SystemPromptBuilder>,
     tool_dispatcher: Option<Box<dyn ToolDispatcher>>,
     memory_loader: Option<Box<dyn MemoryLoader>>,
-    config: Option<zeroclaw_config::schema::AgentConfig>,
+    config: Option<brai_config::schema::AgentConfig>,
     model_name: Option<String>,
     temperature: Option<f64>,
     workspace_dir: Option<std::path::PathBuf>,
-    identity_config: Option<zeroclaw_config::schema::IdentityConfig>,
+    identity_config: Option<brai_config::schema::IdentityConfig>,
     skills: Option<Vec<crate::skills::Skill>>,
-    skills_prompt_mode: Option<zeroclaw_config::schema::SkillsPromptInjectionMode>,
+    skills_prompt_mode: Option<brai_config::schema::SkillsPromptInjectionMode>,
     auto_save: Option<bool>,
     memory_session_id: Option<String>,
-    classification_config: Option<zeroclaw_config::schema::QueryClassificationConfig>,
+    classification_config: Option<brai_config::schema::QueryClassificationConfig>,
     available_hints: Option<Vec<String>>,
     route_model_by_hint: Option<HashMap<String, String>>,
     allowed_tools: Option<Vec<String>>,
-    response_cache: Option<Arc<zeroclaw_memory::response_cache::ResponseCache>>,
+    response_cache: Option<Arc<brai_memory::response_cache::ResponseCache>>,
     security_summary: Option<String>,
     autonomy_level: Option<crate::security::AutonomyLevel>,
     activated_tools: Option<Arc<std::sync::Mutex<crate::tools::ActivatedToolSet>>>,
@@ -225,7 +225,7 @@ impl AgentBuilder {
         self
     }
 
-    pub fn config(mut self, config: zeroclaw_config::schema::AgentConfig) -> Self {
+    pub fn config(mut self, config: brai_config::schema::AgentConfig) -> Self {
         self.config = Some(config);
         self
     }
@@ -247,7 +247,7 @@ impl AgentBuilder {
 
     pub fn identity_config(
         mut self,
-        identity_config: zeroclaw_config::schema::IdentityConfig,
+        identity_config: brai_config::schema::IdentityConfig,
     ) -> Self {
         self.identity_config = Some(identity_config);
         self
@@ -260,7 +260,7 @@ impl AgentBuilder {
 
     pub fn skills_prompt_mode(
         mut self,
-        skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+        skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode,
     ) -> Self {
         self.skills_prompt_mode = Some(skills_prompt_mode);
         self
@@ -278,7 +278,7 @@ impl AgentBuilder {
 
     pub fn classification_config(
         mut self,
-        classification_config: zeroclaw_config::schema::QueryClassificationConfig,
+        classification_config: brai_config::schema::QueryClassificationConfig,
     ) -> Self {
         self.classification_config = Some(classification_config);
         self
@@ -301,7 +301,7 @@ impl AgentBuilder {
 
     pub fn response_cache(
         mut self,
-        cache: Option<Arc<zeroclaw_memory::response_cache::ResponseCache>>,
+        cache: Option<Arc<brai_memory::response_cache::ResponseCache>>,
     ) -> Self {
         self.response_cache = cache;
         self
@@ -428,7 +428,7 @@ impl Agent {
 
     fn parse_response_for_effective_tools(
         &self,
-        response: &zeroclaw_providers::ChatResponse,
+        response: &brai_providers::ChatResponse,
     ) -> (String, Vec<ParsedToolCall>) {
         if self.tool_specs.is_empty() {
             return (
@@ -546,7 +546,7 @@ impl Agent {
 
         let fallback_provider_ag = config.providers.fallback_provider();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory_with_storage_and_routes(
+            Arc::from(brai_memory::create_memory_with_storage_and_routes(
                 &config.memory,
                 &config.providers.embedding_routes,
                 Some(&config.storage.provider.config),
@@ -682,9 +682,9 @@ impl Agent {
         };
 
         let provider_runtime_options =
-            zeroclaw_providers::provider_runtime_options_from_config(config);
+            brai_providers::provider_runtime_options_from_config(config);
 
-        let provider: Box<dyn Provider> = zeroclaw_providers::create_routed_provider_with_options(
+        let provider: Box<dyn Provider> = brai_providers::create_routed_provider_with_options(
             provider_name,
             fallback_provider_ag.and_then(|e| e.api_key.as_deref()),
             fallback_provider_ag.and_then(|e| e.base_url.as_deref()),
@@ -711,7 +711,7 @@ impl Agent {
         let available_hints: Vec<String> = route_model_by_hint.keys().cloned().collect();
 
         let response_cache = if config.memory.response_cache_enabled {
-            zeroclaw_memory::response_cache::ResponseCache::with_hot_cache(
+            brai_memory::response_cache::ResponseCache::with_hot_cache(
                 &config.workspace_dir,
                 config.memory.response_cache_ttl_minutes,
                 config.memory.response_cache_max_entries,
@@ -916,16 +916,16 @@ impl Agent {
                 // handle the approval request. The first Ok(Some(_)) wins.
                 // This avoids hard-coding a channel name (e.g. "acp") and
                 // naturally supports WS sessions or any future back-channel.
-                let ch_request = zeroclaw_api::channel::ChannelApprovalRequest {
+                let ch_request = brai_api::channel::ChannelApprovalRequest {
                     tool_name: request.tool_name.clone(),
                     arguments_summary: crate::approval::summarize_args(&request.arguments),
                 };
-                let mut channel_decision: Option<zeroclaw_api::channel::ChannelApprovalResponse> =
+                let mut channel_decision: Option<brai_api::channel::ChannelApprovalResponse> =
                     None;
                 let mut decision_channel_name = String::new();
                 // Collect channels while holding the lock briefly, then drop
                 // the lock before any await points so the guard is not Send.
-                let channels: Vec<(String, Arc<dyn zeroclaw_api::channel::Channel>)> = self
+                let channels: Vec<(String, Arc<dyn brai_api::channel::Channel>)> = self
                     .channel_handles
                     .ask_user
                     .as_ref()
@@ -955,13 +955,13 @@ impl Agent {
                     }
                 }
                 let approval = match channel_decision {
-                    Some(zeroclaw_api::channel::ChannelApprovalResponse::Approve) => {
+                    Some(brai_api::channel::ChannelApprovalResponse::Approve) => {
                         ApprovalResponse::Yes
                     }
-                    Some(zeroclaw_api::channel::ChannelApprovalResponse::AlwaysApprove) => {
+                    Some(brai_api::channel::ChannelApprovalResponse::AlwaysApprove) => {
                         ApprovalResponse::Always
                     }
-                    Some(zeroclaw_api::channel::ChannelApprovalResponse::Deny) => {
+                    Some(brai_api::channel::ChannelApprovalResponse::Deny) => {
                         ApprovalResponse::No
                     }
                     None => {
@@ -1205,7 +1205,7 @@ impl Agent {
                         .iter()
                         .find(|m| m.role == "system")
                         .map(|m| m.content.as_str());
-                    zeroclaw_memory::response_cache::ResponseCache::cache_key(
+                    brai_memory::response_cache::ResponseCache::cache_key(
                         &effective_model,
                         system,
                         last_user,
@@ -1385,7 +1385,7 @@ impl Agent {
                         .iter()
                         .find(|m| m.role == "system")
                         .map(|m| m.content.as_str());
-                    zeroclaw_memory::response_cache::ResponseCache::cache_key(
+                    brai_memory::response_cache::ResponseCache::cache_key(
                         &effective_model,
                         system,
                         last_user,
@@ -1419,9 +1419,9 @@ impl Agent {
             use futures_util::StreamExt;
 
             let stream_opts =
-                zeroclaw_providers::traits::StreamOptions::new(self.provider.supports_streaming());
+                brai_providers::traits::StreamOptions::new(self.provider.supports_streaming());
             let mut stream = self.provider.stream_chat(
-                zeroclaw_providers::ChatRequest {
+                brai_providers::ChatRequest {
                     messages: &messages,
                     tools: if self.should_send_tool_specs() {
                         Some(&self.tool_specs)
@@ -1435,8 +1435,8 @@ impl Agent {
             );
 
             let mut streamed_text = String::new();
-            let mut streamed_tool_calls: Vec<zeroclaw_providers::traits::ToolCall> = Vec::new();
-            let mut streamed_usage: Option<zeroclaw_providers::traits::TokenUsage> = None;
+            let mut streamed_tool_calls: Vec<brai_providers::traits::ToolCall> = Vec::new();
+            let mut streamed_usage: Option<brai_providers::traits::TokenUsage> = None;
             let mut got_stream = false;
             let mut pre_executed_call_ids: HashMap<String, VecDeque<String>> = HashMap::new();
             let mut was_cancelled = false;
@@ -1464,7 +1464,7 @@ impl Agent {
                 let Some(item) = item else { break };
                 match item {
                     Ok(event) => match event {
-                        zeroclaw_providers::traits::StreamEvent::TextDelta(chunk) => {
+                        brai_providers::traits::StreamEvent::TextDelta(chunk) => {
                             if let Some(reasoning) = chunk.reasoning
                                 && !reasoning.is_empty()
                             {
@@ -1479,13 +1479,13 @@ impl Agent {
                                     event_tx.send(TurnEvent::Chunk { delta: chunk.delta }).await;
                             }
                         }
-                        zeroclaw_providers::traits::StreamEvent::ToolCall(tc) => {
+                        brai_providers::traits::StreamEvent::ToolCall(tc) => {
                             got_stream = true;
                             // ToolCall event is sent later (after parse_response) to
                             // avoid duplicates; just collect here.
                             streamed_tool_calls.push(tc);
                         }
-                        zeroclaw_providers::traits::StreamEvent::PreExecutedToolCall {
+                        brai_providers::traits::StreamEvent::PreExecutedToolCall {
                             name,
                             args,
                         } => {
@@ -1503,7 +1503,7 @@ impl Agent {
                                 .await;
                             // NOT pushed to streamed_tool_calls — already executed by proxy
                         }
-                        zeroclaw_providers::traits::StreamEvent::PreExecutedToolResult {
+                        brai_providers::traits::StreamEvent::PreExecutedToolResult {
                             name,
                             output,
                         } => {
@@ -1519,10 +1519,10 @@ impl Agent {
                                 })
                                 .await;
                         }
-                        zeroclaw_providers::traits::StreamEvent::Usage(usage) => {
+                        brai_providers::traits::StreamEvent::Usage(usage) => {
                             streamed_usage = Some(usage);
                         }
-                        zeroclaw_providers::traits::StreamEvent::Final => break,
+                        brai_providers::traits::StreamEvent::Final => break,
                     },
                     Err(_) => break,
                 }
@@ -1550,7 +1550,7 @@ impl Agent {
             // check for tool calls via the dispatcher.
             let response = if got_stream {
                 // Build a synthetic ChatResponse from streamed text
-                zeroclaw_providers::ChatResponse {
+                brai_providers::ChatResponse {
                     text: Some(streamed_text),
                     tool_calls: streamed_tool_calls,
                     usage: streamed_usage.clone(),
@@ -1704,7 +1704,7 @@ impl Agent {
         );
 
         let listen_handle = tokio::spawn(async move {
-            let _ = zeroclaw_api::channel::Channel::listen(&*cli, tx).await;
+            let _ = brai_api::channel::Channel::listen(&*cli, tx).await;
         });
 
         while let Some(msg) = rx.recv().await {
@@ -1795,7 +1795,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     struct MockProvider {
-        responses: Mutex<Vec<zeroclaw_providers::ChatResponse>>,
+        responses: Mutex<Vec<brai_providers::ChatResponse>>,
     }
 
     #[async_trait]
@@ -1815,10 +1815,10 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_providers::ChatResponse> {
+        ) -> Result<brai_providers::ChatResponse> {
             let mut guard = self.responses.lock();
             if guard.is_empty() {
-                return Ok(zeroclaw_providers::ChatResponse {
+                return Ok(brai_providers::ChatResponse {
                     text: Some("done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -1830,7 +1830,7 @@ mod tests {
     }
 
     struct ModelCaptureProvider {
-        responses: Mutex<Vec<zeroclaw_providers::ChatResponse>>,
+        responses: Mutex<Vec<brai_providers::ChatResponse>>,
         seen_models: Arc<Mutex<Vec<String>>>,
     }
 
@@ -1851,11 +1851,11 @@ mod tests {
             _request: ChatRequest<'_>,
             model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_providers::ChatResponse> {
+        ) -> Result<brai_providers::ChatResponse> {
             self.seen_models.lock().push(model.to_string());
             let mut guard = self.responses.lock();
             if guard.is_empty() {
-                return Ok(zeroclaw_providers::ChatResponse {
+                return Ok(brai_providers::ChatResponse {
                     text: Some("done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -1952,23 +1952,23 @@ mod tests {
     }
 
     struct ApprovalChannel {
-        response: zeroclaw_api::channel::ChannelApprovalResponse,
+        response: brai_api::channel::ChannelApprovalResponse,
         requests: Arc<AtomicUsize>,
     }
 
     #[async_trait]
-    impl zeroclaw_api::channel::Channel for ApprovalChannel {
+    impl brai_api::channel::Channel for ApprovalChannel {
         fn name(&self) -> &str {
             "acp"
         }
 
-        async fn send(&self, _message: &zeroclaw_api::channel::SendMessage) -> anyhow::Result<()> {
+        async fn send(&self, _message: &brai_api::channel::SendMessage) -> anyhow::Result<()> {
             Ok(())
         }
 
         async fn listen(
             &self,
-            _tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            _tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             Ok(())
         }
@@ -1976,8 +1976,8 @@ mod tests {
         async fn request_approval(
             &self,
             _recipient: &str,
-            _request: &zeroclaw_api::channel::ChannelApprovalRequest,
-        ) -> anyhow::Result<Option<zeroclaw_api::channel::ChannelApprovalResponse>> {
+            _request: &brai_api::channel::ChannelApprovalRequest,
+        ) -> anyhow::Result<Option<brai_api::channel::ChannelApprovalResponse>> {
             self.requests.fetch_add(1, Ordering::SeqCst);
             Ok(Some(self.response))
         }
@@ -1986,7 +1986,7 @@ mod tests {
     #[tokio::test]
     async fn turn_without_tools_returns_text() {
         let provider = Box::new(MockProvider {
-            responses: Mutex::new(vec![zeroclaw_providers::ChatResponse {
+            responses: Mutex::new(vec![brai_providers::ChatResponse {
                 text: Some("hello".into()),
                 tool_calls: vec![],
                 usage: None,
@@ -1994,12 +1994,12 @@ mod tests {
             }]),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2020,13 +2020,13 @@ mod tests {
 
     #[test]
     fn native_agent_prompt_omits_duplicate_tools_section() {
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let workspace = tempfile::TempDir::new().expect("temp dir");
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, workspace.path(), None)
+            brai_memory::create_memory(&memory_cfg, workspace.path(), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
@@ -2068,20 +2068,20 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
         let tool_calls = Arc::new(AtomicUsize::new(0));
         let approval_requests = Arc::new(AtomicUsize::new(0));
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig {
+        let approval_cfg = brai_config::schema::AutonomyConfig {
             always_ask: vec!["echo".into()],
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let mut agent = Agent::builder()
             .provider(provider)
@@ -2100,8 +2100,8 @@ mod tests {
 
         let handle: tools::ChannelMapHandle = Arc::new(parking_lot::RwLock::new(HashMap::new()));
         agent.channel_handles.ask_user = Some(Arc::clone(&handle));
-        let channel: Arc<dyn zeroclaw_api::channel::Channel> = Arc::new(ApprovalChannel {
-            response: zeroclaw_api::channel::ChannelApprovalResponse::Approve,
+        let channel: Arc<dyn brai_api::channel::Channel> = Arc::new(ApprovalChannel {
+            response: brai_api::channel::ChannelApprovalResponse::Approve,
             requests: Arc::clone(&approval_requests),
         });
         handle.write().insert("acp".to_string(), channel);
@@ -2125,20 +2125,20 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
         let tool_calls = Arc::new(AtomicUsize::new(0));
         let approval_requests = Arc::new(AtomicUsize::new(0));
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig {
+        let approval_cfg = brai_config::schema::AutonomyConfig {
             always_ask: vec!["echo".into()],
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let mut agent = Agent::builder()
             .provider(provider)
@@ -2157,8 +2157,8 @@ mod tests {
 
         let handle: tools::ChannelMapHandle = Arc::new(parking_lot::RwLock::new(HashMap::new()));
         agent.channel_handles.ask_user = Some(Arc::clone(&handle));
-        let channel: Arc<dyn zeroclaw_api::channel::Channel> = Arc::new(ApprovalChannel {
-            response: zeroclaw_api::channel::ChannelApprovalResponse::Deny,
+        let channel: Arc<dyn brai_api::channel::Channel> = Arc::new(ApprovalChannel {
+            response: brai_api::channel::ChannelApprovalResponse::Deny,
             requests: Arc::clone(&approval_requests),
         });
         handle.write().insert("acp".to_string(), channel);
@@ -2182,19 +2182,19 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
         let tool_calls = Arc::new(AtomicUsize::new(0));
         let approval_requests = Arc::new(AtomicUsize::new(0));
         let captured_args = Arc::new(std::sync::Mutex::new(None));
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig::default();
+        let approval_cfg = brai_config::schema::AutonomyConfig::default();
         let mut agent = Agent::builder()
             .provider(provider)
             .tools(vec![Box::new(CapturingApprovalArgTool {
@@ -2215,8 +2215,8 @@ mod tests {
 
         let handle: tools::ChannelMapHandle = Arc::new(parking_lot::RwLock::new(HashMap::new()));
         agent.channel_handles.ask_user = Some(Arc::clone(&handle));
-        let channel: Arc<dyn zeroclaw_api::channel::Channel> = Arc::new(ApprovalChannel {
-            response: zeroclaw_api::channel::ChannelApprovalResponse::Deny,
+        let channel: Arc<dyn brai_api::channel::Channel> = Arc::new(ApprovalChannel {
+            response: brai_api::channel::ChannelApprovalResponse::Deny,
             requests: Arc::clone(&approval_requests),
         });
         handle.write().insert("acp".to_string(), channel);
@@ -2244,19 +2244,19 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
         let tool_calls = Arc::new(AtomicUsize::new(0));
         let approval_requests = Arc::new(AtomicUsize::new(0));
         let captured_args = Arc::new(std::sync::Mutex::new(None));
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig::default();
+        let approval_cfg = brai_config::schema::AutonomyConfig::default();
         let mut agent = Agent::builder()
             .provider(provider)
             .tools(vec![Box::new(CapturingApprovalArgTool {
@@ -2277,8 +2277,8 @@ mod tests {
 
         let handle: tools::ChannelMapHandle = Arc::new(parking_lot::RwLock::new(HashMap::new()));
         agent.channel_handles.ask_user = Some(Arc::clone(&handle));
-        let channel: Arc<dyn zeroclaw_api::channel::Channel> = Arc::new(ApprovalChannel {
-            response: zeroclaw_api::channel::ChannelApprovalResponse::Approve,
+        let channel: Arc<dyn brai_api::channel::Channel> = Arc::new(ApprovalChannel {
+            response: brai_api::channel::ChannelApprovalResponse::Approve,
             requests: Arc::clone(&approval_requests),
         });
         handle.write().insert("acp".to_string(), channel);
@@ -2311,19 +2311,19 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
         let tool_calls = Arc::new(AtomicUsize::new(0));
         let approval_requests = Arc::new(AtomicUsize::new(0));
         let captured_args = Arc::new(std::sync::Mutex::new(None));
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig::default();
+        let approval_cfg = brai_config::schema::AutonomyConfig::default();
         let mut agent = Agent::builder()
             .provider(provider)
             .tools(vec![Box::new(CapturingApprovalArgTool {
@@ -2344,8 +2344,8 @@ mod tests {
 
         let handle: tools::ChannelMapHandle = Arc::new(parking_lot::RwLock::new(HashMap::new()));
         agent.channel_handles.ask_user = Some(Arc::clone(&handle));
-        let channel: Arc<dyn zeroclaw_api::channel::Channel> = Arc::new(ApprovalChannel {
-            response: zeroclaw_api::channel::ChannelApprovalResponse::AlwaysApprove,
+        let channel: Arc<dyn brai_api::channel::Channel> = Arc::new(ApprovalChannel {
+            response: brai_api::channel::ChannelApprovalResponse::AlwaysApprove,
             requests: Arc::clone(&approval_requests),
         });
         handle.write().insert("acp".to_string(), channel);
@@ -2388,12 +2388,12 @@ mod tests {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![]),
         });
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
@@ -2440,9 +2440,9 @@ mod tests {
     async fn turn_with_native_dispatcher_handles_tool_results_variant() {
         let provider = Box::new(MockProvider {
             responses: Mutex::new(vec![
-                zeroclaw_providers::ChatResponse {
+                brai_providers::ChatResponse {
                     text: Some(String::new()),
-                    tool_calls: vec![zeroclaw_providers::ToolCall {
+                    tool_calls: vec![brai_providers::ToolCall {
                         id: "tc1".into(),
                         name: "echo".into(),
                         arguments: "{}".into(),
@@ -2451,7 +2451,7 @@ mod tests {
                     usage: None,
                     reasoning_content: None,
                 },
-                zeroclaw_providers::ChatResponse {
+                brai_providers::ChatResponse {
                     text: Some("done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -2460,12 +2460,12 @@ mod tests {
             ]),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2494,7 +2494,7 @@ mod tests {
     async fn turn_routes_with_hint_when_query_classification_matches() {
         let seen_models = Arc::new(Mutex::new(Vec::new()));
         let provider = Box::new(ModelCaptureProvider {
-            responses: Mutex::new(vec![zeroclaw_providers::ChatResponse {
+            responses: Mutex::new(vec![brai_providers::ChatResponse {
                 text: Some("classified".into()),
                 tool_calls: vec![],
                 usage: None,
@@ -2503,12 +2503,12 @@ mod tests {
             seen_models: seen_models.clone(),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2522,9 +2522,9 @@ mod tests {
             .observer(observer)
             .tool_dispatcher(Box::new(NativeToolDispatcher))
             .workspace_dir(std::path::PathBuf::from("/tmp"))
-            .classification_config(zeroclaw_config::schema::QueryClassificationConfig {
+            .classification_config(brai_config::schema::QueryClassificationConfig {
                 enabled: true,
-                rules: vec![zeroclaw_config::schema::ClassificationRule {
+                rules: vec![brai_config::schema::ClassificationRule {
                     hint: "fast".to_string(),
                     keywords: vec!["quick".to_string()],
                     patterns: vec![],
@@ -2592,7 +2592,7 @@ mod tests {
         let workspace_dir = tmp.path().join("workspace");
         std::fs::create_dir_all(&workspace_dir).unwrap();
 
-        let mut config = zeroclaw_config::schema::Config {
+        let mut config = brai_config::schema::Config {
             workspace_dir,
             config_path: tmp.path().join("config.toml"),
             ..Default::default()
@@ -2643,12 +2643,12 @@ mod tests {
             responses: Mutex::new(vec![]),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2674,12 +2674,12 @@ mod tests {
             responses: Mutex::new(vec![]),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2706,8 +2706,8 @@ mod tests {
     /// `from_config_with_session_cwd` (issue #6516).
     #[test]
     fn session_cwd_keeps_workspace_in_allowed_roots() {
-        let workspace = std::env::temp_dir().join("zeroclaw_test_session_cwd_workspace");
-        let session = std::env::temp_dir().join("zeroclaw_test_session_cwd_session");
+        let workspace = std::env::temp_dir().join("brai_test_session_cwd_workspace");
+        let session = std::env::temp_dir().join("brai_test_session_cwd_session");
         let _ = std::fs::create_dir_all(&workspace);
         let _ = std::fs::create_dir_all(&session);
 
@@ -2716,7 +2716,7 @@ mod tests {
         // is_resolved_path_allowed expects a canonicalized path (symlinks resolved).
         let skill_resolved = std::fs::canonicalize(&skill_file).unwrap_or(skill_file);
 
-        let autonomy = zeroclaw_config::schema::AutonomyConfig::default();
+        let autonomy = brai_config::schema::AutonomyConfig::default();
 
         // Policy WITH the fix: workspace pushed into allowed_roots.
         let mut policy = SecurityPolicy::from_config(&autonomy, &session);
@@ -2741,12 +2741,12 @@ mod tests {
             responses: Mutex::new(vec![]),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -2805,14 +2805,14 @@ mod tests {
             request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_providers::ChatResponse> {
+        ) -> Result<brai_providers::ChatResponse> {
             self.tools_received.lock().push(request.tools.is_some());
             let mut count = self.call_count.lock();
             *count += 1;
             if *count == 1 {
-                Ok(zeroclaw_providers::ChatResponse {
+                Ok(brai_providers::ChatResponse {
                     text: Some(String::new()),
-                    tool_calls: vec![zeroclaw_providers::ToolCall {
+                    tool_calls: vec![brai_providers::ToolCall {
                         id: "00000000-0000-0000-0000-000000000001".into(),
                         name: "echo".into(),
                         arguments: "{}".into(),
@@ -2822,7 +2822,7 @@ mod tests {
                     reasoning_content: None,
                 })
             } else {
-                Ok(zeroclaw_providers::ChatResponse {
+                Ok(brai_providers::ChatResponse {
                     text: Some("stream-done".into()),
                     tool_calls: vec![],
                     usage: None,
@@ -2840,18 +2840,18 @@ mod tests {
             request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-            _options: zeroclaw_providers::traits::StreamOptions,
+            _options: brai_providers::traits::StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<zeroclaw_providers::traits::StreamEvent>,
+            brai_providers::traits::StreamResult<brai_providers::traits::StreamEvent>,
         > {
             use futures_util::stream::{self, StreamExt};
             self.tools_received.lock().push(request.tools.is_some());
             let mut count = self.call_count.lock();
             *count += 1;
             if *count == 1 {
-                let tc = zeroclaw_providers::traits::StreamEvent::ToolCall(
-                    zeroclaw_providers::ToolCall {
+                let tc = brai_providers::traits::StreamEvent::ToolCall(
+                    brai_providers::ToolCall {
                         id: "00000000-0000-0000-0000-000000000001".into(),
                         name: "echo".into(),
                         arguments: "{}".into(),
@@ -2860,12 +2860,12 @@ mod tests {
                 );
                 stream::iter(vec![
                     Ok(tc),
-                    Ok(zeroclaw_providers::traits::StreamEvent::Final),
+                    Ok(brai_providers::traits::StreamEvent::Final),
                 ])
                 .boxed()
             } else {
-                let chunk = zeroclaw_providers::traits::StreamEvent::TextDelta(
-                    zeroclaw_providers::traits::StreamChunk {
+                let chunk = brai_providers::traits::StreamEvent::TextDelta(
+                    brai_providers::traits::StreamChunk {
                         delta: "stream-done".into(),
                         is_final: false,
                         reasoning: None,
@@ -2874,7 +2874,7 @@ mod tests {
                 );
                 stream::iter(vec![
                     Ok(chunk),
-                    Ok(zeroclaw_providers::traits::StreamEvent::Final),
+                    Ok(brai_providers::traits::StreamEvent::Final),
                 ])
                 .boxed()
             }
@@ -2889,12 +2889,12 @@ mod tests {
             call_count: Arc::new(Mutex::new(0)),
         });
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -3007,8 +3007,8 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_providers::ChatResponse> {
-            Ok(zeroclaw_providers::ChatResponse {
+        ) -> Result<brai_providers::ChatResponse> {
+            Ok(brai_providers::ChatResponse {
                 text: Some(String::new()),
                 tool_calls: vec![],
                 usage: None,
@@ -3021,39 +3021,39 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-            _options: zeroclaw_providers::traits::StreamOptions,
+            _options: brai_providers::traits::StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<zeroclaw_providers::traits::StreamEvent>,
+            brai_providers::traits::StreamResult<brai_providers::traits::StreamEvent>,
         > {
             use futures_util::stream::{self, StreamExt};
 
             stream::iter(vec![
                 Ok(
-                    zeroclaw_providers::traits::StreamEvent::PreExecutedToolCall {
+                    brai_providers::traits::StreamEvent::PreExecutedToolCall {
                         name: "file_read".into(),
                         args: "{\"path\":\"a.txt\"}".into(),
                     },
                 ),
                 Ok(
-                    zeroclaw_providers::traits::StreamEvent::PreExecutedToolCall {
+                    brai_providers::traits::StreamEvent::PreExecutedToolCall {
                         name: "shell".into(),
                         args: "{\"command\":\"pwd\"}".into(),
                     },
                 ),
                 Ok(
-                    zeroclaw_providers::traits::StreamEvent::PreExecutedToolResult {
+                    brai_providers::traits::StreamEvent::PreExecutedToolResult {
                         name: "file_read".into(),
                         output: "a".into(),
                     },
                 ),
                 Ok(
-                    zeroclaw_providers::traits::StreamEvent::PreExecutedToolResult {
+                    brai_providers::traits::StreamEvent::PreExecutedToolResult {
                         name: "shell".into(),
                         output: "b".into(),
                     },
                 ),
-                Ok(zeroclaw_providers::traits::StreamEvent::Final),
+                Ok(brai_providers::traits::StreamEvent::Final),
             ])
             .boxed()
         }
@@ -3063,12 +3063,12 @@ mod tests {
     async fn pre_executed_tool_results_keep_ids_when_calls_overlap() {
         let provider = Box::new(PreExecutedToolProvider);
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
@@ -3130,23 +3130,23 @@ mod tests {
     /// `TR1` as an orphan at the head.
     #[test]
     fn trim_history_does_not_leave_orphan_tool_results() {
-        use zeroclaw_providers::{ToolCall, ToolResultMessage};
+        use brai_providers::{ToolCall, ToolResultMessage};
 
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
         // Force trimming with the boundary landing inside a pair:
         // 5 entries (AC, TR, AC, TR, AC) > 4 → drop_count = 1 → AC1 dropped,
         // TR1 left as an orphan unless the trim guards against it.
-        let agent_config = zeroclaw_config::schema::AgentConfig {
+        let agent_config = brai_config::schema::AgentConfig {
             max_history_messages: 4,
-            ..zeroclaw_config::schema::AgentConfig::default()
+            ..brai_config::schema::AgentConfig::default()
         };
 
         let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
@@ -3226,19 +3226,19 @@ mod tests {
     /// next request with a consecutive-assistant-role error.
     #[tokio::test]
     async fn narration_with_tool_calls_produces_no_consecutive_assistant_entries() {
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 
         let provider = Box::new(MockProvider {
-            responses: Mutex::new(vec![zeroclaw_providers::ChatResponse {
+            responses: Mutex::new(vec![brai_providers::ChatResponse {
                 text: Some("I will echo the message.".into()),
-                tool_calls: vec![zeroclaw_providers::ToolCall {
+                tool_calls: vec![brai_providers::ToolCall {
                     id: "tc1".into(),
                     name: "echo".into(),
                     arguments: "{}".into(),
@@ -3302,8 +3302,8 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_providers::ChatResponse> {
-            Ok(zeroclaw_providers::ChatResponse {
+        ) -> Result<brai_providers::ChatResponse> {
+            Ok(brai_providers::ChatResponse {
                 text: Some("done".into()),
                 tool_calls: vec![],
                 usage: None,
@@ -3320,46 +3320,46 @@ mod tests {
             _request: ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-            _options: zeroclaw_providers::traits::StreamOptions,
+            _options: brai_providers::traits::StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<zeroclaw_providers::traits::StreamEvent>,
+            brai_providers::traits::StreamResult<brai_providers::traits::StreamEvent>,
         > {
             use futures_util::stream::{self, StreamExt};
             let mut count = self.call_count.lock();
             *count += 1;
             if *count == 1 {
                 stream::iter(vec![
-                    Ok(zeroclaw_providers::traits::StreamEvent::TextDelta(
-                        zeroclaw_providers::traits::StreamChunk {
+                    Ok(brai_providers::traits::StreamEvent::TextDelta(
+                        brai_providers::traits::StreamChunk {
                             delta: "I will echo the message.".into(),
                             is_final: false,
                             reasoning: None,
                             token_count: 0,
                         },
                     )),
-                    Ok(zeroclaw_providers::traits::StreamEvent::ToolCall(
-                        zeroclaw_providers::ToolCall {
+                    Ok(brai_providers::traits::StreamEvent::ToolCall(
+                        brai_providers::ToolCall {
                             id: "tc1".into(),
                             name: "echo".into(),
                             arguments: "{}".into(),
                             extra_content: None,
                         },
                     )),
-                    Ok(zeroclaw_providers::traits::StreamEvent::Final),
+                    Ok(brai_providers::traits::StreamEvent::Final),
                 ])
                 .boxed()
             } else {
                 stream::iter(vec![
-                    Ok(zeroclaw_providers::traits::StreamEvent::TextDelta(
-                        zeroclaw_providers::traits::StreamChunk {
+                    Ok(brai_providers::traits::StreamEvent::TextDelta(
+                        brai_providers::traits::StreamChunk {
                             delta: "done".into(),
                             is_final: false,
                             reasoning: None,
                             token_count: 0,
                         },
                     )),
-                    Ok(zeroclaw_providers::traits::StreamEvent::Final),
+                    Ok(brai_providers::traits::StreamEvent::Final),
                 ])
                 .boxed()
             }
@@ -3368,12 +3368,12 @@ mod tests {
 
     #[tokio::test]
     async fn streaming_narration_with_tool_calls_produces_no_consecutive_assistant_entries() {
-        let memory_cfg = zeroclaw_config::schema::MemoryConfig {
+        let memory_cfg = brai_config::schema::MemoryConfig {
             backend: "none".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let mem: Arc<dyn Memory> = Arc::from(
-            zeroclaw_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+            brai_memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
                 .expect("memory creation should succeed with valid config"),
         );
 

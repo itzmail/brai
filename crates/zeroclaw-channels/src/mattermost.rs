@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::sync::Arc;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 const MAX_MATTERMOST_AUDIO_BYTES: u64 = 25 * 1024 * 1024;
 
@@ -22,7 +22,7 @@ pub struct MattermostChannel {
     typing_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     /// Per-channel proxy URL override.
     proxy_url: Option<String>,
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<Arc<super::transcription::TranscriptionManager>>,
 }
 
@@ -59,7 +59,7 @@ impl MattermostChannel {
 
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -79,7 +79,7 @@ impl MattermostChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client_with_timeouts(
+        brai_config::schema::build_channel_proxy_client_with_timeouts(
             "channel.mattermost",
             self.proxy_url.as_deref(),
             30,
@@ -1201,7 +1201,7 @@ mod tests {
     #[test]
     fn mattermost_manager_some_when_valid_config() {
         let ch = make_channel(vec!["*".into()], false).with_transcription(
-            zeroclaw_config::schema::TranscriptionConfig {
+            brai_config::schema::TranscriptionConfig {
                 enabled: true,
                 default_provider: "groq".to_string(),
                 api_key: Some("test_key".to_string()),
@@ -1224,7 +1224,7 @@ mod tests {
     #[test]
     fn mattermost_manager_none_and_warn_on_init_failure() {
         let ch = make_channel(vec!["*".into()], false).with_transcription(
-            zeroclaw_config::schema::TranscriptionConfig {
+            brai_config::schema::TranscriptionConfig {
                 enabled: true,
                 default_provider: "groq".to_string(),
                 api_key: Some(String::new()),
@@ -1367,7 +1367,7 @@ mod tests {
     #[tokio::test]
     async fn mattermost_transcribe_skips_over_duration_limit() {
         let ch = make_channel(vec!["*".into()], false).with_transcription(
-            zeroclaw_config::schema::TranscriptionConfig {
+            brai_config::schema::TranscriptionConfig {
                 enabled: true,
                 default_provider: "groq".to_string(),
                 api_key: Some("test_key".to_string()),
@@ -1435,7 +1435,7 @@ mod tests {
                 false,
                 false,
             )
-            .with_transcription(zeroclaw_config::schema::TranscriptionConfig {
+            .with_transcription(brai_config::schema::TranscriptionConfig {
                 enabled: true,
                 default_provider: "local_whisper".to_string(),
                 api_key: None,
@@ -1448,7 +1448,7 @@ mod tests {
                 deepgram: None,
                 assemblyai: None,
                 google: None,
-                local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+                local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                     url: whisper_url,
                     bearer_token: Some("test_token".to_string()),
                     max_audio_bytes: 25_000_000,
@@ -1485,7 +1485,7 @@ mod tests {
                 false,
                 false,
             )
-            .with_transcription(zeroclaw_config::schema::TranscriptionConfig {
+            .with_transcription(brai_config::schema::TranscriptionConfig {
                 enabled: true,
                 default_provider: "local_whisper".to_string(),
                 api_key: None,
@@ -1498,7 +1498,7 @@ mod tests {
                 deepgram: None,
                 assemblyai: None,
                 google: None,
-                local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+                local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                     url: mock_server.uri(),
                     bearer_token: Some("test_token".to_string()),
                     max_audio_bytes: 25_000_000,

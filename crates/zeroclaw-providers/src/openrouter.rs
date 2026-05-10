@@ -11,7 +11,7 @@ use futures_util::stream;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 pub struct OpenRouterProvider {
     credential: Option<String>,
@@ -185,7 +185,7 @@ impl OpenRouterProvider {
             credential: credential.map(ToString::to_string),
             timeout_secs: timeout_secs
                 .filter(|secs| *secs > 0)
-                .unwrap_or(zeroclaw_api::provider::BASELINE_TIMEOUT_SECS),
+                .unwrap_or(brai_api::provider::BASELINE_TIMEOUT_SECS),
             max_tokens: None,
             extra_body: None,
         }
@@ -401,7 +401,7 @@ impl OpenRouterProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.openrouter",
             self.timeout_secs,
             OPENROUTER_CONNECT_TIMEOUT_SECS,
@@ -1013,7 +1013,7 @@ mod tests {
         let provider = OpenRouterProvider::new(Some("openrouter-test-credential"), Some(0));
         assert_eq!(
             provider.timeout_secs,
-            zeroclaw_api::provider::BASELINE_TIMEOUT_SECS
+            brai_api::provider::BASELINE_TIMEOUT_SECS
         );
     }
 
@@ -1515,7 +1515,7 @@ mod tests {
 
     #[test]
     fn convert_tools_skips_invalid_names() {
-        use zeroclaw_api::tool::ToolSpec;
+        use brai_api::tool::ToolSpec;
 
         let tools = vec![
             ToolSpec {
@@ -1543,7 +1543,7 @@ mod tests {
 
     #[test]
     fn convert_tools_returns_none_when_all_invalid() {
-        use zeroclaw_api::tool::ToolSpec;
+        use brai_api::tool::ToolSpec;
 
         let tools = vec![ToolSpec {
             name: "mcp:bad.name".into(),

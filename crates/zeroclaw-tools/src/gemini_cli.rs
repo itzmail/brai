@@ -3,10 +3,10 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
-use zeroclaw_config::schema::GeminiCliConfig;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
+use brai_config::schema::GeminiCliConfig;
 
 /// Environment variables safe to pass through to the `gemini` subprocess.
 const SAFE_ENV_VARS: &[&str] = &[
@@ -239,9 +239,9 @@ impl Tool for GeminiCliTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
-    use zeroclaw_config::schema::GeminiCliConfig;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
+    use brai_config::schema::GeminiCliConfig;
 
     fn test_config() -> GeminiCliConfig {
         GeminiCliConfig::default()

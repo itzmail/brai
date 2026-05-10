@@ -1,4 +1,4 @@
-use zeroclaw_config::schema::QueryClassificationConfig;
+use brai_config::schema::QueryClassificationConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassificationDecision {
@@ -68,7 +68,7 @@ pub fn classify_with_decision(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::{ClassificationRule, QueryClassificationConfig};
+    use brai_config::schema::{ClassificationRule, QueryClassificationConfig};
 
     fn make_config(enabled: bool, rules: Vec<ClassificationRule>) -> QueryClassificationConfig {
         QueryClassificationConfig { enabled, rules }

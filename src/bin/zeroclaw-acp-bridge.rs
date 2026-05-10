@@ -11,7 +11,7 @@ use tokio_tungstenite::{
         http::{HeaderValue, header},
     },
 };
-use zeroclaw_config::schema::resolve_runtime_dirs_for_onboarding;
+use brai_config::schema::resolve_runtime_dirs_for_onboarding;
 
 const CONFIG_NOT_FOUND_ERROR: &str = "ERROR: config.toml not found.  Are you sure the bridge and ZeroClaw are running on the same host?  Tool use will not work remotely!";
 const PAIRING_TOKEN_NOT_FOUND_ERROR: &str = "ERROR: Gateway pairing is active but no ACP bridge token is cached. Run `zeroclaw gateway get-paircode --new`, then run `zeroclaw-acp-bridge --pair-code <code>`, or set ZEROCLAW_ACP_BRIDGE_TOKEN.";

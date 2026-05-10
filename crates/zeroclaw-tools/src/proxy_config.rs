@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::fs;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::{
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::{
     Config, ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
 };
 
@@ -439,8 +439,8 @@ impl Tool for ProxyConfigTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {

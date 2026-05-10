@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
-use zeroclaw_memory::Memory;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
+use brai_memory::Memory;
 
 /// Let the agent forget/delete a memory entry
 pub struct MemoryForgetTool {
@@ -82,9 +82,9 @@ impl Tool for MemoryForgetTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
-    use zeroclaw_memory::{MemoryCategory, SqliteMemory};
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
+    use brai_memory::{MemoryCategory, SqliteMemory};
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy::default())

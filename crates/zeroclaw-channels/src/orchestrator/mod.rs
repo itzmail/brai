@@ -62,7 +62,7 @@ pub use crate::webhook::WebhookChannel;
 pub use crate::wechat::WeChatChannel;
 pub use crate::wecom::WeComChannel;
 pub use crate::whatsapp::WhatsAppChannel;
-pub use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+pub use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 // Local channel types (in misc, not zeroclaw-channels)
 pub use crate::cli::CliChannel;
 pub use crate::link_enricher;
@@ -72,10 +72,10 @@ pub use crate::matrix::MatrixChannel;
 pub use crate::telegram::TelegramChannel;
 #[cfg(feature = "whatsapp-web")]
 pub use crate::whatsapp_web::WhatsAppWebChannel;
-pub use zeroclaw_infra::debounce::MessageDebouncer;
-pub use zeroclaw_infra::session_backend::SessionBackend;
-pub use zeroclaw_infra::session_sqlite::SqliteSessionBackend;
-pub use zeroclaw_infra::stall_watchdog::StallWatchdog;
+pub use brai_infra::debounce::MessageDebouncer;
+pub use brai_infra::session_backend::SessionBackend;
+pub use brai_infra::session_sqlite::SqliteSessionBackend;
+pub use brai_infra::stall_watchdog::StallWatchdog;
 
 use anyhow::{Context, Result};
 use portable_atomic::{AtomicU64, Ordering};
@@ -88,24 +88,24 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 use tokio_util::sync::CancellationToken;
-use zeroclaw_config::schema::Config;
-use zeroclaw_memory::{self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory};
-use zeroclaw_providers::reliable::{scope_provider_fallback, take_last_provider_fallback};
-use zeroclaw_providers::{self, ChatMessage, Provider};
-use zeroclaw_runtime::agent::loop_::{
+use brai_config::schema::Config;
+use brai_memory::{self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory};
+use brai_providers::reliable::{scope_provider_fallback, take_last_provider_fallback};
+use brai_providers::{self, ChatMessage, Provider};
+use brai_runtime::agent::loop_::{
     build_tool_instructions_for_names, clear_model_switch_request, get_model_switch_state,
     is_model_switch_requested, run_tool_call_loop, scope_session_key, scope_thread_id,
     scrub_credentials,
 };
-use zeroclaw_runtime::approval::ApprovalManager;
+use brai_runtime::approval::ApprovalManager;
 #[cfg(not(feature = "whatsapp-web"))]
-use zeroclaw_runtime::i18n;
-use zeroclaw_runtime::observability::traits::{ObserverEvent, ObserverMetric};
-use zeroclaw_runtime::observability::{self, Observer, runtime_trace};
-use zeroclaw_runtime::platform;
-use zeroclaw_runtime::security::{AutonomyLevel, SecurityPolicy};
-use zeroclaw_runtime::tools::{self, Tool};
-use zeroclaw_runtime::util::truncate_with_ellipsis;
+use brai_runtime::i18n;
+use brai_runtime::observability::traits::{ObserverEvent, ObserverMetric};
+use brai_runtime::observability::{self, Observer, runtime_trace};
+use brai_runtime::platform;
+use brai_runtime::security::{AutonomyLevel, SecurityPolicy};
+use brai_runtime::tools::{self, Tool};
+use brai_runtime::util::truncate_with_ellipsis;
 
 /// Live channel registry populated by `start_channels()`. Used by `deliver_announcement()` to
 /// reuse authenticated channel instances (critical for Matrix E2EE — avoids re-running session
@@ -183,9 +183,9 @@ const MAX_CHANNEL_HISTORY: usize = 50;
 /// reducing noise in memory recall.
 const AUTOSAVE_MIN_MESSAGE_CHARS: usize = 20;
 
-// System prompt functions live in `zeroclaw_runtime::agent::system_prompt`.
+// System prompt functions live in `brai_runtime::agent::system_prompt`.
 #[allow(unused_imports)]
-pub use zeroclaw_runtime::agent::system_prompt::{
+pub use brai_runtime::agent::system_prompt::{
     BOOTSTRAP_MAX_CHARS, build_system_prompt, build_system_prompt_with_mode,
     build_system_prompt_with_mode_and_autonomy,
 };
@@ -288,7 +288,7 @@ struct ChannelRuntimeDefaults {
     temperature: f64,
     api_key: Option<String>,
     api_url: Option<String>,
-    reliability: zeroclaw_config::schema::ReliabilityConfig,
+    reliability: brai_config::schema::ReliabilityConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -338,8 +338,8 @@ impl InterruptOnNewMessageConfig {
 
 #[derive(Clone)]
 struct ChannelCostTrackingState {
-    tracker: Arc<zeroclaw_runtime::cost::CostTracker>,
-    prices: Arc<HashMap<String, zeroclaw_config::schema::ModelPricing>>,
+    tracker: Arc<brai_runtime::cost::CostTracker>,
+    prices: Arc<HashMap<String, brai_config::schema::ModelPricing>>,
 }
 
 #[derive(Clone)]
@@ -347,7 +347,7 @@ struct ChannelRuntimeContext {
     channels_by_name: Arc<HashMap<String, Arc<dyn Channel>>>,
     provider: Arc<dyn Provider>,
     default_provider: Arc<String>,
-    prompt_config: Arc<zeroclaw_config::schema::Config>,
+    prompt_config: Arc<brai_config::schema::Config>,
     memory: Arc<dyn Memory>,
     tools_registry: Arc<Vec<Box<dyn Tool>>>,
     observer: Arc<dyn Observer>,
@@ -363,39 +363,39 @@ struct ChannelRuntimeContext {
     route_overrides: RouteSelectionMap,
     api_key: Option<String>,
     api_url: Option<String>,
-    reliability: Arc<zeroclaw_config::schema::ReliabilityConfig>,
-    provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+    reliability: Arc<brai_config::schema::ReliabilityConfig>,
+    provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     workspace_dir: Arc<PathBuf>,
     message_timeout_secs: u64,
     interrupt_on_new_message: InterruptOnNewMessageConfig,
-    multimodal: zeroclaw_config::schema::MultimodalConfig,
-    media_pipeline: zeroclaw_config::schema::MediaPipelineConfig,
-    transcription_config: zeroclaw_config::schema::TranscriptionConfig,
-    hooks: Option<Arc<zeroclaw_runtime::hooks::HookRunner>>,
+    multimodal: brai_config::schema::MultimodalConfig,
+    media_pipeline: brai_config::schema::MediaPipelineConfig,
+    transcription_config: brai_config::schema::TranscriptionConfig,
+    hooks: Option<Arc<brai_runtime::hooks::HookRunner>>,
     non_cli_excluded_tools: Arc<Vec<String>>,
     autonomy_level: AutonomyLevel,
     tool_call_dedup_exempt: Arc<Vec<String>>,
-    model_routes: Arc<Vec<zeroclaw_config::schema::ModelRouteConfig>>,
-    query_classification: zeroclaw_config::schema::QueryClassificationConfig,
+    model_routes: Arc<Vec<brai_config::schema::ModelRouteConfig>>,
+    query_classification: brai_config::schema::QueryClassificationConfig,
     ack_reactions: bool,
     show_tool_calls: bool,
-    session_store: Option<Arc<dyn zeroclaw_infra::session_backend::SessionBackend>>,
+    session_store: Option<Arc<dyn brai_infra::session_backend::SessionBackend>>,
     /// Non-interactive approval manager for channel-driven runs.
     /// Enforces `auto_approve` / `always_ask` / supervised policy from
     /// `[autonomy]` config; auto-denies tools that would need interactive
     /// approval since no operator is present on channel runs.
     approval_manager: Arc<ApprovalManager>,
     activated_tools:
-        Option<std::sync::Arc<std::sync::Mutex<zeroclaw_runtime::tools::ActivatedToolSet>>>,
+        Option<std::sync::Arc<std::sync::Mutex<brai_runtime::tools::ActivatedToolSet>>>,
     cost_tracking: Option<ChannelCostTrackingState>,
-    pacing: zeroclaw_config::schema::PacingConfig,
+    pacing: brai_config::schema::PacingConfig,
     max_tool_result_chars: usize,
     context_token_budget: usize,
-    debouncer: Arc<zeroclaw_infra::debounce::MessageDebouncer>,
+    debouncer: Arc<brai_infra::debounce::MessageDebouncer>,
     /// HMAC receipt generator. `Some` when `[agent.tool_receipts] enabled = true`.
     /// Threaded into `run_tool_call_loop` so `tool_execution::execute_one_tool`
     /// can sign each result.
-    receipt_generator: Option<zeroclaw_runtime::agent::tool_receipts::ReceiptGenerator>,
+    receipt_generator: Option<brai_runtime::agent::tool_receipts::ReceiptGenerator>,
     /// Mirror of `[agent.tool_receipts] show_in_response`. When true,
     /// `process_channel_message` renders the per-turn collector as a trailing
     /// `Tool receipts:` block sent after the main reply.
@@ -435,7 +435,7 @@ impl InFlightTaskCompletion {
     }
 }
 
-fn conversation_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn conversation_memory_key(msg: &brai_api::channel::ChannelMessage) -> String {
     // Include thread_ts for per-topic memory isolation in forum groups
     match &msg.thread_ts {
         Some(tid) => format!("{}_{}_{}_{}", msg.channel, tid, msg.sender, msg.id),
@@ -443,7 +443,7 @@ fn conversation_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> Strin
     }
 }
 
-pub fn conversation_history_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+pub fn conversation_history_key(msg: &brai_api::channel::ChannelMessage) -> String {
     // Include reply_target for per-channel isolation (e.g. distinct Discord/Slack
     // channels) and thread_ts for per-topic isolation in forum groups.
     match &msg.thread_ts {
@@ -455,11 +455,11 @@ pub fn conversation_history_key(msg: &zeroclaw_api::channel::ChannelMessage) -> 
     }
 }
 
-fn followup_thread_id(msg: &zeroclaw_api::channel::ChannelMessage) -> Option<String> {
+fn followup_thread_id(msg: &brai_api::channel::ChannelMessage) -> Option<String> {
     msg.thread_ts.clone().or_else(|| Some(msg.id.clone()))
 }
 
-fn interruption_scope_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn interruption_scope_key(msg: &brai_api::channel::ChannelMessage) -> String {
     match &msg.interruption_scope_id {
         Some(scope) => format!(
             "{}_{}_{}_{}",
@@ -826,7 +826,7 @@ fn resolve_provider_alias(name: &str) -> Option<String> {
         return None;
     }
 
-    let providers_list = zeroclaw_providers::list_providers();
+    let providers_list = brai_providers::list_providers();
     for provider in providers_list {
         if provider.name.eq_ignore_ascii_case(candidate)
             || provider
@@ -906,7 +906,7 @@ fn runtime_defaults_from_config(config: &Config) -> anyhow::Result<ChannelRuntim
 
 fn runtime_config_path(ctx: &ChannelRuntimeContext) -> Option<PathBuf> {
     ctx.provider_runtime_options
-        .zeroclaw_dir
+        .brai_dir
         .as_ref()
         .map(|dir| dir.join("config.toml"))
 }
@@ -941,12 +941,12 @@ async fn config_file_stamp(path: &Path) -> Option<ConfigFileStamp> {
 }
 
 fn decrypt_optional_secret_for_runtime_reload(
-    store: &zeroclaw_runtime::security::SecretStore,
+    store: &brai_runtime::security::SecretStore,
     value: &mut Option<String>,
     field_name: &str,
 ) -> Result<()> {
     if let Some(raw) = value.clone()
-        && zeroclaw_runtime::security::SecretStore::is_encrypted(&raw)
+        && brai_runtime::security::SecretStore::is_encrypted(&raw)
     {
         *value = Some(
             store
@@ -965,9 +965,9 @@ async fn load_runtime_defaults_from_config_file(path: &Path) -> Result<ChannelRu
         toml::from_str(&contents).with_context(|| format!("Failed to parse {}", path.display()))?;
     parsed.config_path = path.to_path_buf();
 
-    if let Some(zeroclaw_dir) = path.parent() {
+    if let Some(brai_dir) = path.parent() {
         let store =
-            zeroclaw_runtime::security::SecretStore::new(zeroclaw_dir, parsed.secrets.encrypt);
+            brai_runtime::security::SecretStore::new(brai_dir, parsed.secrets.encrypt);
         if let Some(fallback_entry) = parsed.providers.fallback_provider_mut() {
             decrypt_optional_secret_for_runtime_reload(
                 &store,
@@ -1024,7 +1024,7 @@ async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContext) -> Resul
     }
 
     let next_defaults = load_runtime_defaults_from_config_file(&config_path).await?;
-    let next_default_provider = zeroclaw_providers::create_resilient_provider_with_options(
+    let next_default_provider = brai_providers::create_resilient_provider_with_options(
         &next_defaults.default_provider,
         next_defaults.api_key.as_deref(),
         next_defaults.api_url.as_deref(),
@@ -1034,7 +1034,7 @@ async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContext) -> Resul
     let next_default_provider: Arc<dyn Provider> = Arc::from(next_default_provider);
 
     if let Err(err) = next_default_provider.warmup().await {
-        if zeroclaw_providers::reliable::is_non_retryable(&err) {
+        if brai_providers::reliable::is_non_retryable(&err) {
             tracing::warn!(
                 provider = %next_defaults.default_provider,
                 model = %next_defaults.model,
@@ -1177,8 +1177,8 @@ fn replace_available_skills_section(base_prompt: &str, refreshed_skills: &str) -
 }
 
 fn refreshed_new_session_system_prompt(ctx: &ChannelRuntimeContext) -> String {
-    let refreshed_skills = zeroclaw_runtime::skills::skills_to_prompt_with_mode(
-        &zeroclaw_runtime::skills::load_skills_with_config(
+    let refreshed_skills = brai_runtime::skills::skills_to_prompt_with_mode(
+        &brai_runtime::skills::load_skills_with_config(
             ctx.workspace_dir.as_ref(),
             ctx.prompt_config.as_ref(),
         ),
@@ -1400,28 +1400,28 @@ fn rollback_orphan_user_turn(
 
 fn should_rollback_failed_user_turn(error: &anyhow::Error) -> bool {
     if error
-        .downcast_ref::<zeroclaw_providers::ProviderCapabilityError>()
+        .downcast_ref::<brai_providers::ProviderCapabilityError>()
         .is_some_and(|capability| capability.capability.eq_ignore_ascii_case("vision"))
     {
         return true;
     }
 
-    zeroclaw_providers::reliable::is_non_retryable(error)
+    brai_providers::reliable::is_non_retryable(error)
 }
 
 fn should_skip_memory_context_entry(key: &str, content: &str) -> bool {
-    if zeroclaw_memory::is_assistant_autosave_key(key) {
+    if brai_memory::is_assistant_autosave_key(key) {
         return true;
     }
 
     // Skip raw per-turn user messages: re-injecting them causes each
     // recalled entry to embed all prior generations, growing exponentially.
     // Consolidated knowledge is already promoted to Core/Daily entries.
-    if zeroclaw_memory::is_user_autosave_key(key) {
+    if brai_memory::is_user_autosave_key(key) {
         return true;
     }
 
-    if zeroclaw_memory::should_skip_autosave_content(content) {
+    if brai_memory::should_skip_autosave_content(content) {
         return true;
     }
 
@@ -1564,12 +1564,12 @@ async fn create_resilient_provider_nonblocking(
     provider_name: &str,
     api_key: Option<String>,
     api_url: Option<String>,
-    reliability: zeroclaw_config::schema::ReliabilityConfig,
-    provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+    reliability: brai_config::schema::ReliabilityConfig,
+    provider_runtime_options: brai_providers::ProviderRuntimeOptions,
 ) -> anyhow::Result<Box<dyn Provider>> {
     let provider_name = provider_name.to_string();
     tokio::task::spawn_blocking(move || {
-        zeroclaw_providers::create_resilient_provider_with_options(
+        brai_providers::create_resilient_provider_with_options(
             &provider_name,
             api_key.as_deref(),
             api_url.as_deref(),
@@ -1584,7 +1584,7 @@ async fn create_resilient_provider_nonblocking(
 fn build_models_help_response(
     current: &ChannelRouteSelection,
     workspace_dir: &Path,
-    model_routes: &[zeroclaw_config::schema::ModelRouteConfig],
+    model_routes: &[brai_config::schema::ModelRouteConfig],
 ) -> String {
     let mut response = String::new();
     let _ = writeln!(
@@ -1636,7 +1636,7 @@ fn build_providers_help_response(current: &ChannelRouteSelection) -> String {
     response.push_str("\nSwitch provider with `/models <provider>`.\n");
     response.push_str("Switch model with `/model <model-id>`.\n\n");
     response.push_str("Available providers:\n");
-    for provider in zeroclaw_providers::list_providers() {
+    for provider in brai_providers::list_providers() {
         if provider.aliases.is_empty() {
             let _ = writeln!(response, "- {}", provider.name);
         } else {
@@ -1655,7 +1655,7 @@ fn build_providers_help_response(current: &ChannelRouteSelection) -> String {
 fn build_config_text_response(
     current: &ChannelRouteSelection,
     _workspace_dir: &Path,
-    model_routes: &[zeroclaw_config::schema::ModelRouteConfig],
+    model_routes: &[brai_config::schema::ModelRouteConfig],
 ) -> String {
     let mut resp = String::new();
     let _ = writeln!(
@@ -1664,7 +1664,7 @@ fn build_config_text_response(
         current.provider, current.model
     );
     resp.push_str("\nAvailable providers:\n");
-    for p in zeroclaw_providers::list_providers() {
+    for p in brai_providers::list_providers() {
         let _ = writeln!(resp, "- `{}`", p.name);
     }
     if !model_routes.is_empty() {
@@ -1687,9 +1687,9 @@ fn build_config_text_response(
 fn build_config_block_kit(
     current: &ChannelRouteSelection,
     workspace_dir: &Path,
-    model_routes: &[zeroclaw_config::schema::ModelRouteConfig],
+    model_routes: &[brai_config::schema::ModelRouteConfig],
 ) -> String {
-    let provider_options: Vec<serde_json::Value> = zeroclaw_providers::list_providers()
+    let provider_options: Vec<serde_json::Value> = brai_providers::list_providers()
         .iter()
         .map(|p| {
             serde_json::json!({
@@ -1765,7 +1765,7 @@ fn build_config_block_kit(
 
     let mut provider_select = serde_json::json!({
         "type": "static_select",
-        "action_id": "zeroclaw_config_provider",
+        "action_id": "brai_config_provider",
         "placeholder": { "type": "plain_text", "text": "Select provider" },
         "options": provider_options
     });
@@ -1775,7 +1775,7 @@ fn build_config_block_kit(
 
     let mut model_select = serde_json::json!({
         "type": "static_select",
-        "action_id": "zeroclaw_config_model",
+        "action_id": "brai_config_model",
         "placeholder": { "type": "plain_text", "text": "Select model" },
         "options": model_options
     });
@@ -1813,7 +1813,7 @@ fn build_config_block_kit(
 
 async fn handle_runtime_command_if_needed(
     ctx: &ChannelRuntimeContext,
-    msg: &zeroclaw_api::channel::ChannelMessage,
+    msg: &brai_api::channel::ChannelMessage,
     target_channel: Option<&Arc<dyn Channel>>,
 ) -> bool {
     let Some(command) = parse_runtime_command(&msg.channel, &msg.content) else {
@@ -1845,7 +1845,7 @@ async fn handle_runtime_command_if_needed(
                             )
                         }
                         Err(err) => {
-                            let safe_err = zeroclaw_providers::sanitize_api_error(&err.to_string());
+                            let safe_err = brai_providers::sanitize_api_error(&err.to_string());
                             format!(
                                 "Failed to initialize provider `{provider_name}`. Route unchanged.\nDetails: {safe_err}"
                             )
@@ -1891,7 +1891,7 @@ async fn handle_runtime_command_if_needed(
                     &ctx.model_routes,
                 );
                 // Use a magic prefix so SlackChannel::send() can detect Block Kit JSON.
-                format!("__ZEROCLAW_BLOCK_KIT__{blocks_json}")
+                format!("__BRAI_BLOCK_KIT__{blocks_json}")
             } else {
                 build_config_text_response(&current, ctx.workspace_dir.as_path(), &ctx.model_routes)
             }
@@ -1965,9 +1965,9 @@ async fn build_memory_context_for_sessions(
 }
 
 fn append_recalled_memory_entries(
-    entries: &mut Vec<zeroclaw_memory::MemoryEntry>,
+    entries: &mut Vec<brai_memory::MemoryEntry>,
     seen_keys: &mut HashSet<String>,
-    recalled: Result<Vec<zeroclaw_memory::MemoryEntry>>,
+    recalled: Result<Vec<brai_memory::MemoryEntry>>,
 ) {
     if let Ok(recalled) = recalled {
         for entry in recalled {
@@ -1979,7 +1979,7 @@ fn append_recalled_memory_entries(
 }
 
 fn format_memory_context(
-    entries: &[zeroclaw_memory::MemoryEntry],
+    entries: &[brai_memory::MemoryEntry],
     min_relevance_score: f64,
 ) -> String {
     let mut context = String::new();
@@ -2034,7 +2034,7 @@ fn is_group_reply_target(reply_target: &str) -> bool {
 }
 
 fn sender_memory_session_ids<'a>(
-    msg: &'a zeroclaw_api::channel::ChannelMessage,
+    msg: &'a brai_api::channel::ChannelMessage,
     history_key: &'a str,
 ) -> Vec<Option<&'a str>> {
     if is_group_reply_target(&msg.reply_target) {
@@ -2356,9 +2356,9 @@ fn sanitize_channel_response(response: &str, tools: &[Box<dyn Tool>]) -> String 
     let sanitized = strip_tool_narration(&stripped_json);
 
     // Scan for credential leaks before returning to caller
-    match zeroclaw_runtime::security::LeakDetector::new().scan(&sanitized) {
-        zeroclaw_runtime::security::LeakResult::Clean => sanitized,
-        zeroclaw_runtime::security::LeakResult::Detected { patterns, redacted } => {
+    match brai_runtime::security::LeakDetector::new().scan(&sanitized) {
+        brai_runtime::security::LeakResult::Clean => sanitized,
+        brai_runtime::security::LeakResult::Detected { patterns, redacted } => {
             tracing::warn!(
                 patterns = ?patterns,
                 "output guardrail: credential leak detected in outbound channel response"
@@ -2578,7 +2578,7 @@ fn strip_isolated_tool_json_artifacts(message: &str, known_tool_names: &HashSet<
 
 fn spawn_supervised_listener(
     ch: Arc<dyn Channel>,
-    tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+    tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
 ) -> tokio::task::JoinHandle<()> {
@@ -2593,7 +2593,7 @@ fn spawn_supervised_listener(
 
 fn spawn_supervised_listener_with_health_interval(
     ch: Arc<dyn Channel>,
-    tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+    tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
     health_interval: Duration,
@@ -2610,7 +2610,7 @@ fn spawn_supervised_listener_with_health_interval(
         let max_backoff = max_backoff_secs.max(backoff);
 
         loop {
-            zeroclaw_runtime::health::mark_component_ok(&component);
+            brai_runtime::health::mark_component_ok(&component);
             let mut health = tokio::time::interval(health_interval);
             health.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let result = {
@@ -2620,7 +2620,7 @@ fn spawn_supervised_listener_with_health_interval(
                 loop {
                     tokio::select! {
                         _ = health.tick() => {
-                            zeroclaw_runtime::health::mark_component_ok(&component);
+                            brai_runtime::health::mark_component_ok(&component);
                         }
                         result = &mut listen_future => break result,
                     }
@@ -2634,7 +2634,7 @@ fn spawn_supervised_listener_with_health_interval(
             match result {
                 Ok(()) => {
                     tracing::warn!("Channel {} exited unexpectedly; restarting", ch.name());
-                    zeroclaw_runtime::health::mark_component_error(
+                    brai_runtime::health::mark_component_error(
                         &component,
                         "listener exited unexpectedly",
                     );
@@ -2643,11 +2643,11 @@ fn spawn_supervised_listener_with_health_interval(
                 }
                 Err(e) => {
                     tracing::error!("Channel {} error: {e}; restarting", ch.name());
-                    zeroclaw_runtime::health::mark_component_error(&component, e.to_string());
+                    brai_runtime::health::mark_component_error(&component, e.to_string());
                 }
             }
 
-            zeroclaw_runtime::health::bump_component_restart(&component);
+            brai_runtime::health::bump_component_restart(&component);
             tokio::time::sleep(Duration::from_secs(backoff)).await;
             // Double backoff AFTER sleeping so first error uses initial_backoff
             backoff = backoff.saturating_mul(2).min(max_backoff);
@@ -2700,7 +2700,7 @@ fn spawn_scoped_typing_task(
 
 async fn process_channel_message(
     ctx: Arc<ChannelRuntimeContext>,
-    msg: zeroclaw_api::channel::ChannelMessage,
+    msg: brai_api::channel::ChannelMessage,
     cancellation_token: CancellationToken,
 ) {
     if cancellation_token.is_cancelled() {
@@ -2732,11 +2732,11 @@ async fn process_channel_message(
     // ── Hook: on_message_received (modifying) ────────────
     let mut msg = if let Some(hooks) = &ctx.hooks {
         match hooks.run_on_message_received(msg).await {
-            zeroclaw_runtime::hooks::HookResult::Cancel(reason) => {
+            brai_runtime::hooks::HookResult::Cancel(reason) => {
                 tracing::info!(%reason, "incoming message dropped by hook");
                 return;
             }
-            zeroclaw_runtime::hooks::HookResult::Continue(modified) => modified,
+            brai_runtime::hooks::HookResult::Continue(modified) => modified,
         }
     } else {
         msg
@@ -2795,7 +2795,7 @@ async fn process_channel_message(
 
     // ── Query classification: override route when a rule matches ──
     if let Some(hint) =
-        zeroclaw_runtime::agent::classifier::classify(&ctx.query_classification, &msg.content)
+        brai_runtime::agent::classifier::classify(&ctx.query_classification, &msg.content)
         && let Some(matched_route) = ctx
             .model_routes
             .iter()
@@ -2826,7 +2826,7 @@ async fn process_channel_message(
     {
         Ok(provider) => provider,
         Err(err) => {
-            let safe_err = zeroclaw_providers::sanitize_api_error(&err.to_string());
+            let safe_err = brai_providers::sanitize_api_error(&err.to_string());
             let message = format!(
                 "⚠️ Failed to initialize provider `{}`. Please run `/models` to choose another provider.\nDetails: {safe_err}",
                 route.provider
@@ -2844,7 +2844,7 @@ async fn process_channel_message(
     };
     if ctx.auto_save_memory
         && msg.content.chars().count() >= AUTOSAVE_MIN_MESSAGE_CHARS
-        && !zeroclaw_memory::should_skip_autosave_content(&msg.content)
+        && !brai_memory::should_skip_autosave_content(&msg.content)
     {
         let autosave_key = conversation_memory_key(&msg);
         let _ = ctx
@@ -2852,7 +2852,7 @@ async fn process_channel_message(
             .store(
                 &autosave_key,
                 &msg.content,
-                zeroclaw_memory::MemoryCategory::Conversation,
+                brai_memory::MemoryCategory::Conversation,
                 Some(&history_key),
             )
             .await;
@@ -2922,7 +2922,7 @@ async fn process_channel_message(
         for turn in &mut prior_turns[..last_idx] {
             if turn.content.contains("[IMAGE:") {
                 let (cleaned, _refs) =
-                    zeroclaw_providers::multimodal::parse_image_markers(&turn.content);
+                    brai_providers::multimodal::parse_image_markers(&turn.content);
                 turn.content = cleaned;
             }
         }
@@ -3018,7 +3018,7 @@ async fn process_channel_message(
     // and preserving key decisions through LLM-driven summarization.
     {
         let cc_config = ctx.prompt_config.agent.context_compression.clone();
-        let compressor = zeroclaw_runtime::agent::context_compressor::ContextCompressor::new(
+        let compressor = brai_runtime::agent::context_compressor::ContextCompressor::new(
             cc_config,
             ctx.context_token_budget,
         )
@@ -3122,7 +3122,7 @@ async fn process_channel_message(
 
     // Partial mode: delta channel for draft updates (progress + text).
     let (delta_tx, delta_rx) = if use_draft_streaming {
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_runtime::agent::loop_::DraftEvent>(64);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_runtime::agent::loop_::DraftEvent>(64);
         (Some(tx), Some(rx))
     } else {
         (None, None)
@@ -3162,7 +3162,7 @@ async fn process_channel_message(
             let reply_target = msg.reply_target.clone();
             let draft_id = draft_id_ref.to_string();
             Some(tokio::spawn(async move {
-                use zeroclaw_runtime::agent::loop_::StreamDelta;
+                use brai_runtime::agent::loop_::StreamDelta;
                 let mut accumulated = String::new();
                 while let Some(event) = rx.recv().await {
                     match event {
@@ -3271,7 +3271,7 @@ async fn process_channel_message(
         scale_cap,
     );
     let cost_tracking_context = ctx.cost_tracking.clone().map(|state| {
-        zeroclaw_runtime::agent::loop_::ToolLoopCostTrackingContext::new(
+        brai_runtime::agent::loop_::ToolLoopCostTrackingContext::new(
             state.tracker,
             state.prices,
         )
@@ -3289,7 +3289,7 @@ async fn process_channel_message(
     let tool_receipts_collector: std::sync::Arc<std::sync::Mutex<Vec<String>>> =
         std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let receipt_scope = ctx.receipt_generator.as_ref().map(|generator| {
-        zeroclaw_runtime::agent::tool_receipts::ReceiptScope {
+        brai_runtime::agent::tool_receipts::ReceiptScope {
             generator: generator.clone(),
             collector: std::sync::Arc::clone(&tool_receipts_collector),
         }
@@ -3306,9 +3306,9 @@ async fn process_channel_message(
                             .or_else(|| Some(msg.id.clone())),
                     scope_session_key(
                         Some(history_key.clone()),
-                        zeroclaw_runtime::agent::loop_::TOOL_LOOP_COST_TRACKING_CONTEXT.scope(
+                        brai_runtime::agent::loop_::TOOL_LOOP_COST_TRACKING_CONTEXT.scope(
                             cost_tracking_context.clone(),
-                        zeroclaw_runtime::agent::tool_receipts::TOOL_LOOP_RECEIPT_CONTEXT.scope(
+                        brai_runtime::agent::tool_receipts::TOOL_LOOP_RECEIPT_CONTEXT.scope(
                             receipt_scope.clone(),
                         run_tool_call_loop(
                         active_provider.as_ref(),
@@ -3482,7 +3482,7 @@ async fn process_channel_message(
                     )
                     .await
                 {
-                    zeroclaw_runtime::hooks::HookResult::Cancel(reason) => {
+                    brai_runtime::hooks::HookResult::Cancel(reason) => {
                         tracing::info!(%reason, "outgoing message suppressed by hook");
                         if let (Some(channel), Some(draft_id)) =
                             (target_channel.as_ref(), draft_message_id.as_deref())
@@ -3491,7 +3491,7 @@ async fn process_channel_message(
                         }
                         return;
                     }
-                    zeroclaw_runtime::hooks::HookResult::Continue((
+                    brai_runtime::hooks::HookResult::Continue((
                         hook_channel,
                         hook_recipient,
                         mut modified_content,
@@ -3613,7 +3613,7 @@ async fn process_channel_message(
                 let user_msg = msg.content.clone();
                 let assistant_resp = delivered_response.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = zeroclaw_memory::consolidation::consolidate_turn(
+                    if let Err(e) = brai_memory::consolidation::consolidate_turn(
                         provider.as_ref(),
                         &model,
                         memory.as_ref(),
@@ -3700,7 +3700,7 @@ async fn process_channel_message(
             }
         }
         LlmExecutionResult::Completed(Ok(Err(e))) => {
-            if zeroclaw_runtime::agent::loop_::is_tool_loop_cancelled(&e)
+            if brai_runtime::agent::loop_::is_tool_loop_cancelled(&e)
                 || cancellation_token.is_cancelled()
             {
                 tracing::info!(
@@ -3775,7 +3775,7 @@ async fn process_channel_message(
 
                 // Evict cached provider on auth errors so the next request
                 // re-creates it with fresh OAuth credentials (#5219).
-                if zeroclaw_providers::reliable::is_auth_error(&e) {
+                if brai_providers::reliable::is_auth_error(&e) {
                     let cache_key = provider_cache_key(&route.provider, route.api_key.as_deref());
                     let mut cache = ctx.provider_cache.lock().unwrap_or_else(|p| p.into_inner());
                     if cache.remove(&cache_key).is_some() {
@@ -3785,7 +3785,7 @@ async fn process_channel_message(
                         );
                     }
                 }
-                let safe_error = zeroclaw_providers::sanitize_api_error(&e.to_string());
+                let safe_error = brai_providers::sanitize_api_error(&e.to_string());
                 runtime_trace::record_event(
                     "channel_message_error",
                     Some(msg.channel.as_str()),
@@ -3894,7 +3894,7 @@ async fn process_channel_message(
 /// can reuse the same in-flight tracking / cancellation / process logic.
 async fn dispatch_worker(
     ctx: Arc<ChannelRuntimeContext>,
-    msg: zeroclaw_api::channel::ChannelMessage,
+    msg: brai_api::channel::ChannelMessage,
     in_flight: Arc<tokio::sync::Mutex<HashMap<String, InFlightSenderTaskState>>>,
     task_sequence: Arc<AtomicU64>,
     permit: tokio::sync::OwnedSemaphorePermit,
@@ -3950,7 +3950,7 @@ async fn dispatch_worker(
 }
 
 async fn run_message_dispatch_loop(
-    mut rx: tokio::sync::mpsc::Receiver<zeroclaw_api::channel::ChannelMessage>,
+    mut rx: tokio::sync::mpsc::Receiver<brai_api::channel::ChannelMessage>,
     ctx: Arc<ChannelRuntimeContext>,
     max_in_flight_messages: usize,
 ) {
@@ -4011,7 +4011,7 @@ async fn run_message_dispatch_loop(
         let msg = if msg.channel != "cli" && ctx.debouncer.enabled() {
             let debounce_key = conversation_history_key(&msg);
             match ctx.debouncer.debounce(&debounce_key, &msg.content).await {
-                zeroclaw_infra::debounce::DebounceResult::Pending(rx) => {
+                brai_infra::debounce::DebounceResult::Pending(rx) => {
                     // Spawn a lightweight task that waits for the debounce window
                     // to expire, then feeds the combined message through the normal
                     // worker path below.
@@ -4051,7 +4051,7 @@ async fn run_message_dispatch_loop(
                     });
                     continue;
                 }
-                zeroclaw_infra::debounce::DebounceResult::Passthrough(content) => {
+                brai_infra::debounce::DebounceResult::Passthrough(content) => {
                     let mut m = msg;
                     m.content = content;
                     m
@@ -4147,7 +4147,7 @@ fn maybe_restart_managed_daemon_service() -> Result<bool> {
         let plist = home
             .join("Library")
             .join("LaunchAgents")
-            .join("com.zeroclaw.daemon.plist");
+            .join("com.brai.daemon.plist");
         if !plist.exists() {
             return Ok(false);
         }
@@ -4157,15 +4157,15 @@ fn maybe_restart_managed_daemon_service() -> Result<bool> {
             .output()
             .context("Failed to query launchctl list")?;
         let listed = String::from_utf8_lossy(&list_output.stdout);
-        if !listed.contains("com.zeroclaw.daemon") {
+        if !listed.contains("com.brai.daemon") {
             return Ok(false);
         }
 
         let _ = Command::new("launchctl")
-            .args(["stop", "com.zeroclaw.daemon"])
+            .args(["stop", "com.brai.daemon"])
             .output();
         let start_output = Command::new("launchctl")
-            .args(["start", "com.zeroclaw.daemon"])
+            .args(["start", "com.brai.daemon"])
             .output()
             .context("Failed to start launchd daemon service")?;
         if !start_output.status.success() {
@@ -4349,7 +4349,7 @@ fn build_channel_by_id(config: &Config, channel_id: &str) -> Result<Arc<dyn Chan
                     .config_path
                     .parent()
                     .map(|p| p.join("state").join("matrix"))
-                    .unwrap_or_else(|| std::path::PathBuf::from(".zeroclaw/state/matrix"));
+                    .unwrap_or_else(|| std::path::PathBuf::from(".brai/state/matrix"));
                 Ok(Arc::new(
                     MatrixChannel::new(mx.clone(), state_dir)?
                         .with_transcription(config.transcription.clone())
@@ -4596,7 +4596,7 @@ fn build_channel_by_id(config: &Config, channel_id: &str) -> Result<Arc<dyn Chan
                 .as_ref()
                 .context("Discord History channel is not configured")?;
             let discord_mem =
-                zeroclaw_memory::SqliteMemory::new_named(&config.workspace_dir, "discord")
+                brai_memory::SqliteMemory::new_named(&config.workspace_dir, "discord")
                     .context("Discord History: failed to open discord.db")?;
             Ok(Arc::new(DiscordHistoryChannel::new(
                 dh.bot_token.clone(),
@@ -4760,7 +4760,7 @@ fn collect_configured_channels(
 
     if let Some(ref dh) = config.channels.discord_history {
         if dh.enabled {
-            match zeroclaw_memory::SqliteMemory::new_named(&config.workspace_dir, "discord") {
+            match brai_memory::SqliteMemory::new_named(&config.workspace_dir, "discord") {
                 Ok(discord_mem) => {
                     channels.push(ConfiguredChannel {
                         display_name: "Discord History",
@@ -4855,7 +4855,7 @@ fn collect_configured_channels(
                 .config_path
                 .parent()
                 .map(|p| p.join("state").join("matrix"))
-                .unwrap_or_else(|| std::path::PathBuf::from(".zeroclaw/state/matrix"));
+                .unwrap_or_else(|| std::path::PathBuf::from(".brai/state/matrix"));
             match MatrixChannel::new(mx.clone(), state_dir) {
                 Ok(channel) => {
                     let channel = channel
@@ -5457,7 +5457,7 @@ pub async fn doctor_channels(config: Config) -> Result<()> {
 #[allow(clippy::too_many_lines)]
 pub async fn start_channels(
     config: Config,
-    canvas_store: Option<zeroclaw_runtime::tools::CanvasStore>,
+    canvas_store: Option<brai_runtime::tools::CanvasStore>,
 ) -> Result<()> {
     // No model resolves yet — the user has channels configured but hasn't
     // finished onboarding their provider. Returning Ok() here lets the
@@ -5477,7 +5477,7 @@ pub async fn start_channels(
 
     let provider_name = resolved_default_provider(&config);
     let provider_runtime_options =
-        zeroclaw_providers::provider_runtime_options_from_config(&config);
+        brai_providers::provider_runtime_options_from_config(&config);
     let provider: Arc<dyn Provider> = Arc::from(
         create_resilient_provider_nonblocking(
             &provider_name,
@@ -5529,7 +5529,7 @@ pub async fn start_channels(
         .fallback_provider()
         .and_then(|e| e.temperature)
         .unwrap_or(0.7);
-    let mem: Arc<dyn Memory> = Arc::from(zeroclaw_memory::create_memory_with_storage_and_routes(
+    let mem: Arc<dyn Memory> = Arc::from(brai_memory::create_memory_with_storage_and_routes(
         &config.memory,
         &config.providers.embedding_routes,
         Some(&config.storage.provider.config),
@@ -5586,18 +5586,18 @@ pub async fn start_channels(
     // Instead, a `tool_search` built-in is registered for on-demand loading.
     let mut deferred_section = String::new();
     let mut ch_activated_handle: Option<
-        std::sync::Arc<std::sync::Mutex<zeroclaw_runtime::tools::ActivatedToolSet>>,
+        std::sync::Arc<std::sync::Mutex<brai_runtime::tools::ActivatedToolSet>>,
     > = None;
     if config.mcp.enabled && !config.mcp.servers.is_empty() {
         tracing::info!(
             "Initializing MCP client — {} server(s) configured",
             config.mcp.servers.len()
         );
-        match zeroclaw_runtime::tools::McpRegistry::connect_all(&config.mcp.servers).await {
+        match brai_runtime::tools::McpRegistry::connect_all(&config.mcp.servers).await {
             Ok(registry) => {
                 let registry = std::sync::Arc::new(registry);
                 if config.mcp.deferred_loading {
-                    let deferred_set = zeroclaw_runtime::tools::DeferredMcpToolSet::from_registry(
+                    let deferred_set = brai_runtime::tools::DeferredMcpToolSet::from_registry(
                         std::sync::Arc::clone(&registry),
                     )
                     .await;
@@ -5607,12 +5607,12 @@ pub async fn start_channels(
                         registry.server_count()
                     );
                     deferred_section =
-                        zeroclaw_runtime::tools::build_deferred_tools_section(&deferred_set);
+                        brai_runtime::tools::build_deferred_tools_section(&deferred_set);
                     let activated = std::sync::Arc::new(std::sync::Mutex::new(
-                        zeroclaw_runtime::tools::ActivatedToolSet::new(),
+                        brai_runtime::tools::ActivatedToolSet::new(),
                     ));
                     ch_activated_handle = Some(std::sync::Arc::clone(&activated));
-                    built_tools.push(Box::new(zeroclaw_runtime::tools::ToolSearchTool::new(
+                    built_tools.push(Box::new(brai_runtime::tools::ToolSearchTool::new(
                         deferred_set,
                         activated,
                     )));
@@ -5622,7 +5622,7 @@ pub async fn start_channels(
                     for name in names {
                         if let Some(def) = registry.get_tool_def(&name).await {
                             let wrapper: std::sync::Arc<dyn Tool> =
-                                std::sync::Arc::new(zeroclaw_runtime::tools::McpToolWrapper::new(
+                                std::sync::Arc::new(brai_runtime::tools::McpToolWrapper::new(
                                     name,
                                     def,
                                     std::sync::Arc::clone(&registry),
@@ -5631,7 +5631,7 @@ pub async fn start_channels(
                                 handle.write().push(std::sync::Arc::clone(&wrapper));
                             }
                             built_tools
-                                .push(Box::new(zeroclaw_runtime::tools::ArcToolRef(wrapper)));
+                                .push(Box::new(brai_runtime::tools::ArcToolRef(wrapper)));
                             registered += 1;
                         }
                     }
@@ -5649,12 +5649,12 @@ pub async fn start_channels(
         }
     }
 
-    let skills = zeroclaw_runtime::skills::load_skills_with_config(&workspace, &config);
+    let skills = brai_runtime::skills::load_skills_with_config(&workspace, &config);
 
     // Register skill-defined tools so the gateway can execute them (not just
     // describe them in the prompt). Without this, skill tools like email.send
     // appear in the system prompt but return "Unknown tool" when called.
-    zeroclaw_runtime::tools::register_skill_tools(&mut built_tools, &skills, security.clone());
+    brai_runtime::tools::register_skill_tools(&mut built_tools, &skills, security.clone());
 
     // Extract (name, description) specs from built tools for channel command registration.
     let tool_specs: Vec<(String, String)> = built_tools
@@ -5670,8 +5670,8 @@ pub async fn start_channels(
         .as_deref()
         .filter(|s| !s.is_empty())
         .map(ToString::to_string)
-        .unwrap_or_else(zeroclaw_runtime::i18n::detect_locale);
-    zeroclaw_runtime::i18n::init(&i18n_locale);
+        .unwrap_or_else(brai_runtime::i18n::detect_locale);
+    brai_runtime::i18n::init(&i18n_locale);
 
     // Collect tool descriptions for the prompt
     let mut tool_descs: Vec<(&str, &str)> = vec![
@@ -5703,7 +5703,7 @@ pub async fn start_channels(
 
     if matches!(
         config.skills.prompt_injection_mode,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Compact
+        brai_config::schema::SkillsPromptInjectionMode::Compact
     ) {
         tool_descs.push((
             "read_skill",
@@ -5832,7 +5832,7 @@ pub async fn start_channels(
 
     println!("🦀 ZeroClaw Channel Server");
     println!("  🤖 Model:    {model}");
-    let effective_backend = zeroclaw_memory::effective_memory_backend_name(
+    let effective_backend = brai_memory::effective_memory_backend_name(
         &config.memory.backend,
         Some(&config.storage.provider.config),
     );
@@ -5853,7 +5853,7 @@ pub async fn start_channels(
     println!("  Listening for messages... (Ctrl+C to stop)");
     println!();
 
-    zeroclaw_runtime::health::mark_component_ok("channels");
+    brai_runtime::health::mark_component_ok("channels");
 
     let initial_backoff_secs = config
         .reliability
@@ -5865,7 +5865,7 @@ pub async fn start_channels(
         .max(DEFAULT_CHANNEL_MAX_BACKOFF_SECS);
 
     // Single message bus — all channels send messages here
-    let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(100);
+    let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(100);
 
     // Spawn a listener for each channel
     let mut handles = Vec::new();
@@ -5988,15 +5988,15 @@ pub async fn start_channels(
         media_pipeline: config.media_pipeline.clone(),
         transcription_config: config.transcription.clone(),
         hooks: if config.hooks.enabled {
-            let mut runner = zeroclaw_runtime::hooks::HookRunner::new();
+            let mut runner = brai_runtime::hooks::HookRunner::new();
             if config.hooks.builtin.command_logger {
                 runner.register(Box::new(
-                    zeroclaw_runtime::hooks::builtin::CommandLoggerHook::new(),
+                    brai_runtime::hooks::builtin::CommandLoggerHook::new(),
                 ));
             }
             if config.hooks.builtin.webhook_audit.enabled {
                 runner.register(Box::new(
-                    zeroclaw_runtime::hooks::builtin::WebhookAuditHook::new(
+                    brai_runtime::hooks::builtin::WebhookAuditHook::new(
                         config.hooks.builtin.webhook_audit.clone(),
                     ),
                 ));
@@ -6013,7 +6013,7 @@ pub async fn start_channels(
         ack_reactions: config.channels.ack_reactions,
         show_tool_calls: config.channels.show_tool_calls,
         session_store: if config.channels.session_persistence {
-            match zeroclaw_infra::make_session_backend(
+            match brai_infra::make_session_backend(
                 &config.workspace_dir,
                 &config.channels.session_backend,
             ) {
@@ -6034,7 +6034,7 @@ pub async fn start_channels(
         },
         approval_manager: Arc::new(ApprovalManager::for_non_interactive(&config.autonomy)),
         activated_tools: ch_activated_handle,
-        cost_tracking: zeroclaw_runtime::cost::CostTracker::get_or_init_global(
+        cost_tracking: brai_runtime::cost::CostTracker::get_or_init_global(
             config.cost.clone(),
             &config.workspace_dir,
         )
@@ -6045,11 +6045,11 @@ pub async fn start_channels(
         pacing: config.pacing.clone(),
         max_tool_result_chars: config.agent.max_tool_result_chars,
         context_token_budget: config.agent.max_context_tokens,
-        debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+        debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
             Duration::from_millis(config.channels.debounce_ms),
         )),
         receipt_generator: if config.agent.tool_receipts.enabled {
-            Some(zeroclaw_runtime::agent::tool_receipts::ReceiptGenerator::new())
+            Some(brai_runtime::agent::tool_receipts::ReceiptGenerator::new())
         } else {
             None
         },
@@ -6104,7 +6104,7 @@ pub async fn start_channels(
             // Without this, the session is bricked until the file is deleted
             // because every API call fails with 400 "unexpected tool_use_id
             // in tool_result blocks". See #5813.
-            zeroclaw_runtime::agent::history_pruner::remove_orphaned_tool_messages(&mut msgs);
+            brai_runtime::agent::history_pruner::remove_orphaned_tool_messages(&mut msgs);
             hydrated += 1;
             histories.push(key, msgs);
         }
@@ -6132,18 +6132,18 @@ pub async fn start_channels(
 /// Deliver a cron job announcement to a configured channel.
 /// Scans for credential leaks before delivery.
 pub async fn deliver_announcement(
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
     channel: &str,
     target: &str,
     output: &str,
 ) -> anyhow::Result<()> {
-    use zeroclaw_api::channel::SendMessage;
+    use brai_api::channel::SendMessage;
 
     // Scan for credential leaks before delivering
-    let leak_detector = zeroclaw_runtime::security::LeakDetector::new();
+    let leak_detector = brai_runtime::security::LeakDetector::new();
     let safe_output = match leak_detector.scan(output) {
-        zeroclaw_runtime::security::LeakResult::Detected { redacted, .. } => redacted,
-        zeroclaw_runtime::security::LeakResult::Clean => output.to_string(),
+        brai_runtime::security::LeakResult::Detected { redacted, .. } => redacted,
+        brai_runtime::security::LeakResult::Clean => output.to_string(),
     };
 
     // Use the live channel instance when available — critical for Matrix E2EE which must
@@ -6167,7 +6167,7 @@ pub async fn deliver_announcement(
                 tg.allowed_users.clone(),
                 tg.mention_only,
             );
-            zeroclaw_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
+            brai_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
                 .await?;
         }
         "discord" => {
@@ -6184,7 +6184,7 @@ pub async fn deliver_announcement(
                 dc.mention_only,
             )
             .with_workspace_dir(config.workspace_dir.clone());
-            zeroclaw_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
+            brai_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
                 .await?;
         }
         "slack" => {
@@ -6200,7 +6200,7 @@ pub async fn deliver_announcement(
                 sl.allowed_users.clone(),
             )
             .with_workspace_dir(config.workspace_dir.clone());
-            zeroclaw_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
+            brai_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
                 .await?;
         }
         "signal" => {
@@ -6217,7 +6217,7 @@ pub async fn deliver_announcement(
                 sg.ignore_attachments,
                 sg.ignore_stories,
             );
-            zeroclaw_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
+            brai_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
                 .await?;
         }
         #[cfg(feature = "channel-wechat")]
@@ -6234,7 +6234,7 @@ pub async fn deliver_announcement(
                 wc.state_dir.as_ref().map(std::path::PathBuf::from),
             )?
             .with_workspace_dir(config.workspace_dir.clone());
-            zeroclaw_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
+            brai_api::channel::Channel::send(&ch, &SendMessage::new(&safe_output, target))
                 .await?;
         }
         #[cfg(not(feature = "channel-wechat"))]
@@ -6253,11 +6253,11 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use tempfile::TempDir;
-    use zeroclaw_memory::{Memory, MemoryCategory, SqliteMemory};
-    use zeroclaw_providers::{ChatMessage, Provider};
-    use zeroclaw_runtime::agent::loop_::build_tool_instructions;
-    use zeroclaw_runtime::observability::NoopObserver;
-    use zeroclaw_runtime::tools::{Tool, ToolResult};
+    use brai_memory::{Memory, MemoryCategory, SqliteMemory};
+    use brai_providers::{ChatMessage, Provider};
+    use brai_runtime::agent::loop_::build_tool_instructions;
+    use brai_runtime::observability::NoopObserver;
+    use brai_runtime::tools::{Tool, ToolResult};
 
     fn make_workspace() -> TempDir {
         let tmp = TempDir::new().unwrap();
@@ -6457,7 +6457,7 @@ mod tests {
 
     #[test]
     fn pacing_config_defaults_preserve_existing_behavior() {
-        let pacing = zeroclaw_config::schema::PacingConfig::default();
+        let pacing = brai_config::schema::PacingConfig::default();
         assert!(pacing.step_timeout_secs.is_none());
         assert!(pacing.loop_detection_min_elapsed_secs.is_none());
         assert!(pacing.loop_ignore_tools.is_empty());
@@ -6718,7 +6718,7 @@ mod tests {
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
                 slack: false,
@@ -6726,31 +6726,31 @@ mod tests {
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -6846,7 +6846,7 @@ mod tests {
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
                 slack: false,
@@ -6854,31 +6854,31 @@ mod tests {
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -6931,7 +6931,7 @@ mod tests {
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
                 slack: false,
@@ -6939,31 +6939,31 @@ mod tests {
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -6987,8 +6987,8 @@ mod tests {
     #[test]
     fn rollback_orphan_user_turn_also_removes_from_session_store() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let store: Arc<dyn zeroclaw_infra::session_backend::SessionBackend> =
-            Arc::new(zeroclaw_infra::session_store::SessionStore::new(tmp.path()).unwrap());
+        let store: Arc<dyn brai_infra::session_backend::SessionBackend> =
+            Arc::new(brai_infra::session_store::SessionStore::new(tmp.path()).unwrap());
 
         let sender = "telegram_u4".to_string();
 
@@ -7034,7 +7034,7 @@ mod tests {
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
                 slack: false,
@@ -7042,31 +7042,31 @@ mod tests {
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: Some(Arc::clone(&store)),
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -7198,7 +7198,7 @@ mod tests {
 
         async fn listen(
             &self,
-            _tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            _tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             Ok(())
         }
@@ -7228,7 +7228,7 @@ mod tests {
 
         async fn listen(
             &self,
-            _tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            _tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             Ok(())
         }
@@ -7258,7 +7258,7 @@ mod tests {
 
         async fn listen(
             &self,
-            _tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            _tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             Ok(())
         }
@@ -7671,10 +7671,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -7686,24 +7686,24 @@ BTC is currently around $65,000 based on latest tool output."#
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -7712,7 +7712,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-42".to_string(),
@@ -7745,8 +7745,8 @@ BTC is currently around $65,000 based on latest tool output."#
         channels_by_name.insert(channel.name().to_string(), channel);
 
         let tmp = TempDir::new().unwrap();
-        let session_store: Arc<dyn zeroclaw_infra::session_backend::SessionBackend> =
-            Arc::new(zeroclaw_infra::session_store::SessionStore::new(tmp.path()).unwrap());
+        let session_store: Arc<dyn brai_infra::session_backend::SessionBackend> =
+            Arc::new(brai_infra::session_store::SessionStore::new(tmp.path()).unwrap());
 
         let runtime_ctx = Arc::new(ChannelRuntimeContext {
             channels_by_name: Arc::new(channels_by_name),
@@ -7754,7 +7754,7 @@ BTC is currently around $65,000 based on latest tool output."#
             default_provider: Arc::new("test-provider".to_string()),
             memory: Arc::new(NoopMemory),
             tools_registry: Arc::new(vec![Box::new(
-                zeroclaw_runtime::tools::SessionsCurrentTool::new(Arc::clone(&session_store)),
+                brai_runtime::tools::SessionsCurrentTool::new(Arc::clone(&session_store)),
             )]),
             observer: Arc::new(NoopObserver),
             system_prompt: Arc::new("test-system-prompt".to_string()),
@@ -7771,10 +7771,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -7786,26 +7786,26 @@ BTC is currently around $65,000 based on latest tool output."#
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: Some(Arc::clone(&session_store)),
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(&{
-                let mut autonomy = zeroclaw_config::schema::AutonomyConfig::default();
+                let mut autonomy = brai_config::schema::AutonomyConfig::default();
                 autonomy.auto_approve.push("sessions_current".to_string());
                 autonomy
             })),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -7814,7 +7814,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-42".to_string(),
@@ -7871,10 +7871,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -7894,38 +7894,38 @@ BTC is currently around $65,000 based on latest tool output."#
             // open here.
             autonomy_level: AutonomyLevel::Full,
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(&{
-                let mut autonomy = zeroclaw_config::schema::AutonomyConfig::default();
-                autonomy.level = zeroclaw_config::autonomy::AutonomyLevel::Full;
+                let mut autonomy = brai_config::schema::AutonomyConfig::default();
+                autonomy.level = brai_config::autonomy::AutonomyLevel::Full;
                 autonomy.auto_approve.push("mock_price".to_string());
                 autonomy
             })),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: Some(
-                zeroclaw_runtime::agent::tool_receipts::ReceiptGenerator::new(),
+                brai_runtime::agent::tool_receipts::ReceiptGenerator::new(),
             ),
             show_receipts_in_response: true,
         });
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-42".to_string(),
@@ -8009,10 +8009,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8028,38 +8028,38 @@ BTC is currently around $65,000 based on latest tool output."#
             // any receipts.
             autonomy_level: AutonomyLevel::Full,
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(&{
-                let mut autonomy = zeroclaw_config::schema::AutonomyConfig::default();
-                autonomy.level = zeroclaw_config::autonomy::AutonomyLevel::Full;
+                let mut autonomy = brai_config::schema::AutonomyConfig::default();
+                autonomy.level = brai_config::autonomy::AutonomyLevel::Full;
                 autonomy.auto_approve.push("mock_price".to_string());
                 autonomy
             })),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: Some(
-                zeroclaw_runtime::agent::tool_receipts::ReceiptGenerator::new(),
+                brai_runtime::agent::tool_receipts::ReceiptGenerator::new(),
             ),
             show_receipts_in_response: false,
         });
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-42".to_string(),
@@ -8118,10 +8118,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8133,27 +8133,27 @@ BTC is currently around $65,000 based on latest tool output."#
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::Full,
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(&{
-                let mut autonomy = zeroclaw_config::schema::AutonomyConfig::default();
-                autonomy.level = zeroclaw_config::autonomy::AutonomyLevel::Full;
+                let mut autonomy = brai_config::schema::AutonomyConfig::default();
+                autonomy.level = brai_config::autonomy::AutonomyLevel::Full;
                 autonomy.auto_approve.push("mock_price".to_string());
                 autonomy
             })),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8162,7 +8162,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-42".to_string(),
@@ -8241,10 +8241,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8256,24 +8256,24 @@ BTC is currently around $65,000 based on latest tool output."#
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8282,7 +8282,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-telegram-tool-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-telegram".to_string(),
@@ -8349,10 +8349,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8361,27 +8361,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8390,7 +8390,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-raw-json".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-raw".to_string(),
@@ -8442,10 +8442,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8454,27 +8454,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8483,7 +8483,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-2".to_string(),
                 sender: "bob".to_string(),
                 reply_target: "chat-84".to_string(),
@@ -8545,10 +8545,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8557,27 +8557,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8586,7 +8586,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-cmd-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -8669,10 +8669,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(route_overrides)),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8681,27 +8681,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8710,7 +8710,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-routed-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -8774,10 +8774,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8786,27 +8786,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8815,7 +8815,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-default-provider-cache".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -8863,7 +8863,7 @@ BTC is currently around $65,000 based on latest tool output."#
                         temperature: 0.5,
                         api_key: None,
                         api_url: None,
-                        reliability: zeroclaw_config::schema::ReliabilityConfig::default(),
+                        reliability: brai_config::schema::ReliabilityConfig::default(),
                     },
                     last_applied_stamp: None,
                 },
@@ -8891,13 +8891,13 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions {
-                zeroclaw_dir: Some(temp.path().to_path_buf()),
-                ..zeroclaw_providers::ProviderRuntimeOptions::default()
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions {
+                brai_dir: Some(temp.path().to_path_buf()),
+                ..brai_providers::ProviderRuntimeOptions::default()
             },
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -8906,27 +8906,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -8935,7 +8935,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-runtime-store-model".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -8999,10 +8999,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9011,30 +9011,30 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig {
+            pacing: brai_config::schema::PacingConfig {
                 loop_detection_enabled: false,
-                ..zeroclaw_config::schema::PacingConfig::default()
+                ..brai_config::schema::PacingConfig::default()
             },
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -9043,7 +9043,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-iter-success".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-iter-success".to_string(),
@@ -9097,10 +9097,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9109,30 +9109,30 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig {
+            pacing: brai_config::schema::PacingConfig {
                 loop_detection_enabled: false,
-                ..zeroclaw_config::schema::PacingConfig::default()
+                ..brai_config::schema::PacingConfig::default()
             },
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -9141,7 +9141,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-iter-fail".to_string(),
                 sender: "bob".to_string(),
                 reply_target: "chat-iter-fail".to_string(),
@@ -9183,7 +9183,7 @@ BTC is currently around $65,000 based on latest tool output."#
             &self,
             _key: &str,
             _content: &str,
-            _category: zeroclaw_memory::MemoryCategory,
+            _category: brai_memory::MemoryCategory,
             _session_id: Option<&str>,
         ) -> anyhow::Result<()> {
             Ok(())
@@ -9196,19 +9196,19 @@ BTC is currently around $65,000 based on latest tool output."#
             _session_id: Option<&str>,
             _since: Option<&str>,
             _until: Option<&str>,
-        ) -> anyhow::Result<Vec<zeroclaw_memory::MemoryEntry>> {
+        ) -> anyhow::Result<Vec<brai_memory::MemoryEntry>> {
             Ok(Vec::new())
         }
 
-        async fn get(&self, _key: &str) -> anyhow::Result<Option<zeroclaw_memory::MemoryEntry>> {
+        async fn get(&self, _key: &str) -> anyhow::Result<Option<brai_memory::MemoryEntry>> {
             Ok(None)
         }
 
         async fn list(
             &self,
-            _category: Option<&zeroclaw_memory::MemoryCategory>,
+            _category: Option<&brai_memory::MemoryCategory>,
             _session_id: Option<&str>,
-        ) -> anyhow::Result<Vec<zeroclaw_memory::MemoryEntry>> {
+        ) -> anyhow::Result<Vec<brai_memory::MemoryEntry>> {
             Ok(Vec::new())
         }
 
@@ -9237,7 +9237,7 @@ BTC is currently around $65,000 based on latest tool output."#
             &self,
             _key: &str,
             _content: &str,
-            _category: zeroclaw_memory::MemoryCategory,
+            _category: brai_memory::MemoryCategory,
             _session_id: Option<&str>,
         ) -> anyhow::Result<()> {
             Ok(())
@@ -9250,12 +9250,12 @@ BTC is currently around $65,000 based on latest tool output."#
             _session_id: Option<&str>,
             _since: Option<&str>,
             _until: Option<&str>,
-        ) -> anyhow::Result<Vec<zeroclaw_memory::MemoryEntry>> {
-            Ok(vec![zeroclaw_memory::MemoryEntry {
+        ) -> anyhow::Result<Vec<brai_memory::MemoryEntry>> {
+            Ok(vec![brai_memory::MemoryEntry {
                 id: "entry-1".to_string(),
                 key: "memory_key_1".to_string(),
                 content: "Age is 45".to_string(),
-                category: zeroclaw_memory::MemoryCategory::Conversation,
+                category: brai_memory::MemoryCategory::Conversation,
                 timestamp: "2026-02-20T00:00:00Z".to_string(),
                 session_id: None,
                 score: Some(0.9),
@@ -9265,15 +9265,15 @@ BTC is currently around $65,000 based on latest tool output."#
             }])
         }
 
-        async fn get(&self, _key: &str) -> anyhow::Result<Option<zeroclaw_memory::MemoryEntry>> {
+        async fn get(&self, _key: &str) -> anyhow::Result<Option<brai_memory::MemoryEntry>> {
             Ok(None)
         }
 
         async fn list(
             &self,
-            _category: Option<&zeroclaw_memory::MemoryCategory>,
+            _category: Option<&brai_memory::MemoryCategory>,
             _session_id: Option<&str>,
-        ) -> anyhow::Result<Vec<zeroclaw_memory::MemoryEntry>> {
+        ) -> anyhow::Result<Vec<brai_memory::MemoryEntry>> {
             Ok(Vec::new())
         }
 
@@ -9321,10 +9321,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9333,35 +9333,35 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(4);
-        tx.send(zeroclaw_api::channel::ChannelMessage {
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(4);
+        tx.send(brai_api::channel::ChannelMessage {
             id: "1".to_string(),
             sender: "alice".to_string(),
             reply_target: "alice".to_string(),
@@ -9374,7 +9374,7 @@ BTC is currently around $65,000 based on latest tool output."#
         })
         .await
         .unwrap();
-        tx.send(zeroclaw_api::channel::ChannelMessage {
+        tx.send(brai_api::channel::ChannelMessage {
             id: "2".to_string(),
             sender: "bob".to_string(),
             reply_target: "bob".to_string(),
@@ -9437,10 +9437,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: true,
@@ -9449,36 +9449,36 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(8);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(8);
         let send_task = tokio::spawn(async move {
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -9492,7 +9492,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .await
             .unwrap();
             tokio::time::sleep(Duration::from_millis(40)).await;
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-2".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -9572,10 +9572,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9587,33 +9587,33 @@ BTC is currently around $65,000 based on latest tool output."#
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(8);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(8);
         let send_task = tokio::spawn(async move {
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-1".to_string(),
                 sender: "U123".to_string(),
                 reply_target: "C123".to_string(),
@@ -9627,7 +9627,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .await
             .unwrap();
             tokio::time::sleep(Duration::from_millis(40)).await;
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-2".to_string(),
                 sender: "U123".to_string(),
                 reply_target: "C123".to_string(),
@@ -9704,10 +9704,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: true,
@@ -9716,36 +9716,36 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(8);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(8);
         let send_task = tokio::spawn(async move {
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-a".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -9759,7 +9759,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .await
             .unwrap();
             tokio::time::sleep(Duration::from_millis(30)).await;
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "msg-b".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-2".to_string(),
@@ -9814,10 +9814,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9826,27 +9826,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -9855,7 +9855,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "typing-msg".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-typing".to_string(),
@@ -9905,10 +9905,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -9917,27 +9917,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -9946,7 +9946,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "typing-fast-msg".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-typing".to_string(),
@@ -9996,10 +9996,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -10008,27 +10008,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -10037,7 +10037,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "react-msg".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-react".to_string(),
@@ -10231,13 +10231,13 @@ BTC is currently around $65,000 based on latest tool output."#
     #[test]
     fn prompt_skills_include_instructions_and_tools() {
         let ws = make_workspace();
-        let skills = vec![zeroclaw_runtime::skills::Skill {
+        let skills = vec![brai_runtime::skills::Skill {
             name: "code-review".into(),
             description: "Review code for bugs".into(),
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![zeroclaw_runtime::skills::SkillTool {
+            tools: vec![brai_runtime::skills::SkillTool {
                 name: "lint".into(),
                 description: "Run static checks".into(),
                 kind: "shell".into(),
@@ -10269,13 +10269,13 @@ BTC is currently around $65,000 based on latest tool output."#
     #[test]
     fn prompt_skills_compact_mode_omits_instructions_but_keeps_tools() {
         let ws = make_workspace();
-        let skills = vec![zeroclaw_runtime::skills::Skill {
+        let skills = vec![brai_runtime::skills::Skill {
             name: "code-review".into(),
             description: "Review code for bugs".into(),
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![zeroclaw_runtime::skills::SkillTool {
+            tools: vec![brai_runtime::skills::SkillTool {
                 name: "lint".into(),
                 description: "Run static checks".into(),
                 kind: "shell".into(),
@@ -10294,7 +10294,7 @@ BTC is currently around $65,000 based on latest tool output."#
             None,
             None,
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Compact,
+            brai_config::schema::SkillsPromptInjectionMode::Compact,
             AutonomyLevel::default(),
         );
 
@@ -10317,13 +10317,13 @@ BTC is currently around $65,000 based on latest tool output."#
     #[test]
     fn prompt_skills_escape_reserved_xml_chars() {
         let ws = make_workspace();
-        let skills = vec![zeroclaw_runtime::skills::Skill {
+        let skills = vec![brai_runtime::skills::Skill {
             name: "code<review>&".into(),
             description: "Review \"unsafe\" and 'risky' bits".into(),
             version: "1.0.0".into(),
             author: None,
             tags: vec![],
-            tools: vec![zeroclaw_runtime::skills::SkillTool {
+            tools: vec![brai_runtime::skills::SkillTool {
                 name: "run\"linter\"".into(),
                 description: "Run <lint> & report".into(),
                 kind: "shell&exec".into(),
@@ -10387,7 +10387,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         // Reproduces the production crash path where channel logs truncate at 80 chars.
         let result =
-            std::panic::catch_unwind(|| zeroclaw_runtime::util::truncate_with_ellipsis(msg, 80));
+            std::panic::catch_unwind(|| brai_runtime::util::truncate_with_ellipsis(msg, 80));
         assert!(
             result.is_ok(),
             "truncate_with_ellipsis should never panic on UTF-8"
@@ -10420,9 +10420,9 @@ BTC is currently around $65,000 based on latest tool output."#
     #[test]
     fn full_autonomy_prompt_executes_allowed_tools_without_extra_approval() {
         let ws = make_workspace();
-        let config = zeroclaw_config::schema::AutonomyConfig {
-            level: zeroclaw_runtime::security::AutonomyLevel::Full,
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+        let config = brai_config::schema::AutonomyConfig {
+            level: brai_runtime::security::AutonomyLevel::Full,
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let prompt = build_system_prompt_with_mode_and_autonomy(
             ws.path(),
@@ -10433,7 +10433,7 @@ BTC is currently around $65,000 based on latest tool output."#
             None,
             Some(&config),
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             false,
             0,
         );
@@ -10451,9 +10451,9 @@ BTC is currently around $65,000 based on latest tool output."#
     #[test]
     fn readonly_prompt_explains_policy_blocks_without_fake_approval() {
         let ws = make_workspace();
-        let config = zeroclaw_config::schema::AutonomyConfig {
-            level: zeroclaw_runtime::security::AutonomyLevel::ReadOnly,
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+        let config = brai_config::schema::AutonomyConfig {
+            level: brai_runtime::security::AutonomyLevel::ReadOnly,
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let prompt = build_system_prompt_with_mode_and_autonomy(
             ws.path(),
@@ -10464,7 +10464,7 @@ BTC is currently around $65,000 based on latest tool output."#
             None,
             Some(&config),
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             false,
             0,
         );
@@ -10498,7 +10498,7 @@ BTC is currently around $65,000 based on latest tool output."#
             None,
             None,
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             AutonomyLevel::Full,
         );
 
@@ -10532,7 +10532,7 @@ BTC is currently around $65,000 based on latest tool output."#
             None,
             None,
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             AutonomyLevel::Supervised,
         );
 
@@ -10562,7 +10562,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .expect("should produce non-char-boundary data at byte index 120");
 
         observer.record_event(
-            &zeroclaw_runtime::observability::traits::ObserverEvent::ToolCallStart {
+            &brai_runtime::observability::traits::ObserverEvent::ToolCallStart {
                 tool: "file_write".to_string(),
                 arguments: Some(payload),
             },
@@ -10575,7 +10575,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
     #[test]
     fn conversation_memory_key_uses_message_id() {
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "msg_abc123".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10592,7 +10592,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
     #[test]
     fn followup_thread_id_prefers_thread_ts() {
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "slack_C123_1741234567.123456".into(),
             sender: "U123".into(),
             reply_target: "C123".into(),
@@ -10612,7 +10612,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
     #[test]
     fn followup_thread_id_falls_back_to_message_id() {
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "msg_abc123".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10629,7 +10629,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
     #[test]
     fn conversation_memory_key_is_unique_per_message() {
-        let msg1 = zeroclaw_api::channel::ChannelMessage {
+        let msg1 = brai_api::channel::ChannelMessage {
             id: "msg_1".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10640,7 +10640,7 @@ BTC is currently around $65,000 based on latest tool output."#
             interruption_scope_id: None,
             attachments: vec![],
         };
-        let msg2 = zeroclaw_api::channel::ChannelMessage {
+        let msg2 = brai_api::channel::ChannelMessage {
             id: "msg_2".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10663,7 +10663,7 @@ BTC is currently around $65,000 based on latest tool output."#
         let tmp = TempDir::new().unwrap();
         let mem = SqliteMemory::new(tmp.path()).unwrap();
 
-        let msg1 = zeroclaw_api::channel::ChannelMessage {
+        let msg1 = brai_api::channel::ChannelMessage {
             id: "msg_1".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10674,7 +10674,7 @@ BTC is currently around $65,000 based on latest tool output."#
             interruption_scope_id: None,
             attachments: vec![],
         };
-        let msg2 = zeroclaw_api::channel::ChannelMessage {
+        let msg2 = brai_api::channel::ChannelMessage {
             id: "msg_2".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10726,7 +10726,7 @@ BTC is currently around $65,000 based on latest tool output."#
     async fn autosaved_conversation_memory_is_recalled_by_sender_scope() {
         let tmp = TempDir::new().unwrap();
         let mem = SqliteMemory::new(tmp.path()).unwrap();
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "msg_1".into(),
             sender: "U123".into(),
             reply_target: "C456".into(),
@@ -10761,7 +10761,7 @@ BTC is currently around $65,000 based on latest tool output."#
     async fn autosaved_group_conversation_memory_stays_session_scoped() {
         let tmp = TempDir::new().unwrap();
         let mem = SqliteMemory::new(tmp.path()).unwrap();
-        let group_a_msg = zeroclaw_api::channel::ChannelMessage {
+        let group_a_msg = brai_api::channel::ChannelMessage {
             id: "msg_1".into(),
             sender: "U123".into(),
             reply_target: "group:alpha".into(),
@@ -10772,7 +10772,7 @@ BTC is currently around $65,000 based on latest tool output."#
             interruption_scope_id: None,
             attachments: vec![],
         };
-        let group_b_msg = zeroclaw_api::channel::ChannelMessage {
+        let group_b_msg = brai_api::channel::ChannelMessage {
             id: "msg_2".into(),
             sender: "U123".into(),
             reply_target: "group:beta".into(),
@@ -10893,10 +10893,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -10905,27 +10905,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -10934,7 +10934,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-a".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -10951,7 +10951,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-b".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -10994,7 +10994,7 @@ BTC is currently around $65,000 based on latest tool output."#
         config.skills.open_skills_enabled = false;
 
         let initial_skills =
-            zeroclaw_runtime::skills::load_skills_with_config(workspace.path(), &config);
+            brai_runtime::skills::load_skills_with_config(workspace.path(), &config);
         assert!(initial_skills.is_empty());
 
         let initial_system_prompt = build_system_prompt_with_mode(
@@ -11041,8 +11041,8 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(config.workspace_dir.clone()),
             prompt_config: Arc::new(config.clone()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
@@ -11053,27 +11053,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -11082,7 +11082,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-before-new".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-refresh".to_string(),
@@ -11105,7 +11105,7 @@ BTC is currently around $65,000 based on latest tool output."#
         )
         .unwrap();
         let refreshed_skills =
-            zeroclaw_runtime::skills::load_skills_with_config(workspace.path(), &config);
+            brai_runtime::skills::load_skills_with_config(workspace.path(), &config);
         assert_eq!(refreshed_skills.len(), 1);
         assert_eq!(refreshed_skills[0].name, "refresh-test");
         assert!(
@@ -11116,7 +11116,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-new-session".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-refresh".to_string(),
@@ -11155,7 +11155,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-after-new".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-refresh".to_string(),
@@ -11230,10 +11230,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -11242,27 +11242,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -11271,7 +11271,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-ctx-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-ctx".to_string(),
@@ -11350,10 +11350,10 @@ BTC is currently around $65,000 based on latest tool output."#
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -11362,27 +11362,27 @@ BTC is currently around $65,000 based on latest tool output."#
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -11391,7 +11391,7 @@ BTC is currently around $65,000 based on latest tool output."#
 
         process_channel_message(
             runtime_ctx.clone(),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "tg-msg-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-telegram".to_string(),
@@ -11527,7 +11527,7 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn aieos_identity_from_file() {
         use tempfile::TempDir;
-        use zeroclaw_config::schema::IdentityConfig;
+        use brai_config::schema::IdentityConfig;
 
         let tmp = TempDir::new().unwrap();
         let identity_path = tmp.path().join("aieos_identity.json");
@@ -11583,7 +11583,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn aieos_identity_from_inline() {
-        use zeroclaw_config::schema::IdentityConfig;
+        use brai_config::schema::IdentityConfig;
 
         let config = IdentityConfig {
             format: "aieos".into(),
@@ -11606,7 +11606,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn aieos_fallback_to_openclaw_on_parse_error() {
-        use zeroclaw_config::schema::IdentityConfig;
+        use brai_config::schema::IdentityConfig;
 
         let config = IdentityConfig {
             format: "aieos".into(),
@@ -11624,7 +11624,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn aieos_empty_uses_openclaw() {
-        use zeroclaw_config::schema::IdentityConfig;
+        use brai_config::schema::IdentityConfig;
 
         // Format is "aieos" but neither path nor inline is set
         let config = IdentityConfig {
@@ -11643,7 +11643,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn openclaw_format_uses_bootstrap_files() {
-        use zeroclaw_config::schema::IdentityConfig;
+        use brai_config::schema::IdentityConfig;
 
         let config = IdentityConfig {
             format: "openclaw".into(),
@@ -11697,7 +11697,7 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn collect_configured_channels_includes_mattermost_when_configured() {
         let mut config = Config::default();
-        config.channels.mattermost = Some(zeroclaw_config::schema::MattermostConfig {
+        config.channels.mattermost = Some(brai_config::schema::MattermostConfig {
             enabled: true,
             url: "https://mattermost.example.com".to_string(),
             bot_token: "test-token".to_string(),
@@ -11727,7 +11727,7 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn collect_configured_channels_skips_disabled_email() {
         let mut config = Config::default();
-        config.channels.email = Some(zeroclaw_config::scattered_types::EmailConfig {
+        config.channels.email = Some(brai_config::scattered_types::EmailConfig {
             enabled: false,
             ..Default::default()
         });
@@ -11743,7 +11743,7 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn collect_configured_channels_skips_disabled_voice_call() {
         let mut config = Config::default();
-        config.channels.voice_call = Some(zeroclaw_config::scattered_types::VoiceCallConfig {
+        config.channels.voice_call = Some(brai_config::scattered_types::VoiceCallConfig {
             enabled: false,
             ..Default::default()
         });
@@ -11779,7 +11779,7 @@ This is an example JSON object for profile settings."#;
 
         async fn listen(
             &self,
-            _tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            _tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             anyhow::bail!("listen boom")
@@ -11798,7 +11798,7 @@ This is an example JSON object for profile settings."#;
 
         async fn listen(
             &self,
-            tx: tokio::sync::mpsc::Sender<zeroclaw_api::channel::ChannelMessage>,
+            tx: tokio::sync::mpsc::Sender<brai_api::channel::ChannelMessage>,
         ) -> anyhow::Result<()> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             tx.closed().await;
@@ -11814,7 +11814,7 @@ This is an example JSON object for profile settings."#;
             calls: Arc::clone(&calls),
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(1);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(1);
         let handle = spawn_supervised_listener(channel, tx, 1, 1);
 
         tokio::time::sleep(Duration::from_millis(80)).await;
@@ -11822,7 +11822,7 @@ This is an example JSON object for profile settings."#;
         handle.abort();
         let _ = handle.await;
 
-        let snapshot = zeroclaw_runtime::health::snapshot_json();
+        let snapshot = brai_runtime::health::snapshot_json();
         let component = &snapshot["components"]["channel:test-supervised-fail"];
         assert_eq!(component["status"], "error");
         assert!(component["restart_count"].as_u64().unwrap_or(0) >= 1);
@@ -11845,7 +11845,7 @@ This is an example JSON object for profile settings."#;
             calls: Arc::clone(&calls),
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(1);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(1);
         let handle = spawn_supervised_listener_with_health_interval(
             channel,
             tx,
@@ -11855,7 +11855,7 @@ This is an example JSON object for profile settings."#;
         );
 
         tokio::time::sleep(Duration::from_millis(35)).await;
-        let first_last_ok = zeroclaw_runtime::health::snapshot_json()["components"]
+        let first_last_ok = brai_runtime::health::snapshot_json()["components"]
             [&component_name]["last_ok"]
             .as_str()
             .unwrap_or("")
@@ -11863,7 +11863,7 @@ This is an example JSON object for profile settings."#;
         assert!(!first_last_ok.is_empty());
 
         tokio::time::sleep(Duration::from_millis(70)).await;
-        let second_last_ok = zeroclaw_runtime::health::snapshot_json()["components"]
+        let second_last_ok = brai_runtime::health::snapshot_json()["components"]
             [&component_name]["last_ok"]
             .as_str()
             .unwrap_or("")
@@ -11976,10 +11976,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -11988,27 +11988,27 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12018,9 +12018,9 @@ This is an example JSON object for profile settings."#;
         // Simulate a photo attachment message with [IMAGE:] marker.
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-photo-1".to_string(),
-                sender: "zeroclaw_user".to_string(),
+                sender: "brai_user".to_string(),
                 reply_target: "chat-photo".to_string(),
                 content: "[IMAGE:/tmp/workspace/photo_99_1.jpg]\n\nWhat is this?".to_string(),
                 channel: "test-channel".to_string(),
@@ -12076,10 +12076,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12088,27 +12088,27 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12117,9 +12117,9 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             Arc::clone(&runtime_ctx),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-photo-1".to_string(),
-                sender: "zeroclaw_user".to_string(),
+                sender: "brai_user".to_string(),
                 reply_target: "chat-photo".to_string(),
                 content: "[IMAGE:/tmp/workspace/photo_99_1.jpg]\n\nWhat is this?".to_string(),
                 channel: "test-channel".to_string(),
@@ -12134,9 +12134,9 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             Arc::clone(&runtime_ctx),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-text-2".to_string(),
-                sender: "zeroclaw_user".to_string(),
+                sender: "brai_user".to_string(),
                 reply_target: "chat-photo".to_string(),
                 content: "What is WAL?".to_string(),
                 channel: "test-channel".to_string(),
@@ -12168,7 +12168,7 @@ This is an example JSON object for profile settings."#;
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let turns = histories
-            .peek("test-channel_chat-photo_zeroclaw_user")
+            .peek("test-channel_chat-photo_brai_user")
             .expect("history should exist for sender");
         assert_eq!(turns.len(), 2);
         assert_eq!(turns[0].role, "user");
@@ -12210,10 +12210,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12222,38 +12222,38 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 50000,
             context_token_budget: 128_000,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 std::time::Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
         });
 
         process_channel_message(
             Arc::clone(&runtime_ctx),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-bad-1".to_string(),
-                sender: "zeroclaw_user".to_string(),
+                sender: "brai_user".to_string(),
                 reply_target: "chat-format".to_string(),
                 content: "trigger format error".to_string(),
                 channel: "test-channel".to_string(),
@@ -12268,9 +12268,9 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             Arc::clone(&runtime_ctx),
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-text-2".to_string(),
-                sender: "zeroclaw_user".to_string(),
+                sender: "brai_user".to_string(),
                 reply_target: "chat-format".to_string(),
                 content: "What is WAL?".to_string(),
                 channel: "test-channel".to_string(),
@@ -12302,7 +12302,7 @@ This is an example JSON object for profile settings."#;
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let turns = histories
-            .peek("test-channel_chat-format_zeroclaw_user")
+            .peek("test-channel_chat-format_brai_user")
             .expect("history should exist for sender");
         assert_eq!(turns.len(), 2);
         assert_eq!(turns[0].role, "user");
@@ -12351,16 +12351,16 @@ This is an example JSON object for profile settings."#;
         provider_cache_seed.insert("test-provider".to_string(), Arc::clone(&default_provider));
         provider_cache_seed.insert("vision-provider".to_string(), vision_provider);
 
-        let classification_config = zeroclaw_config::schema::QueryClassificationConfig {
+        let classification_config = brai_config::schema::QueryClassificationConfig {
             enabled: true,
-            rules: vec![zeroclaw_config::schema::ClassificationRule {
+            rules: vec![brai_config::schema::ClassificationRule {
                 hint: "vision".into(),
                 keywords: vec!["analyze-image".into()],
                 ..Default::default()
             }],
         };
 
-        let model_routes = vec![zeroclaw_config::schema::ModelRouteConfig {
+        let model_routes = vec![brai_config::schema::ModelRouteConfig {
             hint: "vision".into(),
             provider: "vision-provider".into(),
             model: "gpt-4-vision".into(),
@@ -12388,10 +12388,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12400,9 +12400,9 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
@@ -12413,14 +12413,14 @@ This is an example JSON object for profile settings."#;
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12429,7 +12429,7 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-qc-1".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -12475,16 +12475,16 @@ This is an example JSON object for profile settings."#;
         provider_cache_seed.insert("vision-provider".to_string(), vision_provider);
 
         // Classification is disabled — matching keyword should NOT trigger reroute.
-        let classification_config = zeroclaw_config::schema::QueryClassificationConfig {
+        let classification_config = brai_config::schema::QueryClassificationConfig {
             enabled: false,
-            rules: vec![zeroclaw_config::schema::ClassificationRule {
+            rules: vec![brai_config::schema::ClassificationRule {
                 hint: "vision".into(),
                 keywords: vec!["analyze-image".into()],
                 ..Default::default()
             }],
         };
 
-        let model_routes = vec![zeroclaw_config::schema::ModelRouteConfig {
+        let model_routes = vec![brai_config::schema::ModelRouteConfig {
             hint: "vision".into(),
             provider: "vision-provider".into(),
             model: "gpt-4-vision".into(),
@@ -12512,10 +12512,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12524,9 +12524,9 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
@@ -12537,14 +12537,14 @@ This is an example JSON object for profile settings."#;
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12553,7 +12553,7 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-qc-disabled".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -12591,16 +12591,16 @@ This is an example JSON object for profile settings."#;
         provider_cache_seed.insert("vision-provider".to_string(), vision_provider);
 
         // Classification enabled with a rule that won't match the message.
-        let classification_config = zeroclaw_config::schema::QueryClassificationConfig {
+        let classification_config = brai_config::schema::QueryClassificationConfig {
             enabled: true,
-            rules: vec![zeroclaw_config::schema::ClassificationRule {
+            rules: vec![brai_config::schema::ClassificationRule {
                 hint: "vision".into(),
                 keywords: vec!["analyze-image".into()],
                 ..Default::default()
             }],
         };
 
-        let model_routes = vec![zeroclaw_config::schema::ModelRouteConfig {
+        let model_routes = vec![brai_config::schema::ModelRouteConfig {
             hint: "vision".into(),
             provider: "vision-provider".into(),
             model: "gpt-4-vision".into(),
@@ -12628,10 +12628,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12640,9 +12640,9 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
@@ -12653,14 +12653,14 @@ This is an example JSON object for profile settings."#;
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12669,7 +12669,7 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-qc-nomatch".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -12710,16 +12710,16 @@ This is an example JSON object for profile settings."#;
         provider_cache_seed.insert("code-provider".to_string(), code_provider);
 
         // Both rules match "code" keyword, but "code" rule has higher priority.
-        let classification_config = zeroclaw_config::schema::QueryClassificationConfig {
+        let classification_config = brai_config::schema::QueryClassificationConfig {
             enabled: true,
             rules: vec![
-                zeroclaw_config::schema::ClassificationRule {
+                brai_config::schema::ClassificationRule {
                     hint: "fast".into(),
                     keywords: vec!["code".into()],
                     priority: 1,
                     ..Default::default()
                 },
-                zeroclaw_config::schema::ClassificationRule {
+                brai_config::schema::ClassificationRule {
                     hint: "code".into(),
                     keywords: vec!["code".into()],
                     priority: 10,
@@ -12729,13 +12729,13 @@ This is an example JSON object for profile settings."#;
         };
 
         let model_routes = vec![
-            zeroclaw_config::schema::ModelRouteConfig {
+            brai_config::schema::ModelRouteConfig {
                 hint: "fast".into(),
                 provider: "fast-provider".into(),
                 model: "fast-model".into(),
                 api_key: None,
             },
-            zeroclaw_config::schema::ModelRouteConfig {
+            brai_config::schema::ModelRouteConfig {
                 hint: "code".into(),
                 provider: "code-provider".into(),
                 model: "code-model".into(),
@@ -12764,10 +12764,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -12776,9 +12776,9 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
@@ -12789,14 +12789,14 @@ This is an example JSON object for profile settings."#;
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
@@ -12805,7 +12805,7 @@ This is an example JSON object for profile settings."#;
 
         process_channel_message(
             runtime_ctx,
-            zeroclaw_api::channel::ChannelMessage {
+            brai_api::channel::ChannelMessage {
                 id: "msg-qc-prio".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-1".to_string(),
@@ -12852,11 +12852,11 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn build_channel_by_id_configured_telegram_succeeds() {
         let mut config = Config::default();
-        config.channels.telegram = Some(zeroclaw_config::schema::TelegramConfig {
+        config.channels.telegram = Some(brai_config::schema::TelegramConfig {
             enabled: true,
             bot_token: "test-token".to_string(),
             allowed_users: vec![],
-            stream_mode: zeroclaw_config::schema::StreamMode::Off,
+            stream_mode: brai_config::schema::StreamMode::Off,
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -12890,9 +12890,9 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn build_channel_by_id_configured_voice_call_succeeds() {
         let mut config = Config::default();
-        config.channels.voice_call = Some(zeroclaw_config::scattered_types::VoiceCallConfig {
+        config.channels.voice_call = Some(brai_config::scattered_types::VoiceCallConfig {
             enabled: true,
-            provider: zeroclaw_config::scattered_types::VoiceProvider::Twilio,
+            provider: brai_config::scattered_types::VoiceProvider::Twilio,
             account_id: "AC_TEST".to_string(),
             auth_token: "test_token".to_string(),
             from_number: "+15551234567".to_string(),
@@ -12929,7 +12929,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn is_stop_command_matches_with_bot_suffix() {
-        assert!(is_stop_command("/stop@zeroclaw_bot"));
+        assert!(is_stop_command("/stop@brai_bot"));
     }
 
     #[test]
@@ -13004,7 +13004,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn interruption_scope_key_without_scope_id_is_three_component() {
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "1".into(),
             sender: "alice".into(),
             reply_target: "room".into(),
@@ -13020,7 +13020,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn interruption_scope_key_with_scope_id_is_four_component() {
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "1".into(),
             sender: "alice".into(),
             reply_target: "room".into(),
@@ -13037,7 +13037,7 @@ This is an example JSON object for profile settings."#;
     #[test]
     fn interruption_scope_key_thread_ts_alone_does_not_affect_key() {
         // thread_ts used for reply anchoring should not bleed into scope key
-        let msg = zeroclaw_api::channel::ChannelMessage {
+        let msg = brai_api::channel::ChannelMessage {
             id: "1".into(),
             sender: "alice".into(),
             reply_target: "C123".into(),
@@ -13082,10 +13082,10 @@ This is an example JSON object for profile settings."#;
             route_overrides: Arc::new(Mutex::new(HashMap::new())),
             api_key: None,
             api_url: None,
-            reliability: Arc::new(zeroclaw_config::schema::ReliabilityConfig::default()),
-            provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions::default(),
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
             workspace_dir: Arc::new(std::env::temp_dir()),
-            prompt_config: Arc::new(zeroclaw_config::schema::Config::default()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
             message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
             interrupt_on_new_message: InterruptOnNewMessageConfig {
                 telegram: false,
@@ -13094,38 +13094,38 @@ This is an example JSON object for profile settings."#;
                 mattermost: false,
                 matrix: false,
             },
-            multimodal: zeroclaw_config::schema::MultimodalConfig::default(),
-            media_pipeline: zeroclaw_config::schema::MediaPipelineConfig::default(),
-            transcription_config: zeroclaw_config::schema::TranscriptionConfig::default(),
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
             hooks: None,
             non_cli_excluded_tools: Arc::new(Vec::new()),
             autonomy_level: AutonomyLevel::default(),
             tool_call_dedup_exempt: Arc::new(Vec::new()),
             model_routes: Arc::new(Vec::new()),
-            query_classification: zeroclaw_config::schema::QueryClassificationConfig::default(),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
             ack_reactions: true,
             show_tool_calls: true,
             session_store: None,
             approval_manager: Arc::new(ApprovalManager::for_non_interactive(
-                &zeroclaw_config::schema::AutonomyConfig::default(),
+                &brai_config::schema::AutonomyConfig::default(),
             )),
             activated_tools: None,
             cost_tracking: None,
-            pacing: zeroclaw_config::schema::PacingConfig::default(),
+            pacing: brai_config::schema::PacingConfig::default(),
             max_tool_result_chars: 0,
             context_token_budget: 0,
-            debouncer: Arc::new(zeroclaw_infra::debounce::MessageDebouncer::new(
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
                 Duration::ZERO,
             )),
             receipt_generator: None,
             show_receipts_in_response: false,
         });
 
-        let (tx, rx) = tokio::sync::mpsc::channel::<zeroclaw_api::channel::ChannelMessage>(8);
+        let (tx, rx) = tokio::sync::mpsc::channel::<brai_api::channel::ChannelMessage>(8);
         let send_task = tokio::spawn(async move {
             // Two messages from same sender but in different Slack threads —
             // they must NOT cancel each other.
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "1741234567.100001".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "C123".to_string(),
@@ -13139,7 +13139,7 @@ This is an example JSON object for profile settings."#;
             .await
             .unwrap();
             tokio::time::sleep(Duration::from_millis(30)).await;
-            tx.send(zeroclaw_api::channel::ChannelMessage {
+            tx.send(brai_api::channel::ChannelMessage {
                 id: "1741234567.200002".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "C123".to_string(),
@@ -13307,7 +13307,7 @@ This is an example JSON object for profile settings."#;
 
     #[test]
     fn default_keep_tool_context_turns_is_two() {
-        let config = zeroclaw_config::schema::AgentConfig::default();
+        let config = brai_config::schema::AgentConfig::default();
         assert_eq!(config.keep_tool_context_turns, 2);
     }
 

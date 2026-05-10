@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 /// HTTP request tool for API interactions.
 /// Supports GET, POST, PUT, DELETE methods with configurable security.
@@ -131,7 +131,7 @@ impl HttpRequestTool {
             .connect_timeout(Duration::from_secs(10))
             .redirect(reqwest::redirect::Policy::none());
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "tool.http_request");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "tool.http_request");
         let client = builder.build()?;
 
         let mut request = client.request(method, url);
@@ -458,8 +458,8 @@ fn is_non_global_v6(v6: std::net::Ipv6Addr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_tool(allowed_domains: Vec<&str>) -> HttpRequestTool {
         test_tool_with_private(allowed_domains, false)

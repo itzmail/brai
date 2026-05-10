@@ -42,7 +42,7 @@ pub mod plugin_routes {
             };
 
             if plugin_path.exists() {
-                match zeroclaw_plugins::host::PluginHost::new(
+                match brai_plugins::host::PluginHost::new(
                     plugin_path.parent().unwrap_or(&plugin_path),
                 ) {
                     Ok(host) => host

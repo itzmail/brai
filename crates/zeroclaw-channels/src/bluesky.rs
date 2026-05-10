@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Bluesky channel — polls for mentions via AT Protocol and replies as posts.
 pub struct BlueskyChannel {
@@ -114,7 +114,7 @@ impl BlueskyChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client("channel.bluesky")
+        brai_config::schema::build_runtime_proxy_client("channel.bluesky")
     }
 
     /// Create a new session with handle + app password.

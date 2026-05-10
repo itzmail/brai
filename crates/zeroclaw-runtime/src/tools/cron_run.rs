@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::Config;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::Config;
 
 pub struct CronRunTool {
     config: Arc<Config>,
@@ -173,7 +173,7 @@ mod tests {
     use super::*;
     use crate::security::AutonomyLevel;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::Config;
+    use brai_config::schema::Config;
 
     async fn test_config(tmp: &TempDir) -> Arc<Config> {
         let config = Config {

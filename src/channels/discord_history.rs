@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::discord_history::*;
+pub use brai_channels::discord_history::*;

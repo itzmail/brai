@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Maximum response body size (1 MB).
 const MAX_RESPONSE_BYTES: usize = 1_048_576;

@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-memory"
+name = "brai-memory"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ description = "Memory backends, embeddings, consolidation, and retrieval for Zer
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-config = { workspace = true, default-features = true }
+brai-api.workspace = true
+brai-config = { workspace = true, default-features = true }
 anyhow = "1.0"
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
@@ -30,3 +30,6 @@ memory-postgres = ["dep:postgres"]
 [dev-dependencies]
 tempfile = "3.26"
 tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true

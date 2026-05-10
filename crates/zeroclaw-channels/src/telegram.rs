@@ -8,9 +8,9 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::fs;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
-use zeroclaw_config::schema::{Config, StreamMode};
-use zeroclaw_runtime::security::pairing::PairingGuard;
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_config::schema::{Config, StreamMode};
+use brai_runtime::security::pairing::PairingGuard;
 
 /// Telegram's maximum message length for text messages
 const TELEGRAM_MAX_MESSAGE_LENGTH: usize = 4096;
@@ -377,12 +377,12 @@ pub struct TelegramChannel {
     /// Base URL for the Telegram Bot API. Defaults to `https://api.telegram.org`.
     /// Override for local Bot API servers or testing.
     api_base: String,
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<std::sync::Arc<super::transcription::TranscriptionManager>>,
     voice_transcriptions: Mutex<std::collections::HashMap<String, String>>,
     workspace_dir: Option<std::path::PathBuf>,
     ack_reactions: bool,
-    tts_config: Option<zeroclaw_config::schema::TtsConfig>,
+    tts_config: Option<brai_config::schema::TtsConfig>,
     voice_chats: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
     pending_voice:
         Arc<std::sync::Mutex<std::collections::HashMap<String, (String, std::time::Instant)>>>,
@@ -396,7 +396,7 @@ pub struct TelegramChannel {
         tokio::sync::Mutex<
             std::collections::HashMap<
                 String,
-                tokio::sync::oneshot::Sender<zeroclaw_api::channel::ChannelApprovalResponse>,
+                tokio::sync::oneshot::Sender<brai_api::channel::ChannelApprovalResponse>,
             >,
         >,
     >,
@@ -505,7 +505,7 @@ impl TelegramChannel {
     /// Configure voice transcription.
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -525,7 +525,7 @@ impl TelegramChannel {
     }
 
     /// Configure text-to-speech for outgoing voice replies.
-    pub fn with_tts(mut self, config: zeroclaw_config::schema::TtsConfig) -> Self {
+    pub fn with_tts(mut self, config: brai_config::schema::TtsConfig) -> Self {
         if config.enabled {
             self.tts_config = Some(config);
         }
@@ -582,7 +582,7 @@ impl TelegramChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             "channel.telegram",
             self.proxy_url.as_deref(),
         )
@@ -604,8 +604,8 @@ impl TelegramChannel {
         let home = UserDirs::new()
             .map(|u| u.home_dir().to_path_buf())
             .context("Could not find home directory")?;
-        let zeroclaw_dir = home.join(".zeroclaw");
-        let config_path = zeroclaw_dir.join("config.toml");
+        let brai_dir = home.join(".brai");
+        let config_path = brai_dir.join("config.toml");
 
         let contents = fs::read_to_string(&config_path)
             .await
@@ -614,7 +614,7 @@ impl TelegramChannel {
             "Failed to parse config.toml — check [channels.telegram] section for syntax errors",
         )?;
         config.config_path = config_path;
-        config.workspace_dir = zeroclaw_dir.join("workspace");
+        config.workspace_dir = brai_dir.join("workspace");
         Ok(config)
     }
 
@@ -698,7 +698,7 @@ impl TelegramChannel {
 
         // Collect commands from installed skills.
         if let Some(ref workspace_dir) = self.workspace_dir {
-            let skills = zeroclaw_runtime::skills::load_skills(workspace_dir);
+            let skills = brai_runtime::skills::load_skills(workspace_dir);
 
             for skill in &skills {
                 let sanitized = sanitize_telegram_command_name(&skill.name);
@@ -781,7 +781,7 @@ impl TelegramChannel {
         chat_id: &str,
         thread_id: Option<&str>,
         text: &str,
-        tts_config: &zeroclaw_config::schema::TtsConfig,
+        tts_config: &brai_config::schema::TtsConfig,
     ) -> anyhow::Result<()> {
         let tts_manager = crate::tts::TtsManager::new(tts_config)?;
         let audio_bytes = tts_manager.synthesize(text).await?;
@@ -793,7 +793,7 @@ impl TelegramChannel {
         }
 
         let url = format!("{api_base}/bot{bot_token}/sendVoice");
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("channel.telegram");
+        let client = brai_config::schema::build_runtime_proxy_client("channel.telegram");
 
         let mut form = reqwest::multipart::Form::new()
             .text("chat_id", chat_id.to_string())
@@ -3140,13 +3140,13 @@ Ensure only one `zeroclaw` process is using this bot token."
                         {
                             let response = match action {
                                 "approve" => {
-                                    Some(zeroclaw_api::channel::ChannelApprovalResponse::Approve)
+                                    Some(brai_api::channel::ChannelApprovalResponse::Approve)
                                 }
                                 "always" => Some(
-                                    zeroclaw_api::channel::ChannelApprovalResponse::AlwaysApprove,
+                                    brai_api::channel::ChannelApprovalResponse::AlwaysApprove,
                                 ),
                                 "deny" => {
-                                    Some(zeroclaw_api::channel::ChannelApprovalResponse::Deny)
+                                    Some(brai_api::channel::ChannelApprovalResponse::Deny)
                                 }
                                 other => {
                                     tracing::warn!("Unknown approval callback action: {other}");
@@ -3284,9 +3284,9 @@ Ensure only one `zeroclaw` process is using this bot token."
     async fn request_approval(
         &self,
         recipient: &str,
-        request: &zeroclaw_api::channel::ChannelApprovalRequest,
-    ) -> anyhow::Result<Option<zeroclaw_api::channel::ChannelApprovalResponse>> {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        request: &brai_api::channel::ChannelApprovalRequest,
+    ) -> anyhow::Result<Option<brai_api::channel::ChannelApprovalResponse>> {
+        use brai_api::channel::ChannelApprovalResponse;
 
         // Parse recipient for chat_id + optional thread_id ("chat_id:thread_id" format).
         let (chat_id, thread_id) = recipient
@@ -3642,7 +3642,7 @@ mod tests {
     #[test]
     fn telegram_extract_bind_code_supports_bot_mention() {
         assert_eq!(
-            TelegramChannel::extract_bind_code("/bind@zeroclaw_bot 654321"),
+            TelegramChannel::extract_bind_code("/bind@brai_bot 654321"),
             Some("654321")
         );
     }
@@ -4751,10 +4751,10 @@ mod tests {
 
     #[test]
     fn with_transcription_sets_config_when_enabled() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             api_key: Some("test_key".to_string()),
-            ..zeroclaw_config::schema::TranscriptionConfig::default()
+            ..brai_config::schema::TranscriptionConfig::default()
         };
 
         let ch =
@@ -4765,7 +4765,7 @@ mod tests {
 
     #[test]
     fn with_transcription_skips_when_disabled() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig::default(); // enabled = false
+        let tc = brai_config::schema::TranscriptionConfig::default(); // enabled = false
         let ch =
             TelegramChannel::new("token".into(), vec!["*".into()], false).with_transcription(tc);
         assert!(ch.transcription.is_none());
@@ -4790,7 +4790,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_parse_voice_message_skips_when_duration_exceeds_limit() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             api_key: Some("test_key".to_string()),
             max_duration_secs: 5,
@@ -4814,7 +4814,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_parse_voice_message_rejects_unauthorized_sender_before_download() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             api_key: Some("test_key".to_string()),
             max_duration_secs: 120,
@@ -4870,7 +4870,7 @@ mod tests {
         );
 
         // 2. Call TranscriptionManager.transcribe() — real Groq Whisper API
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             ..Default::default()
         };
@@ -4901,7 +4901,7 @@ mod tests {
             "chat": { "id": chat_id },
             "reply_to_message": {
                 "message_id": message_id,
-                "from": { "username": "zeroclaw_user" },
+                "from": { "username": "brai_user" },
                 "voice": { "file_id": "test_file", "duration": 1 }
             }
         });
@@ -5142,9 +5142,9 @@ mod tests {
             "notes.md",
             std::path::Path::new("/tmp/ws/notes.md"),
         );
-        let messages = vec![zeroclaw_providers::ChatMessage::user(content)];
+        let messages = vec![brai_providers::ChatMessage::user(content)];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&messages),
+            brai_providers::multimodal::count_image_markers(&messages),
             0,
             "markdown file must not trigger image marker detection"
         );
@@ -5173,10 +5173,10 @@ mod tests {
     #[test]
     fn photo_image_marker_detected_by_multimodal() {
         let photo_content = "[IMAGE:/tmp/workspace/photo_1_2.jpg]";
-        let messages = vec![zeroclaw_providers::ChatMessage::user(
+        let messages = vec![brai_providers::ChatMessage::user(
             photo_content.to_string(),
         )];
-        let count = zeroclaw_providers::multimodal::count_image_markers(&messages);
+        let count = brai_providers::multimodal::count_image_markers(&messages);
         assert_eq!(
             count, 1,
             "multimodal should detect exactly one image marker"
@@ -5198,9 +5198,9 @@ mod tests {
         );
 
         // Multimodal pipeline still detects the marker.
-        let messages = vec![zeroclaw_providers::ChatMessage::user(content)];
+        let messages = vec![brai_providers::ChatMessage::user(content)];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&messages),
+            brai_providers::multimodal::count_image_markers(&messages),
             1
         );
     }
@@ -5227,9 +5227,9 @@ mod tests {
             "document label format mismatch: {doc_content}"
         );
         // Multimodal must NOT detect image markers in document content.
-        let doc_msgs = vec![zeroclaw_providers::ChatMessage::user(doc_content)];
+        let doc_msgs = vec![brai_providers::ChatMessage::user(doc_content)];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&doc_msgs),
+            brai_providers::multimodal::count_image_markers(&doc_msgs),
             0,
             "document content must not contain image markers"
         );
@@ -5255,9 +5255,9 @@ mod tests {
         );
 
         // Multimodal detects the marker.
-        let photo_msgs = vec![zeroclaw_providers::ChatMessage::user(photo_content.clone())];
+        let photo_msgs = vec![brai_providers::ChatMessage::user(photo_content.clone())];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&photo_msgs),
+            brai_providers::multimodal::count_image_markers(&photo_msgs),
             1,
             "multimodal must detect exactly one image marker in photo content"
         );
@@ -5266,9 +5266,9 @@ mod tests {
         let mut captioned = photo_content;
         use std::fmt::Write;
         let _ = write!(captioned, "\n\nCheck this out");
-        let cap_msgs = vec![zeroclaw_providers::ChatMessage::user(captioned.clone())];
+        let cap_msgs = vec![brai_providers::ChatMessage::user(captioned.clone())];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&cap_msgs),
+            brai_providers::multimodal::count_image_markers(&cap_msgs),
             1,
             "caption must not break image marker detection"
         );
@@ -5287,9 +5287,9 @@ mod tests {
             !md_content.contains("[IMAGE:"),
             "markdown must not get [IMAGE:] marker: {md_content}"
         );
-        let md_msgs = vec![zeroclaw_providers::ChatMessage::user(md_content)];
+        let md_msgs = vec![brai_providers::ChatMessage::user(md_content)];
         assert_eq!(
-            zeroclaw_providers::multimodal::count_image_markers(&md_msgs),
+            brai_providers::multimodal::count_image_markers(&md_msgs),
             0,
             "markdown file must not trigger image marker detection"
         );
@@ -5302,8 +5302,8 @@ mod tests {
     /// guard in `agent/loop_.rs` will reject photo messages.
     #[test]
     fn groq_provider_rejects_photo_with_vision_error() {
-        use zeroclaw_providers::Provider;
-        use zeroclaw_providers::compatible::{AuthStyle, OpenAiCompatibleProvider};
+        use brai_providers::Provider;
+        use brai_providers::compatible::{AuthStyle, OpenAiCompatibleProvider};
 
         let groq = OpenAiCompatibleProvider::new(
             "Groq",
@@ -5319,10 +5319,10 @@ mod tests {
         );
 
         // Build a message with an [IMAGE:] marker (as photo attachment would).
-        let messages = vec![zeroclaw_providers::ChatMessage::user(
+        let messages = vec![brai_providers::ChatMessage::user(
             "[IMAGE:/tmp/photo.jpg]\n\nDescribe this image".to_string(),
         )];
-        let marker_count = zeroclaw_providers::multimodal::count_image_markers(&messages);
+        let marker_count = brai_providers::multimodal::count_image_markers(&messages);
         assert_eq!(marker_count, 1, "must detect image marker in photo content");
 
         // The combination of marker_count > 0 && !supports_vision() means
@@ -5746,7 +5746,7 @@ mod tests {
 
     #[tokio::test]
     async fn pending_approval_oneshot_delivers_response() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
 
         let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
         let approval_id = "test-approval-123".to_string();

@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use zeroclaw_config::schema::Config;
-use zeroclaw_config::traits::{Answer, OnboardUi, PropKind, SelectItem};
+use brai_config::schema::Config;
+use brai_config::traits::{Answer, OnboardUi, PropKind, SelectItem};
 
 use crate::agent::personality::EDITABLE_PERSONALITY_FILES;
 use crate::agent::personality_templates::{TemplateContext, render as render_personality};
@@ -535,7 +535,7 @@ fn section_has_signal(cfg: &Config, section_key: &str) -> bool {
 
 fn is_known_provider_name(provider: &str) -> bool {
     let provider = provider.trim();
-    zeroclaw_providers::list_providers().iter().any(|entry| {
+    brai_providers::list_providers().iter().any(|entry| {
         entry.name.eq_ignore_ascii_case(provider)
             || entry
                 .aliases
@@ -749,9 +749,9 @@ async fn providers(cfg: &mut Config, ui: &mut dyn OnboardUi, flags: &Flags) -> R
          zeroclaw auth login --provider <name>",
     );
 
-    // Menu is driven by zeroclaw_providers::list_providers() — single source
+    // Menu is driven by brai_providers::list_providers() — single source
     // of truth for canonical names, display names, aliases.
-    let entries = zeroclaw_providers::list_providers();
+    let entries = brai_providers::list_providers();
 
     loop {
         let current_fallback = cfg.providers.fallback.clone().unwrap_or_default();
@@ -946,15 +946,15 @@ async fn offer_advanced_settings(
 }
 
 /// Build the `FieldDefault` list for the prompt walker by walking the
-/// schema fields of `zeroclaw_providers::default_provider_config(provider)`
+/// schema fields of `brai_providers::default_provider_config(provider)`
 /// and rebasing each leaf onto `prefix`. Same source of truth the gateway's
 /// `apply_provider_trait_defaults` uses — schema-driven, no per-field
 /// names to keep in sync.
 fn provider_trait_defaults_for_prompts(provider: &str, prefix: &str) -> Vec<FieldDefault> {
-    let defaults = zeroclaw_providers::default_provider_config(provider);
+    let defaults = brai_providers::default_provider_config(provider);
     let source_dot = format!(
         "{}.",
-        zeroclaw_config::schema::ModelProviderConfig::configurable_prefix()
+        brai_config::schema::ModelProviderConfig::configurable_prefix()
     );
     defaults
         .prop_fields()
@@ -988,7 +988,7 @@ async fn prompt_model(cfg: &mut Config, ui: &mut dyn OnboardUi, provider: &str) 
     let should_try_openai_compat =
         provider.trim().starts_with("custom:") || !is_known_provider_name(provider);
 
-    let catalog_models = match zeroclaw_providers::create_provider(provider, None) {
+    let catalog_models = match brai_providers::create_provider(provider, None) {
         Ok(handle) => {
             ui.status("Fetching models...");
             match handle.list_models().await {
@@ -1168,7 +1168,7 @@ async fn memory(cfg: &mut Config, ui: &mut dyn OnboardUi, flags: &Flags) -> Resu
             SkipNav::Enter => {}
         }
     }
-    let backends = zeroclaw_memory::selectable_memory_backends();
+    let backends = brai_memory::selectable_memory_backends();
     let current_backend = cfg.memory.backend.clone();
     let new_backend = match &flags.memory {
         Some(forced) => forced.clone(),
@@ -1374,7 +1374,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::net::TcpListener;
-    use zeroclaw_config::schema::{Config, ModelProviderConfig};
+    use brai_config::schema::{Config, ModelProviderConfig};
 
     /// Build a `Config` whose `config_path` / `workspace_dir` live inside a
     /// temp directory, so `save()` touches only the scratch tree.

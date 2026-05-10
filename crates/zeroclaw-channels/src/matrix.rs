@@ -35,10 +35,10 @@ use matrix_sdk::{
     ruma::{OwnedEventId, OwnedRoomId},
 };
 
-use zeroclaw_api::channel::{
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
-use zeroclaw_config::schema::{MatrixConfig, StreamMode, TranscriptionConfig};
+use brai_config::schema::{MatrixConfig, StreamMode, TranscriptionConfig};
 
 // ─── markers ───────────────────────────────────────────────────────────────
 mod markers {
@@ -211,7 +211,7 @@ mod allowlist {
 // ─── approval ──────────────────────────────────────────────────────────────
 mod approval {
     use rand::{Rng, RngExt};
-    use zeroclaw_api::channel::ChannelApprovalResponse;
+    use brai_api::channel::ChannelApprovalResponse;
 
     pub(super) const TOKEN_LEN: usize = 8;
     const TOKEN_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -519,7 +519,7 @@ mod client {
     use tracing::{debug, info, warn};
 
     use super::session;
-    use zeroclaw_config::schema::MatrixConfig;
+    use brai_config::schema::MatrixConfig;
 
     const WHOAMI_ENDPOINT: &str = "_matrix/client/v3/account/whoami";
     const WHOAMI_TIMEOUT: Duration = Duration::from_secs(30);
@@ -628,7 +628,7 @@ mod client {
         if recovery_attempts > 1 {
             bail!(
                 "matrix: corruption recovery looped — aborting to avoid an infinite restart cycle. \
-                 Wipe ~/.zeroclaw/state/matrix/ manually and restart."
+                 Wipe ~/.brai/state/matrix/ manually and restart."
             );
         }
 
@@ -1232,11 +1232,11 @@ mod inbound {
 
     use super::{allowlist, approval, context as ctx_mod, mention};
     use crate::transcription::TranscriptionManager;
-    use zeroclaw_api::{
+    use brai_api::{
         channel::{ChannelApprovalResponse, ChannelMessage},
         media::MediaAttachment,
     };
-    use zeroclaw_config::schema::{MatrixConfig, TranscriptionConfig};
+    use brai_config::schema::{MatrixConfig, TranscriptionConfig};
 
     #[derive(Clone)]
     pub(super) struct HandlerCtx {
@@ -1730,7 +1730,7 @@ mod inbound {
     ) -> anyhow::Result<Option<std::path::PathBuf>> {
         let Some(workspace) = workspace else {
             warn!(
-                "matrix: cannot persist {} — channels.matrix workspace_dir not configured. Set ZEROCLAW_DIR or run via the orchestrator.",
+                "matrix: cannot persist {} — channels.matrix workspace_dir not configured. Set BRAI_DIR or run via the orchestrator.",
                 info.file_name
             );
             return Ok(None);
@@ -1874,7 +1874,7 @@ mod outbound {
     use tracing::warn;
 
     use super::{client, context as ctx_mod, markers};
-    use zeroclaw_api::{channel::SendMessage, media::MediaAttachment};
+    use brai_api::{channel::SendMessage, media::MediaAttachment};
 
     pub(super) type ReactionKey = (OwnedRoomId, OwnedEventId, String);
 
@@ -3148,7 +3148,7 @@ mod tests {
         use rand::SeedableRng;
         use rand::rngs::StdRng;
         use std::collections::HashSet;
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
 
         #[test]
         fn token_length_and_alphabet() {
@@ -3551,7 +3551,7 @@ mod tests {
             Mock, MockServer, ResponseTemplate,
             matchers::{header, method, path},
         };
-        use zeroclaw_config::schema::MatrixConfig;
+        use brai_config::schema::MatrixConfig;
 
         const WHOAMI_PATH: &str = "/_matrix/client/v3/account/whoami";
 
@@ -4284,7 +4284,7 @@ mod tests {
         //! media or the inbound match for direct media).
 
         use super::super::inbound::{MediaCategory, should_transcribe};
-        use zeroclaw_config::schema::TranscriptionConfig;
+        use brai_config::schema::TranscriptionConfig;
 
         fn enabled_cfg() -> TranscriptionConfig {
             // Construct via Default + struct update so we stay robust to

@@ -13,9 +13,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
-use zeroclaw_runtime::i18n;
-use zeroclaw_runtime::security::pairing::PairingGuard;
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_runtime::i18n;
+use brai_runtime::security::pairing::PairingGuard;
 
 const DEFAULT_API_BASE_URL: &str = "https://ilinkai.weixin.qq.com";
 const CDN_BASE_URL: &str = "https://novac2c.cdn.weixin.qq.com/c2c";
@@ -594,8 +594,8 @@ impl WeChatChannel {
 
         let state_dir = state_dir.unwrap_or_else(|| {
             directories::UserDirs::new()
-                .map(|u| u.home_dir().join(".zeroclaw").join("wechat"))
-                .unwrap_or_else(|| PathBuf::from(".zeroclaw/wechat"))
+                .map(|u| u.home_dir().join(".brai").join("wechat"))
+                .unwrap_or_else(|| PathBuf::from(".brai/wechat"))
         });
 
         let mut channel = Self {

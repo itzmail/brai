@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Deduplication set capacity — evict half of entries when full.
 const DEDUP_CAPACITY: usize = 10_000;
@@ -39,7 +39,7 @@ impl MochatChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client("channel.mochat")
+        brai_config::schema::build_runtime_proxy_client("channel.mochat")
     }
 
     fn is_user_allowed(&self, user_id: &str) -> bool {
@@ -309,7 +309,7 @@ api_url = "https://mochat.example.com"
 api_token = "secret"
 allowed_users = ["user1"]
 "#;
-        let config: zeroclaw_config::schema::MochatConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::MochatConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.api_url, "https://mochat.example.com");
         assert_eq!(config.api_token, "secret");
         assert_eq!(config.allowed_users, vec!["user1"]);
@@ -321,7 +321,7 @@ allowed_users = ["user1"]
 api_url = "https://mochat.example.com"
 api_token = "secret"
 "#;
-        let config: zeroclaw_config::schema::MochatConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::MochatConfig = toml::from_str(toml_str).unwrap();
         assert!(config.allowed_users.is_empty());
         assert_eq!(config.poll_interval_secs, 5);
     }

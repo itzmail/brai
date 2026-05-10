@@ -1,0 +1,125 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  build:
+    name: Build brai (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+            cross_compiler: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: 1.93.0
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
+          cache-on-failure: true
+          key: ${{ matrix.target }}
+
+      - name: Install cross-compiler (aarch64 only)
+        if: matrix.cross_compiler != ''
+        run: sudo apt-get update -qq && sudo apt-get install -y ${{ matrix.cross_compiler }}
+
+      - name: Configure linker (aarch64 only)
+        if: matrix.linker != ''
+        run: |
+          mkdir -p .cargo
+          cat >> .cargo/config.toml <<EOF
+          [target.${{ matrix.target }}]
+          linker = "${{ matrix.linker }}"
+          EOF
+
+      - name: Ensure web/dist placeholder exists
+        run: mkdir -p web/dist && touch web/dist/.gitkeep
+
+      - name: Build release binary
+        run: |
+          cargo build --release --bin brai --target ${{ matrix.target }}
+
+      - name: Rename binary with arch suffix
+        run: |
+          cp target/${{ matrix.target }}/release/brai brai-${{ matrix.arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: brai-${{ matrix.arch }}
+          path: brai-${{ matrix.arch }}
+          retention-days: 30
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: brai-x86_64
+
+      - name: Download aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: brai-aarch64
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload binary and deploy script
+        run: |
+          ARCH=$(ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "uname -m")
+          echo "VPS arch: $ARCH"
+
+          if [ "$ARCH" = "aarch64" ]; then
+            BINARY="brai-aarch64"
+          else
+            BINARY="brai-x86_64"
+          fi
+
+          chmod +x "$BINARY"
+          scp -i ~/.ssh/vps_key "$BINARY" \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/brai-new
+          scp -i ~/.ssh/vps_key deploy/install.sh \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/brai-install.sh
+
+      - name: Run install script on VPS
+        run: |
+          ssh -i ~/.ssh/vps_key \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "chmod +x /tmp/brai-install.sh && /tmp/brai-install.sh"

@@ -18,7 +18,7 @@ pub use tailscale::TailscaleTunnel;
 use anyhow::{Result, bail};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use zeroclaw_config::schema::{TailscaleTunnelConfig, TunnelConfig};
+use brai_config::schema::{TailscaleTunnelConfig, TunnelConfig};
 
 // ── Tunnel trait ─────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ pub fn create_tunnel(config: &TunnelConfig) -> Result<Option<Box<dyn Tunnel>>> {
 mod tests {
     use super::*;
     use tokio::process::Command;
-    use zeroclaw_config::schema::{
+    use brai_config::schema::{
         CloudflareTunnelConfig, CustomTunnelConfig, NgrokTunnelConfig, OpenVpnTunnelConfig,
         PinggyTunnelConfig, TunnelConfig,
     };

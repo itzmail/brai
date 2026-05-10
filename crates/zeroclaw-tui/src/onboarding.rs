@@ -22,7 +22,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
-use zeroclaw_config::traits::{Answer, OnboardUi, SelectItem};
+use brai_config::traits::{Answer, OnboardUi, SelectItem};
 
 use crate::theme;
 use crate::widgets::{BANNER_HEIGHT, Banner, InputPrompt};

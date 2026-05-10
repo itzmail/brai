@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::webhook::*;
+pub use brai_channels::webhook::*;

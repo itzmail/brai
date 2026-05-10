@@ -11,9 +11,9 @@ use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio::time::{self, Duration};
-use zeroclaw_config::schema::Config;
-use zeroclaw_config::schema::{CronJobDecl, CronScheduleDecl};
-use zeroclaw_memory::{MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN};
+use brai_config::schema::Config;
+use brai_config::schema::{CronJobDecl, CronScheduleDecl};
+use brai_memory::{MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN};
 
 const MIN_POLL_SECONDS: u64 = 5;
 const SHELL_JOB_TIMEOUT_SECS: u64 = 120;
@@ -280,7 +280,7 @@ async fn run_agent_job(
     let memory_context = if !job.uses_memory {
         String::new()
     } else {
-        match zeroclaw_memory::create_memory(
+        match brai_memory::create_memory(
             &config.memory,
             &config.workspace_dir,
             config
@@ -295,7 +295,7 @@ async fn run_agent_job(
                         .filter(|e| {
                             !matches!(
                                 e.category,
-                                zeroclaw_memory::traits::MemoryCategory::Conversation
+                                brai_memory::traits::MemoryCategory::Conversation
                             )
                         })
                         .map(|e| format!("- {}: {}", e.key, e.content))
@@ -358,7 +358,7 @@ async fn run_agent_job(
             // Purge memories written during this failed run so they don't
             // pollute future recall and cause context snowball.
             let mem_session_key = format!("cli:{}", session_path.display());
-            if let Ok(mem) = zeroclaw_memory::create_memory(
+            if let Ok(mem) = brai_memory::create_memory(
                 &config.memory,
                 &config.workspace_dir,
                 config
@@ -667,7 +667,7 @@ mod tests {
     use crate::security::SecurityPolicy;
     use chrono::{Duration as ChronoDuration, Utc};
     use tempfile::TempDir;
-    use zeroclaw_config::schema::Config;
+    use brai_config::schema::Config;
 
     async fn test_config(tmp: &TempDir) -> Config {
         let config = Config {

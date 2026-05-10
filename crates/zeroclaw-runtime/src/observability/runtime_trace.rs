@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, RwLock};
 use uuid::Uuid;
-use zeroclaw_config::schema::ObservabilityConfig;
+use brai_config::schema::ObservabilityConfig;
 
 const DEFAULT_TRACE_REL_PATH: &str = "state/runtime-trace.jsonl";
 

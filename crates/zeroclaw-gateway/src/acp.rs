@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
-use zeroclaw_channels::orchestrator::acp_server::{AcpServer, AcpServerConfig};
+use brai_channels::orchestrator::acp_server::{AcpServer, AcpServerConfig};
 
 const ACP_WS_PROTOCOL: &str = "zeroclaw.acp.v1";
 

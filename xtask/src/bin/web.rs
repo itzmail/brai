@@ -125,7 +125,7 @@ fn gen_api(web_dir: &Path, spec_path: &Path) -> Result<()> {
             .with_context(|| format!("create parent directory {}", parent.display()))?;
     }
 
-    let spec = serde_json::to_string(&zeroclaw_gateway::openapi::build_spec())
+    let spec = serde_json::to_string(&brai_gateway::openapi::build_spec())
         .context("serialize openapi spec to JSON")?;
     std::fs::write(spec_path, &spec)
         .with_context(|| format!("write openapi spec to {}", spec_path.display()))?;

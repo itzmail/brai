@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::clawdtalk::*;
+pub use brai_channels::clawdtalk::*;

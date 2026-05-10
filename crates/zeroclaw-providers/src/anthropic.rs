@@ -8,7 +8,7 @@ use base64::Engine as _;
 use futures_util::stream::{self, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 /// Anthropic's API documentation lists 1.0 as the default sampling temperature.
 const TEMPERATURE_DEFAULT: f64 = 1.0;
@@ -202,7 +202,7 @@ impl AnthropicProvider {
                 .filter(|k| !k.is_empty())
                 .map(ToString::to_string),
             base_url,
-            max_tokens: zeroclaw_api::provider::BASELINE_MAX_TOKENS,
+            max_tokens: brai_api::provider::BASELINE_MAX_TOKENS,
         }
     }
 
@@ -564,7 +564,7 @@ impl AnthropicProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.anthropic",
             120,
             10,
@@ -893,7 +893,7 @@ impl Provider for AnthropicProvider {
 
         // Check for tool_choice override from the agent loop (e.g. "any"
         // to force tool use for hardware requests).
-        let tool_choice_override = zeroclaw_api::TOOL_CHOICE_OVERRIDE
+        let tool_choice_override = brai_api::TOOL_CHOICE_OVERRIDE
             .try_with(Clone::clone)
             .ok()
             .flatten();
@@ -1054,7 +1054,7 @@ impl Provider for AnthropicProvider {
             Self::apply_cache_to_last_message(&mut messages);
         }
 
-        let tool_choice_override = zeroclaw_api::TOOL_CHOICE_OVERRIDE
+        let tool_choice_override = brai_api::TOOL_CHOICE_OVERRIDE
             .try_with(Clone::clone)
             .ok()
             .flatten();

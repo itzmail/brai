@@ -56,7 +56,7 @@ impl QdrantMemory {
         embedder: Arc<dyn EmbeddingProvider>,
     ) -> Self {
         let base_url = url.trim_end_matches('/').to_string();
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("memory.qdrant");
+        let client = brai_config::schema::build_runtime_proxy_client("memory.qdrant");
 
         Self {
             client,

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 const MAX_WATI_AUDIO_BYTES: u64 = 25 * 1024 * 1024;
 
@@ -41,7 +41,7 @@ impl WatiChannel {
             api_url,
             tenant_id,
             allowed_numbers,
-            client: zeroclaw_config::schema::build_channel_proxy_client(
+            client: brai_config::schema::build_channel_proxy_client(
                 "channel.wati",
                 proxy_url.as_deref(),
             ),
@@ -51,7 +51,7 @@ impl WatiChannel {
 
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -715,7 +715,7 @@ mod tests {
 
     #[test]
     fn wati_manager_some_when_valid_config() {
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "groq".to_string(),
             api_key: Some("test-key".to_string()),
@@ -745,7 +745,7 @@ mod tests {
 
     #[test]
     fn wati_manager_none_and_warn_on_init_failure() {
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "groq".to_string(),
             api_key: Some(String::new()),
@@ -788,7 +788,7 @@ mod tests {
 
     #[tokio::test]
     async fn wati_try_transcribe_returns_none_when_no_media_url() {
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: false,
             default_provider: "groq".to_string(),
             api_key: Some("test-key".to_string()),
@@ -930,7 +930,7 @@ mod tests {
             .mount(&whisper_server)
             .await;
 
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".to_string(),
             api_key: None,
@@ -943,7 +943,7 @@ mod tests {
             deepgram: None,
             assemblyai: None,
             google: None,
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: format!("{}/v1/transcribe", whisper_server.uri()),
                 bearer_token: Some("test-token".to_string()),
                 max_audio_bytes: 25 * 1024 * 1024,
@@ -983,7 +983,7 @@ mod tests {
             .mount(&media_server)
             .await;
 
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".to_string(),
             api_key: None,
@@ -996,7 +996,7 @@ mod tests {
             deepgram: None,
             assemblyai: None,
             google: None,
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: "http://localhost:8000/v1/transcribe".to_string(),
                 bearer_token: Some("test-token".to_string()),
                 max_audio_bytes: 25 * 1024 * 1024,
@@ -1039,10 +1039,10 @@ mod tests {
 
     #[tokio::test]
     async fn wati_try_transcribe_blocks_host_mismatch() {
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".into(),
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: "http://localhost:8001/v1/transcribe".into(),
                 bearer_token: Some("test-token".into()),
                 max_audio_bytes: 25 * 1024 * 1024,

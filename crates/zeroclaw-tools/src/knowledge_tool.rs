@@ -6,8 +6,8 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_memory::knowledge_graph::{KnowledgeGraph, NodeType, Relation};
+use brai_api::tool::{Tool, ToolResult};
+use brai_memory::knowledge_graph::{KnowledgeGraph, NodeType, Relation};
 
 /// Tool for managing a knowledge graph of patterns, decisions, lessons, and experts.
 pub struct KnowledgeTool {
@@ -425,7 +425,7 @@ fn truncate_str(s: &str, max_len: usize) -> String {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_memory::knowledge_graph::KnowledgeGraph;
+    use brai_memory::knowledge_graph::KnowledgeGraph;
 
     fn test_tool() -> (TempDir, KnowledgeTool) {
         let tmp = TempDir::new().unwrap();

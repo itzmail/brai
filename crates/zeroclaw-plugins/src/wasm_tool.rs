@@ -5,7 +5,7 @@ use crate::runtime;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::path::PathBuf;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// A tool backed by a WASM plugin function.
 pub struct WasmTool {

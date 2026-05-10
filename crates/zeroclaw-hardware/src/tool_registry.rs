@@ -5,7 +5,7 @@
 //!
 //! Startup sequence (called via [`ToolRegistry::load`]):
 //! 1. Register built-in hardware tools (`gpio_read`, `gpio_write`).
-//! 2. Scan `~/.zeroclaw/tools/` for user plugin manifests.
+//! 2. Scan `~/.brai/tools/` for user plugin manifests.
 //! 3. Build a `SubprocessTool` for each valid manifest and register it.
 //! 4. Print the startup log summarising loaded tools and connected devices.
 //!
@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 // ── ToolError ─────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ impl ToolRegistry {
     /// Load the registry at startup.
     ///
     /// 1. Instantiates the built-in GPIO tools.
-    /// 2. Scans `~/.zeroclaw/tools/` for user plugins and registers each one.
+    /// 2. Scans `~/.brai/tools/` for user plugins and registers each one.
     /// 3. Prints the startup log.
     ///
     /// Plugin loading errors are logged as warnings and never abort startup.

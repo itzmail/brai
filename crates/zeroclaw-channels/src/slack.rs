@@ -11,7 +11,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex as AsyncMutex, oneshot};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use zeroclaw_api::channel::{
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
 
@@ -42,7 +42,7 @@ pub struct SlackChannel {
     proxy_url: Option<String>,
     /// Voice transcription config — when set, audio file attachments are
     /// downloaded, transcribed, and their text inlined into the message.
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<std::sync::Arc<super::transcription::TranscriptionManager>>,
     /// Enable progressive draft message updates via `chat.update`.
     stream_drafts: bool,
@@ -246,7 +246,7 @@ impl SlackChannel {
     /// Configure voice transcription for audio file attachments.
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -410,7 +410,7 @@ impl SlackChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client_with_timeouts(
+        brai_config::schema::build_channel_proxy_client_with_timeouts(
             "channel.slack",
             self.proxy_url.as_deref(),
             30,
@@ -444,7 +444,7 @@ impl SlackChannel {
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&raw);
+            let sanitized = brai_providers::sanitize_api_error(&raw);
             anyhow::bail!("Slack chat.postMessage failed ({status}): {sanitized}");
         }
 
@@ -490,7 +490,7 @@ impl SlackChannel {
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&raw);
+            let sanitized = brai_providers::sanitize_api_error(&raw);
             anyhow::bail!("Slack chat.update failed ({status}): {sanitized}");
         }
 
@@ -725,7 +725,7 @@ impl SlackChannel {
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             tracing::warn!("Slack users.info failed for {user_id} ({status}): {sanitized}");
             return None;
         }
@@ -1044,7 +1044,7 @@ impl SlackChannel {
             .await
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             tracing::warn!(
                 "Slack permalink resolver: conversations.history failed for channel={} ts={} ({}): {}",
                 channel_id,
@@ -1320,7 +1320,7 @@ impl SlackChannel {
             .await
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             tracing::warn!("Slack files.info failed for {file_id} ({status}): {sanitized}");
             return None;
         }
@@ -1518,7 +1518,7 @@ impl SlackChannel {
     }
 
     fn slack_media_http_client_no_redirect(&self) -> anyhow::Result<reqwest::Client> {
-        let builder = zeroclaw_config::schema::apply_channel_proxy_to_builder(
+        let builder = brai_config::schema::apply_channel_proxy_to_builder(
             reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .timeout(Duration::from_secs(30))
@@ -1624,7 +1624,7 @@ impl SlackChannel {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             tracing::warn!(
                 "Slack image fetch failed for {} ({status}): {sanitized}",
                 redacted_url
@@ -2254,7 +2254,7 @@ impl SlackChannel {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             tracing::warn!(
                 "Slack snippet fetch failed for {} ({status}): {sanitized}",
                 redacted_url
@@ -2402,7 +2402,7 @@ impl SlackChannel {
                 .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
             if !status.is_success() {
-                let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+                let sanitized = brai_providers::sanitize_api_error(&body);
                 anyhow::bail!("Slack conversations.list failed ({status}): {sanitized}");
             }
 
@@ -2509,8 +2509,8 @@ impl SlackChannel {
             .and_then(|v| v.as_str())?;
 
         let command = match action_id {
-            "zeroclaw_config_provider" => format!("/models {selected_value}"),
-            "zeroclaw_config_model" => format!("/model {selected_value}"),
+            "brai_config_provider" => format!("/models {selected_value}"),
+            "brai_config_model" => format!("/model {selected_value}"),
             _ => return None,
         };
 
@@ -2576,7 +2576,7 @@ impl SlackChannel {
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             anyhow::bail!("Slack apps.connections.open failed ({status}): {sanitized}");
         }
 
@@ -2625,7 +2625,7 @@ impl SlackChannel {
                 }
             };
 
-            let (ws_stream, _) = match zeroclaw_config::schema::ws_connect_with_proxy(
+            let (ws_stream, _) = match brai_config::schema::ws_connect_with_proxy(
                 &ws_url,
                 "channel.slack",
                 self.proxy_url.as_deref(),
@@ -3089,7 +3089,7 @@ impl SlackChannel {
             }
 
             if !status.is_success() {
-                let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+                let sanitized = brai_providers::sanitize_api_error(&body);
                 tracing::warn!(
                     "Slack history request failed for channel {} ({}): {}",
                     channel_id,
@@ -3192,7 +3192,7 @@ impl SlackChannel {
             }
 
             if !status.is_success() {
-                let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+                let sanitized = brai_providers::sanitize_api_error(&body);
                 tracing::warn!(
                     "Slack conversations.replies failed for thread {} in channel {} ({}): {}",
                     thread_ts,
@@ -3412,7 +3412,7 @@ impl Channel for SlackChannel {
             .unwrap_or_else(|e| format!("<failed to read response body: {e}>"));
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&body);
+            let sanitized = brai_providers::sanitize_api_error(&body);
             anyhow::bail!("Slack chat.postMessage failed ({status}): {sanitized}");
         }
 
@@ -3678,7 +3678,7 @@ impl Channel for SlackChannel {
         let text = resp.text().await.unwrap_or_default();
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&text);
+            let sanitized = brai_providers::sanitize_api_error(&text);
             anyhow::bail!("Slack reactions.add failed ({status}): {sanitized}");
         }
 
@@ -3723,7 +3723,7 @@ impl Channel for SlackChannel {
         let text = resp.text().await.unwrap_or_default();
 
         if !status.is_success() {
-            let sanitized = zeroclaw_providers::sanitize_api_error(&text);
+            let sanitized = brai_providers::sanitize_api_error(&text);
             anyhow::bail!("Slack reactions.remove failed ({status}): {sanitized}");
         }
 
@@ -5070,7 +5070,7 @@ mod tests {
     fn session_key_stable_without_thread_replies() {
         // When thread_replies=false, top-level messages from the same user should
         // produce the same conversation_history_key (thread_ts=None).
-        use zeroclaw_api::channel::ChannelMessage;
+        use brai_api::channel::ChannelMessage;
 
         let make_msg = |ts: &str| ChannelMessage {
             id: format!("slack_C123_{ts}"),
@@ -5096,7 +5096,7 @@ mod tests {
     fn session_key_varies_with_thread_replies() {
         // When thread_replies=true, top-level messages get thread_ts=Some(ts),
         // giving each its own session key (thread isolation).
-        use zeroclaw_api::channel::ChannelMessage;
+        use brai_api::channel::ChannelMessage;
 
         let make_msg = |ts: &str| ChannelMessage {
             id: format!("slack_C123_{ts}"),
@@ -5268,7 +5268,7 @@ mod tests {
         let envelope = serde_json::json!({
             "payload": {
                 "type": "block_actions",
-                "actions": [{ "action_id": "zeroclaw_config_provider", "selected_option": { "value": "anthropic" } }]
+                "actions": [{ "action_id": "brai_config_provider", "selected_option": { "value": "anthropic" } }]
             }
         });
         assert!(SlackChannel::try_parse_approval_block_action(&envelope).is_none());

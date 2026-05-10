@@ -10,10 +10,10 @@ use parking_lot::RwLock;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use zeroclaw_api::channel::Channel;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
+use brai_api::channel::Channel;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
 
 /// Shared handle to the channel map. Starts empty; populated once channels boot.
 pub type ChannelMapHandle = Arc<RwLock<HashMap<String, Arc<dyn Channel>>>>;
@@ -191,7 +191,7 @@ impl Tool for ReactionTool {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
-    use zeroclaw_api::channel::{ChannelMessage, SendMessage};
+    use brai_api::channel::{ChannelMessage, SendMessage};
 
     struct MockChannel {
         reaction_added: AtomicBool,

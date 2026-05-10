@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-runtime"
+name = "brai-runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,14 +7,13 @@ description = "Miscellaneous ZeroClaw subsystems: security, observability, gatew
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-infra.workspace = true
-zeroclaw-config.workspace = true
-zeroclaw-providers.workspace = true
-zeroclaw-memory.workspace = true
-zeroclaw-tools.workspace = true
-zeroclaw-plugins = { workspace = true, optional = true }
-zeroclaw-tool-call-parser.workspace = true
+brai-api.workspace = true
+brai-infra.workspace = true
+brai-config.workspace = true
+brai-providers.workspace = true
+brai-memory.workspace = true
+brai-tools.workspace = true
+brai-tool-call-parser.workspace = true
 fluent = "0.16"
 anyhow = "1.0"
 async-trait = "0.1"
@@ -69,10 +68,9 @@ uuid = { version = "1.22", default-features = false, features = ["v4", "std"] }
 webpki-roots = "1.0.6"
 which = "8.0"
 zip = { version = "8.1", default-features = false, features = ["deflate-flate2"] }
-zeroclaw-macros.workspace = true
+brai-macros.workspace = true
 
 # Optional deps
-aardvark-sys.workspace = true
 prometheus = { version = "0.14", default-features = false, optional = true }
 opentelemetry = { version = "0.31", default-features = false, features = ["trace", "metrics"], optional = true }
 opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace", "metrics"], optional = true }
@@ -91,13 +89,12 @@ default = ["observability-prometheus", "schema-export"]
 observability-prometheus = ["dep:prometheus"]
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 sandbox-landlock = ["dep:landlock"]
-schema-export = ["dep:schemars", "zeroclaw-config/schema-export"]
+schema-export = ["dep:schemars", "brai-config/schema-export"]
 
 
-channel-nostr = ["zeroclaw-config/channel-nostr"]
+channel-nostr = ["brai-config/channel-nostr"]
 browser-native = []
 rag-pdf = ["dep:pdf-extract"]
-plugins-wasm = ["dep:zeroclaw-plugins"]
 webauthn = []
 sandbox-bubblewrap = []
 
@@ -110,5 +107,5 @@ scopeguard = "1.2"
 
 # Channel features (forwarded to zeroclaw-channels)
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(zeroclaw_root_crate)'] }
+[lints]
+workspace = true

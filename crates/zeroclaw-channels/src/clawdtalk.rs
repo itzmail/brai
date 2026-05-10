@@ -7,9 +7,9 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
-pub use zeroclaw_config::scattered_types::ClawdTalkConfig;
+pub use brai_config::scattered_types::ClawdTalkConfig;
 
 /// ClawdTalk channel configuration
 pub struct ClawdTalkChannel {

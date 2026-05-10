@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zeroclaw_macros::Configurable;
+use brai_macros::Configurable;
 
 use super::schema::{EmbeddingRouteConfig, ModelProviderConfig, ModelRouteConfig};
 

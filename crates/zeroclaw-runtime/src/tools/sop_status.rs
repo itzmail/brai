@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde_json::json;
 
 use crate::sop::{SopEngine, SopMetricsCollector};
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Query SOP execution status — active runs, finished runs, or a specific run by ID.
 pub struct SopStatusTool {
@@ -239,7 +239,7 @@ mod tests {
     use super::*;
     use crate::sop::engine::SopEngine;
     use crate::sop::types::*;
-    use zeroclaw_config::schema::SopConfig;
+    use brai_config::schema::SopConfig;
 
     fn test_sop(name: &str) -> Sop {
         Sop {

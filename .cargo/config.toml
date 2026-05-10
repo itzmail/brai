@@ -5,6 +5,10 @@ web = "run -p xtask --bin web --"
 
 [build]
 rustdocflags = ["--default-theme=ayu"]
+rustflags = [
+    "--check-cfg=cfg(brai_root_crate)",
+    "--check-cfg=cfg(feature, values(\"hardware\", \"peripheral-rpi\", \"probe\", \"plugins-wasm\", \"browser-native\"))",
+]
 
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "link-arg=-static"]

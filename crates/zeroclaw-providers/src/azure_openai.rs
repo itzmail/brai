@@ -5,7 +5,7 @@ use crate::traits::{
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 const DEFAULT_API_VERSION: &str = "2024-08-01-preview";
 
@@ -300,7 +300,7 @@ impl AzureOpenAiProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.azure_openai",
             120,
             10,

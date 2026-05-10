@@ -3,7 +3,7 @@ use reqwest::Method;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
 use std::path::{Path, PathBuf};
-use zeroclaw_config::schema::LinkedInImageConfig;
+use brai_config::schema::LinkedInImageConfig;
 
 const LINKEDIN_API_BASE: &str = "https://api.linkedin.com";
 const LINKEDIN_OAUTH_TOKEN_URL: &str = "https://www.linkedin.com/oauth/v2/accessToken";
@@ -125,7 +125,7 @@ impl LinkedInClient {
     }
 
     fn client() -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "tool.linkedin",
             LINKEDIN_REQUEST_TIMEOUT_SECS,
             LINKEDIN_CONNECT_TIMEOUT_SECS,
@@ -846,7 +846,7 @@ impl ImageGenerator {
     }
 
     fn http_client() -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "tool.linkedin.image",
             60, // image gen can be slow
             10,

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Workspace data lifecycle tool: retention status, time-based purge, and
 /// storage statistics.

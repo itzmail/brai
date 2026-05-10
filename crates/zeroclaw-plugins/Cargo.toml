@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-plugins"
+name = "brai-plugins"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ description = "WASM plugin system for ZeroClaw — host, manifests, signatures, 
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
+brai-api.workspace = true
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22"

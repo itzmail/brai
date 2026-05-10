@@ -1,1 +1,1 @@
-pub use zeroclaw_runtime::verifiable_intent::*;
+pub use brai_runtime::verifiable_intent::*;

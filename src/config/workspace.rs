@@ -1,1 +1,1 @@
-pub use zeroclaw_config::workspace::*;
+pub use brai_config::workspace::*;

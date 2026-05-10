@@ -1,8 +1,8 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::Client;
 use std::path::Path;
-use zeroclaw_api::provider::ChatMessage;
-use zeroclaw_config::schema::{MultimodalConfig, build_runtime_proxy_client_with_timeouts};
+use brai_api::provider::ChatMessage;
+use brai_config::schema::{MultimodalConfig, build_runtime_proxy_client_with_timeouts};
 
 const IMAGE_MARKER_PREFIX: &str = "[IMAGE:";
 const ALLOWED_IMAGE_MIME_TYPES: &[&str] = &[
@@ -555,12 +555,12 @@ mod tests {
     fn parse_image_markers_collapses_line_wrapped_path() {
         // Terminal-wrapped paste: a long path split across two rows with
         // leading indentation should be recovered into the original path.
-        let input = "from the logs whether the agent emits\n  [IMAGE:/home/zeroclaw_user/.zeroclaw/workspace/signal_i\n  nbound/attachment.jpg] (which the\n  channel resolves)";
+        let input = "from the logs whether the agent emits\n  [IMAGE:/home/brai_user/.brai/workspace/signal_i\n  nbound/attachment.jpg] (which the\n  channel resolves)";
         let (_, refs) = parse_image_markers(input);
         assert_eq!(refs.len(), 1);
         assert_eq!(
             refs[0],
-            "/home/zeroclaw_user/.zeroclaw/workspace/signal_inbound/attachment.jpg"
+            "/home/brai_user/.brai/workspace/signal_inbound/attachment.jpg"
         );
     }
 

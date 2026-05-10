@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::warn;
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 /// GitHub OAuth client ID for Copilot (VS Code extension).
 const GITHUB_CLIENT_ID: &str = "Iv1.b507a08c87ecfe98";
@@ -240,7 +240,7 @@ impl CopilotProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.copilot",
             120,
             10,

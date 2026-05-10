@@ -3,8 +3,8 @@
 //! traits, property helpers) is pulled through here so `crate::config::*`
 //! continues to resolve for callers that predate the crate split.
 
-pub use zeroclaw_config::migration;
-pub use zeroclaw_config::providers;
+pub use brai_config::migration;
+pub use brai_config::providers;
 pub mod schema;
 pub mod traits;
 pub mod workspace;
@@ -51,8 +51,8 @@ pub use traits::SecretFieldInfo;
 
 // Property helpers — single source of truth in zeroclaw-config.
 #[cfg(feature = "schema-export")]
-pub use zeroclaw_config::helpers::enum_variants;
-pub use zeroclaw_config::helpers::{
+pub use brai_config::helpers::enum_variants;
+pub use brai_config::helpers::{
     make_prop_field, route_hashmap_path, serde_get_prop, serde_set_prop,
 };
 

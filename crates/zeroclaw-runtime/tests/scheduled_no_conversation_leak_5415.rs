@@ -30,9 +30,9 @@ use std::sync::Arc;
 use axum::{Router, extract::State, routing::post};
 use tempfile::TempDir;
 use tokio::sync::Mutex as AsyncMutex;
-use zeroclaw_config::providers::ProvidersConfig;
-use zeroclaw_config::schema::{Config, ModelProviderConfig};
-use zeroclaw_memory::{Memory, MemoryCategory, SqliteMemory};
+use brai_config::providers::ProvidersConfig;
+use brai_config::schema::{Config, ModelProviderConfig};
+use brai_memory::{Memory, MemoryCategory, SqliteMemory};
 
 // Unique sentinel that exists ONLY in the planted Conversation entry — must
 // not appear in the cron prompt or any system prompt. If it surfaces in the
@@ -137,7 +137,7 @@ async fn scheduled_run_does_not_leak_conversation_memory_into_provider_request()
     // `interactive=false` + `session_state_file=None` is exactly the heartbeat
     // shape that bypasses session scoping inside `build_context`.
     let prompt = "Any reminders to surface today? Pull anything relevant from memory.".to_string();
-    let run_result = zeroclaw_runtime::agent::run(
+    let run_result = brai_runtime::agent::run(
         config,
         Some(prompt),
         None,

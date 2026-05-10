@@ -4,7 +4,7 @@ use crate::security::policy::ToolOperation;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 pub struct ModelSwitchTool {
     security: Arc<SecurityPolicy>,
@@ -129,7 +129,7 @@ impl ModelSwitchTool {
             provider.starts_with("custom:") || provider.starts_with("anthropic-custom:");
 
         if !is_custom_provider {
-            let known_providers = zeroclaw_providers::list_providers();
+            let known_providers = brai_providers::list_providers();
             let provider_valid = known_providers.iter().any(|p| {
                 p.name.eq_ignore_ascii_case(provider)
                     || p.aliases.iter().any(|a| a.eq_ignore_ascii_case(provider))
@@ -166,7 +166,7 @@ impl ModelSwitchTool {
     }
 
     fn handle_list_providers(&self) -> anyhow::Result<ToolResult> {
-        let providers_list = zeroclaw_providers::list_providers();
+        let providers_list = brai_providers::list_providers();
 
         let providers: Vec<serde_json::Value> = providers_list
             .iter()

@@ -12,10 +12,10 @@
 //!
 //! The pipeline is **opt-in** via `[media_pipeline] enabled = true` in config.
 
-use zeroclaw_config::schema::{MediaPipelineConfig, TranscriptionConfig};
+use brai_config::schema::{MediaPipelineConfig, TranscriptionConfig};
 
 // Re-export media types from zeroclaw-types for backwards compatibility.
-pub use zeroclaw_api::media::{MediaAttachment, MediaKind};
+pub use brai_api::media::{MediaAttachment, MediaKind};
 
 /// The media understanding pipeline.
 ///

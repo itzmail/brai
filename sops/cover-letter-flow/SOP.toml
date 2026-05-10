@@ -1,0 +1,10 @@
+[sop]
+name = "cover-letter-flow"
+description = "Generate a cover letter from CV and job description, then send via email after user approval."
+version = "0.1.0"
+priority = "normal"
+execution_mode = "step_by_step"
+cooldown_secs = 0
+
+[[triggers]]
+type = "manual"

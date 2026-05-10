@@ -14,10 +14,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 use crate::transcription::transcribe_audio;
-use zeroclaw_config::schema::TranscriptionConfig;
-use zeroclaw_config::schema::VoiceWakeConfig;
+use brai_config::schema::TranscriptionConfig;
+use brai_config::schema::VoiceWakeConfig;
 
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 // ── State machine ──────────────────────────────────────────────
 
@@ -324,7 +324,7 @@ pub fn encode_wav_from_f32(samples: &[f32], sample_rate: u32, channels: u16) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::traits::ChannelConfig;
+    use brai_config::traits::ChannelConfig;
 
     // ── State machine tests ────────────────────────────────
 

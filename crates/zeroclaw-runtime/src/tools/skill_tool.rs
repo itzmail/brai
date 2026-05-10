@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Maximum execution time for a skill shell command (seconds).
 const SKILL_SHELL_TIMEOUT_SECS: u64 = 60;

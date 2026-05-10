@@ -96,7 +96,7 @@ pub async fn run(target_version: Option<&str>) -> Result<()> {
     // Phase 2: Download
     info!("Phase 2/6: Downloading...");
     let temp_dir = tempfile::tempdir().context("failed to create temp dir")?;
-    let download_path = temp_dir.path().join("zeroclaw_new");
+    let download_path = temp_dir.path().join("brai_new");
     download_binary(&download_url, &download_path).await?;
 
     // Phase 3: Backup
@@ -563,7 +563,7 @@ mod tests {
         }
 
         let tmp = tempfile::tempdir().unwrap();
-        let dest = tmp.path().join("zeroclaw_extracted");
+        let dest = tmp.path().join("brai_extracted");
         extract_tar_gz(&gz_buf, &dest).unwrap();
 
         let content = std::fs::read(&dest).unwrap();
@@ -598,7 +598,7 @@ mod tests {
         }
 
         let tmp = tempfile::tempdir().unwrap();
-        let dest = tmp.path().join("zeroclaw_extracted");
+        let dest = tmp.path().join("brai_extracted");
         let result = extract_tar_gz(&gz_buf, &dest);
         assert!(result.is_err());
         assert!(

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// WeCom (WeChat Enterprise) Bot Webhook channel.
 ///
@@ -20,7 +20,7 @@ impl WeComChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client("channel.wecom")
+        brai_config::schema::build_runtime_proxy_client("channel.wecom")
     }
 
     fn webhook_url(&self) -> String {
@@ -153,7 +153,7 @@ mod tests {
 webhook_key = "key-abc-123"
 allowed_users = ["user1", "*"]
 "#;
-        let config: zeroclaw_config::schema::WeComConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::WeComConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.webhook_key, "key-abc-123");
         assert_eq!(config.allowed_users, vec!["user1", "*"]);
     }
@@ -163,7 +163,7 @@ allowed_users = ["user1", "*"]
         let toml_str = r#"
 webhook_key = "key"
 "#;
-        let config: zeroclaw_config::schema::WeComConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::WeComConfig = toml::from_str(toml_str).unwrap();
         assert!(config.allowed_users.is_empty());
     }
 }

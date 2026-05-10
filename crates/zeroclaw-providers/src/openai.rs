@@ -5,7 +5,7 @@ use crate::traits::{
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use zeroclaw_api::tool::ToolSpec;
+use brai_api::tool::ToolSpec;
 
 /// OpenAI's public API endpoint.
 const BASE_URL: &str = "https://api.openai.com/v1";
@@ -342,7 +342,7 @@ impl OpenAiProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.openai",
             120,
             10,
@@ -850,7 +850,7 @@ mod tests {
 
     #[test]
     fn convert_messages_round_trips_reasoning_content() {
-        use zeroclaw_api::provider::ChatMessage;
+        use brai_api::provider::ChatMessage;
 
         let history_json = serde_json::json!({
             "content": "I will check",
@@ -873,7 +873,7 @@ mod tests {
 
     #[test]
     fn convert_messages_no_reasoning_content_when_absent() {
-        use zeroclaw_api::provider::ChatMessage;
+        use brai_api::provider::ChatMessage;
 
         let history_json = serde_json::json!({
             "content": "I will check",

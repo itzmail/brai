@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, info, warn};
 
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
-pub use zeroclaw_config::scattered_types::{VoiceCallConfig, VoiceProvider};
+pub use brai_config::scattered_types::{VoiceCallConfig, VoiceProvider};
 
 // ── Call state ────────────────────────────────────────────────────
 

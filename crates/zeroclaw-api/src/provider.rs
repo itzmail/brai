@@ -403,7 +403,7 @@ pub trait Provider: Send + Sync {
     /// Used by onboard to present a live model picker. Default bails with
     /// "not supported"; concrete providers override to hit their own public
     /// endpoint (OpenRouter, Ollama) or delegate to the shared models.dev
-    /// catalog (no auth required) in `zeroclaw_providers::models_dev`.
+    /// catalog (no auth required) in `brai_providers::models_dev`.
     async fn list_models(&self) -> anyhow::Result<Vec<String>> {
         anyhow::bail!("live model listing is not supported for this provider")
     }

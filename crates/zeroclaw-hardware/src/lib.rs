@@ -75,7 +75,7 @@ use anyhow::Result;
 pub use tool_registry::{ToolError, ToolRegistry};
 
 // Re-export config types so wizard can use `hardware::HardwareConfig` etc.
-pub use zeroclaw_config::schema::{HardwareConfig, HardwareTransport};
+pub use brai_config::schema::{HardwareConfig, HardwareTransport};
 
 // ── Phase 5: boot() — hardware tool integration into agent loop ───────────────
 
@@ -84,7 +84,7 @@ pub use zeroclaw_config::schema::{HardwareConfig, HardwareTransport};
 ///
 /// Returns a tuple of `(device_summary, added_tool_names)`.
 pub fn merge_hardware_tools(
-    tools: &mut Vec<Box<dyn zeroclaw_api::tool::Tool>>,
+    tools: &mut Vec<Box<dyn brai_api::tool::Tool>>,
     hw_boot: HardwareBootResult,
 ) -> (String, Vec<String>) {
     let device_summary = hw_boot.device_summary.clone();
@@ -92,7 +92,7 @@ pub fn merge_hardware_tools(
     if !hw_boot.tools.is_empty() {
         let existing: std::collections::HashSet<String> =
             tools.iter().map(|t| t.name().to_string()).collect();
-        let new_hw_tools: Vec<Box<dyn zeroclaw_api::tool::Tool>> = hw_boot
+        let new_hw_tools: Vec<Box<dyn brai_api::tool::Tool>> = hw_boot
             .tools
             .into_iter()
             .filter(|t| !existing.contains(t.name()))
@@ -110,21 +110,21 @@ pub fn merge_hardware_tools(
 /// system prompt.
 pub struct HardwareBootResult {
     /// Tools to extend into the agent's `tools_registry`.
-    pub tools: Vec<Box<dyn zeroclaw_api::tool::Tool>>,
+    pub tools: Vec<Box<dyn brai_api::tool::Tool>>,
     /// Human-readable device summary for the LLM system prompt.
     pub device_summary: String,
-    /// Content of `~/.zeroclaw/hardware/` context files (HARDWARE.md, device
+    /// Content of `~/.brai/hardware/` context files (HARDWARE.md, device
     /// profiles, and skills) for injection into the system prompt.
     pub context_files_prompt: String,
 }
 
-/// Load hardware context files from `~/.zeroclaw/hardware/` and return them
+/// Load hardware context files from `~/.brai/hardware/` and return them
 /// concatenated as a single markdown string ready for system-prompt injection.
 ///
 /// Reads (if they exist):
-/// 1. `~/.zeroclaw/hardware/HARDWARE.md`
-/// 2. `~/.zeroclaw/hardware/devices/<alias>.md` for each discovered alias
-/// 3. All `~/.zeroclaw/hardware/skills/*.md` files (sorted by name)
+/// 1. `~/.brai/hardware/HARDWARE.md`
+/// 2. `~/.brai/hardware/devices/<alias>.md` for each discovered alias
+/// 3. All `~/.brai/hardware/skills/*.md` files (sorted by name)
 ///
 /// Missing files are silently skipped. Returns an empty string when no files
 /// are found.
@@ -133,7 +133,7 @@ pub fn load_hardware_context_prompt(aliases: &[&str]) -> String {
         Some(h) => h,
         None => return String::new(),
     };
-    load_hardware_context_from_dir(&home.join(".zeroclaw").join("hardware"), aliases)
+    load_hardware_context_from_dir(&home.join(".brai").join("hardware"), aliases)
 }
 
 /// Inner helper that reads hardware context from an explicit base directory.
@@ -195,7 +195,7 @@ pub fn load_hardware_context_from_dir(hw_dir: &std::path::Path, aliases: &[&str]
 /// `context_files_prompt` so the LLM knows it is running on the device.
 #[cfg(all(feature = "peripheral-rpi", target_os = "linux"))]
 fn inject_rpi_context(
-    tools: &mut Vec<Box<dyn zeroclaw_api::tool::Tool>>,
+    tools: &mut Vec<Box<dyn brai_api::tool::Tool>>,
     context_files_prompt: &mut String,
 ) {
     if let Some(ctx) = rpi::RpiSystemContext::discover() {
@@ -240,13 +240,13 @@ fn inject_rpi_context(
 /// discovery. [`HardwareSerialTransport`] opens the port lazily per-send,
 /// so this succeeds even when the port doesn't exist at startup.
 ///
-/// Without the feature: loads plugin tools from `~/.zeroclaw/tools/` only,
+/// Without the feature: loads plugin tools from `~/.brai/tools/` only,
 /// with an empty device registry (GPIO tools will report "no device found"
 /// if called, which is correct).
 #[cfg(feature = "hardware")]
 #[allow(unused_mut)] // tools and context_files_prompt are mutated on Linux+peripheral-rpi
 pub async fn boot(
-    peripherals: &zeroclaw_config::schema::PeripheralsConfig,
+    peripherals: &brai_config::schema::PeripheralsConfig,
 ) -> anyhow::Result<HardwareBootResult> {
     use self::serial::HardwareSerialTransport;
     use device::DeviceCapabilities;
@@ -372,7 +372,7 @@ pub async fn boot(
 #[cfg(not(feature = "hardware"))]
 #[allow(unused_mut)] // tools and context_files_prompt are mutated on Linux+peripheral-rpi
 pub async fn boot(
-    _peripherals: &zeroclaw_config::schema::PeripheralsConfig,
+    _peripherals: &brai_config::schema::PeripheralsConfig,
 ) -> anyhow::Result<HardwareBootResult> {
     let devices = std::sync::Arc::new(tokio::sync::RwLock::new(DeviceRegistry::new()));
     let registry = ToolRegistry::load(devices.clone()).await?;

@@ -56,7 +56,7 @@ pub fn build_system_prompt(
     model_name: &str,
     tools: &[(&str, &str)],
     skills: &[Skill],
-    identity_config: Option<&zeroclaw_config::schema::IdentityConfig>,
+    identity_config: Option<&brai_config::schema::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
 ) -> String {
     build_system_prompt_with_mode(
@@ -67,7 +67,7 @@ pub fn build_system_prompt(
         identity_config,
         bootstrap_max_chars,
         false,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+        brai_config::schema::SkillsPromptInjectionMode::Full,
         AutonomyLevel::default(),
     )
 }
@@ -77,13 +77,13 @@ pub fn build_system_prompt_with_mode(
     model_name: &str,
     tools: &[(&str, &str)],
     skills: &[Skill],
-    identity_config: Option<&zeroclaw_config::schema::IdentityConfig>,
+    identity_config: Option<&brai_config::schema::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
     native_tools: bool,
-    skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+    skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode,
     autonomy_level: AutonomyLevel,
 ) -> String {
-    let autonomy_cfg = zeroclaw_config::schema::AutonomyConfig {
+    let autonomy_cfg = brai_config::schema::AutonomyConfig {
         level: autonomy_level,
         ..Default::default()
     };
@@ -108,11 +108,11 @@ pub fn build_system_prompt_with_mode_and_autonomy(
     model_name: &str,
     tools: &[(&str, &str)],
     skills: &[Skill],
-    identity_config: Option<&zeroclaw_config::schema::IdentityConfig>,
+    identity_config: Option<&brai_config::schema::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
-    autonomy_config: Option<&zeroclaw_config::schema::AutonomyConfig>,
+    autonomy_config: Option<&brai_config::schema::AutonomyConfig>,
     native_tools: bool,
-    skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+    skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode,
     compact_context: bool,
     max_system_prompt_chars: usize,
 ) -> String {

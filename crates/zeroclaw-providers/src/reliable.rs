@@ -1298,7 +1298,7 @@ mod tests {
     use super::*;
     use futures_util::StreamExt;
     use std::sync::Arc;
-    use zeroclaw_api::tool::ToolSpec;
+    use brai_api::tool::ToolSpec;
 
     struct MockProvider {
         calls: Arc<AtomicUsize>,

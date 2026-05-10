@@ -3,7 +3,7 @@ use portable_atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 // Use tokio_rustls's re-export of rustls types
 use tokio_rustls::rustls;
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn irc_config_serde_roundtrip() {
-        use zeroclaw_config::schema::IrcConfig;
+        use brai_config::schema::IrcConfig;
 
         let config = IrcConfig {
             enabled: true,
@@ -1023,7 +1023,7 @@ mod tests {
 
     #[test]
     fn irc_config_minimal_toml() {
-        use zeroclaw_config::schema::IrcConfig;
+        use brai_config::schema::IrcConfig;
 
         let toml_str = r#"
 server = "irc.example.com"
@@ -1045,7 +1045,7 @@ nickname = "bot"
 
     #[test]
     fn irc_config_default_port() {
-        use zeroclaw_config::schema::IrcConfig;
+        use brai_config::schema::IrcConfig;
 
         let json = r#"{"server":"irc.test","nickname":"bot"}"#;
         let parsed: IrcConfig = serde_json::from_str(json).unwrap();

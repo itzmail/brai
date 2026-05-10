@@ -13,7 +13,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use uuid::Uuid;
-use zeroclaw_config::schema::SearchMode;
+use brai_config::schema::SearchMode;
 
 /// Maximum allowed open timeout (seconds) to avoid unreasonable waits.
 const SQLITE_OPEN_TIMEOUT_CAP_SECS: u64 = 300;

@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
-use zeroclaw_config::api_error::{ConfigApiCode, ConfigApiError};
+use brai_config::api_error::{ConfigApiCode, ConfigApiError};
 
 use super::AppState;
 use super::api::require_auth;
@@ -48,7 +48,7 @@ pub async fn handle_catalog(State(state): State<AppState>, headers: HeaderMap) -
     }
     let _ = state;
 
-    let providers: Vec<CatalogProvider> = zeroclaw_providers::list_providers()
+    let providers: Vec<CatalogProvider> = brai_providers::list_providers()
         .into_iter()
         .map(|p| CatalogProvider {
             name: p.name.to_string(),
@@ -81,7 +81,7 @@ pub struct ModelsResponse {
 
 /// `GET /api/onboard/catalog/models?provider=<name>` — fetch the model list
 /// for one provider. Same code path the CLI wizard uses
-/// (`zeroclaw_providers::create_provider(...).list_models()`), which goes
+/// (`brai_providers::create_provider(...).list_models()`), which goes
 /// through the models.dev cached catalog for OpenAI / Anthropic / Gemini,
 /// the live `/v1/models` endpoint for OpenRouter, etc.
 ///
@@ -98,7 +98,7 @@ pub async fn handle_catalog_models(
     }
     let _ = state;
 
-    let handle = match zeroclaw_providers::create_provider(&q.provider, None) {
+    let handle = match brai_providers::create_provider(&q.provider, None) {
         Ok(h) => h,
         Err(e) => {
             return error_response(
@@ -248,7 +248,7 @@ pub async fn handle_sections(State(state): State<AppState>, headers: HeaderMap) 
     // Map-keyed roots get pickers automatically (the picker shows existing
     // keys / catalog entries; selecting an item opens its form).
     let map_keyed_roots: std::collections::HashSet<&'static str> =
-        zeroclaw_config::schema::Config::map_key_sections()
+        brai_config::schema::Config::map_key_sections()
             .iter()
             .filter_map(|s| s.path.split('.').next())
             .collect();
@@ -406,8 +406,8 @@ pub struct PickerResponse {
 /// `GET /api/onboard/sections/<section>` — picker items for that section.
 ///
 /// Per-section dispatch:
-/// * `providers` → `zeroclaw_providers::list_providers()` (CLI's catalog).
-/// * `memory` → `zeroclaw_memory::selectable_memory_backends()`.
+/// * `providers` → `brai_providers::list_providers()` (CLI's catalog).
+/// * `memory` → `brai_memory::selectable_memory_backends()`.
 /// * `channels` / `tunnel` → schema-walk: clone config, `init_defaults` the
 ///   section, then strip the section prefix from `prop_fields()` and dedupe
 ///   by first segment. Same trick the TUI uses; new channels appear
@@ -460,8 +460,8 @@ pub async fn handle_section_picker(
     .into_response()
 }
 
-fn providers_picker(cfg: &zeroclaw_config::schema::Config) -> Vec<PickerItem> {
-    zeroclaw_providers::list_providers()
+fn providers_picker(cfg: &brai_config::schema::Config) -> Vec<PickerItem> {
+    brai_providers::list_providers()
         .into_iter()
         .map(|p| {
             let configured = cfg.providers.models.contains_key(p.name);
@@ -483,9 +483,9 @@ fn providers_picker(cfg: &zeroclaw_config::schema::Config) -> Vec<PickerItem> {
         .collect()
 }
 
-fn memory_picker(cfg: &zeroclaw_config::schema::Config) -> Vec<PickerItem> {
+fn memory_picker(cfg: &brai_config::schema::Config) -> Vec<PickerItem> {
     let current = cfg.memory.backend.clone();
-    zeroclaw_memory::selectable_memory_backends()
+    brai_memory::selectable_memory_backends()
         .iter()
         .map(|b| PickerItem {
             key: b.key.to_string(),
@@ -505,7 +505,7 @@ fn memory_picker(cfg: &zeroclaw_config::schema::Config) -> Vec<PickerItem> {
 /// init_defaults the section to materialize every Option<T> as Some(default),
 /// then read prop_fields() on the probe — every reachable subsection's name
 /// surfaces as a path segment under `<section>.`.
-fn schema_walk_picker(cfg: &zeroclaw_config::schema::Config, section: &str) -> Vec<PickerItem> {
+fn schema_walk_picker(cfg: &brai_config::schema::Config, section: &str) -> Vec<PickerItem> {
     let mut probe = cfg.clone();
     probe.init_defaults(Some(section));
     let prefix_with_dot = format!("{section}.");
@@ -556,7 +556,7 @@ fn schema_walk_picker(cfg: &zeroclaw_config::schema::Config, section: &str) -> V
 /// `none` entry at the top, marked active when the current `tunnel.provider`
 /// matches. Mirrors the TUI's tunnel section.
 fn schema_walk_picker_with_none(
-    cfg: &zeroclaw_config::schema::Config,
+    cfg: &brai_config::schema::Config,
     section: &str,
     active_prop_path: &str,
 ) -> Vec<PickerItem> {
@@ -648,7 +648,7 @@ pub async fn handle_section_select(
             // re-select.
             let prefix = format!("providers.models.{key}");
             if let Err(e) =
-                zeroclaw_runtime::onboard::field_visibility::apply_provider_trait_defaults(
+                brai_runtime::onboard::field_visibility::apply_provider_trait_defaults(
                     &mut working,
                     &key,
                     &prefix,
@@ -739,8 +739,8 @@ pub async fn handle_section_select(
 mod tests {
     use super::*;
 
-    fn empty_cfg() -> zeroclaw_config::schema::Config {
-        zeroclaw_config::schema::Config::default()
+    fn empty_cfg() -> brai_config::schema::Config {
+        brai_config::schema::Config::default()
     }
 
     #[test]
@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn providers_picker_sources_from_list_providers() {
-        // Single source of truth: zeroclaw_providers::list_providers().
+        // Single source of truth: brai_providers::list_providers().
         // Anthropic / OpenAI / OpenRouter must surface in the picker.
         let cfg = empty_cfg();
         let items = providers_picker(&cfg);
@@ -870,7 +870,7 @@ mod tests {
     fn memory_picker_sources_from_selectable_backends() {
         let cfg = empty_cfg();
         let items = memory_picker(&cfg);
-        // Mirrors zeroclaw_memory::selectable_memory_backends() exactly.
+        // Mirrors brai_memory::selectable_memory_backends() exactly.
         let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
         assert!(keys.contains(&"sqlite"));
         assert!(keys.contains(&"none"));

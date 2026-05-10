@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message as WsMsg;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 const FEISHU_BASE_URL: &str = "https://open.feishu.cn/open-apis";
 const FEISHU_WS_BASE_URL: &str = "https://open.feishu.cn";
@@ -393,14 +393,14 @@ pub struct LarkChannel {
     /// Platform variant: Lark (international) or Feishu (CN).
     platform: LarkPlatform,
     /// How to receive events: WebSocket long-connection or HTTP webhook.
-    receive_mode: zeroclaw_config::schema::LarkReceiveMode,
+    receive_mode: brai_config::schema::LarkReceiveMode,
     /// Cached tenant access token
     tenant_token: Arc<RwLock<Option<CachedTenantToken>>>,
     /// Dedup set: WS message_ids seen in last ~30 min to prevent double-dispatch
     ws_seen_ids: Arc<RwLock<HashMap<String, Instant>>>,
     /// Per-channel proxy URL override.
     proxy_url: Option<String>,
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<Arc<super::transcription::TranscriptionManager>>,
     #[cfg(test)]
     api_base_override: Option<String>,
@@ -444,7 +444,7 @@ impl LarkChannel {
             resolved_bot_open_id: Arc::new(StdRwLock::new(None)),
             mention_only,
             platform,
-            receive_mode: zeroclaw_config::schema::LarkReceiveMode::default(),
+            receive_mode: brai_config::schema::LarkReceiveMode::default(),
             tenant_token: Arc::new(RwLock::new(None)),
             ws_seen_ids: Arc::new(RwLock::new(HashMap::new())),
             proxy_url: None,
@@ -457,7 +457,7 @@ impl LarkChannel {
 
     /// Build from `LarkConfig` using legacy compatibility:
     /// when `use_feishu=true`, this instance routes to Feishu endpoints.
-    pub fn from_config(config: &zeroclaw_config::schema::LarkConfig) -> Self {
+    pub fn from_config(config: &brai_config::schema::LarkConfig) -> Self {
         let platform = if config.use_feishu {
             LarkPlatform::Feishu
         } else {
@@ -480,7 +480,7 @@ impl LarkChannel {
     /// Build from `LarkConfig` forcing `LarkPlatform::Lark`, ignoring the
     /// legacy `use_feishu` flag.  Used by the channel factory when the config
     /// section is explicitly `[channels_config.lark]`.
-    pub fn from_lark_config(config: &zeroclaw_config::schema::LarkConfig) -> Self {
+    pub fn from_lark_config(config: &brai_config::schema::LarkConfig) -> Self {
         let mut ch = Self::new_with_platform(
             config.app_id.clone(),
             config.app_secret.clone(),
@@ -496,7 +496,7 @@ impl LarkChannel {
     }
 
     /// Build from `FeishuConfig` with `LarkPlatform::Feishu`.
-    pub fn from_feishu_config(config: &zeroclaw_config::schema::FeishuConfig) -> Self {
+    pub fn from_feishu_config(config: &brai_config::schema::FeishuConfig) -> Self {
         let mut ch = Self::new_with_platform(
             config.app_id.clone(),
             config.app_secret.clone(),
@@ -513,7 +513,7 @@ impl LarkChannel {
 
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -533,7 +533,7 @@ impl LarkChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             self.platform.proxy_service_key(),
             self.proxy_url.as_deref(),
         )
@@ -737,7 +737,7 @@ impl LarkChannel {
             .unwrap_or(0);
         tracing::info!("Lark: connecting to {wss_url}");
 
-        let (ws_stream, _) = zeroclaw_config::schema::ws_connect_with_proxy(
+        let (ws_stream, _) = brai_config::schema::ws_connect_with_proxy(
             &wss_url,
             "channel.lark",
             self.proxy_url.as_deref(),
@@ -1817,7 +1817,7 @@ impl Channel for LarkChannel {
     }
 
     async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
-        use zeroclaw_config::schema::LarkReceiveMode;
+        use brai_config::schema::LarkReceiveMode;
         match self.receive_mode {
             LarkReceiveMode::Websocket => self.listen_ws(tx).await,
             LarkReceiveMode::Webhook => self.listen_http(tx).await,
@@ -2973,7 +2973,7 @@ mod tests {
 
     #[test]
     fn lark_config_serde() {
-        use zeroclaw_config::schema::{LarkConfig, LarkReceiveMode};
+        use brai_config::schema::{LarkConfig, LarkReceiveMode};
         let lc = LarkConfig {
             enabled: true,
             app_id: "cli_app123".into(),
@@ -2997,7 +2997,7 @@ mod tests {
 
     #[test]
     fn lark_config_toml_roundtrip() {
-        use zeroclaw_config::schema::{LarkConfig, LarkReceiveMode};
+        use brai_config::schema::{LarkConfig, LarkReceiveMode};
         let lc = LarkConfig {
             enabled: true,
             app_id: "app".into(),
@@ -3020,7 +3020,7 @@ mod tests {
 
     #[test]
     fn lark_config_defaults_optional_fields() {
-        use zeroclaw_config::schema::{LarkConfig, LarkReceiveMode};
+        use brai_config::schema::{LarkConfig, LarkReceiveMode};
         let json = r#"{"app_id":"a","app_secret":"s"}"#;
         let parsed: LarkConfig = serde_json::from_str(json).unwrap();
         assert!(parsed.verification_token.is_none());
@@ -3032,7 +3032,7 @@ mod tests {
 
     #[test]
     fn lark_from_config_preserves_mode_and_region() {
-        use zeroclaw_config::schema::{LarkConfig, LarkReceiveMode};
+        use brai_config::schema::{LarkConfig, LarkReceiveMode};
 
         let cfg = LarkConfig {
             enabled: true,
@@ -3058,7 +3058,7 @@ mod tests {
 
     #[test]
     fn lark_from_lark_config_ignores_legacy_feishu_flag() {
-        use zeroclaw_config::schema::{LarkConfig, LarkReceiveMode};
+        use brai_config::schema::{LarkConfig, LarkReceiveMode};
 
         let cfg = LarkConfig {
             enabled: true,
@@ -3083,7 +3083,7 @@ mod tests {
 
     #[test]
     fn lark_from_feishu_config_sets_feishu_platform() {
-        use zeroclaw_config::schema::{FeishuConfig, LarkReceiveMode};
+        use brai_config::schema::{FeishuConfig, LarkReceiveMode};
 
         let cfg = FeishuConfig {
             enabled: true,
@@ -3107,7 +3107,7 @@ mod tests {
 
     #[test]
     fn lark_from_feishu_config_propagates_mention_only() {
-        use zeroclaw_config::schema::{FeishuConfig, LarkReceiveMode};
+        use brai_config::schema::{FeishuConfig, LarkReceiveMode};
 
         let cfg_true = FeishuConfig {
             enabled: true,
@@ -3321,7 +3321,7 @@ mod tests {
             "https://open.larksuite.com/open-apis/im/v1/messages/om_test_message_id/reactions"
         );
 
-        let feishu_cfg = zeroclaw_config::schema::FeishuConfig {
+        let feishu_cfg = brai_config::schema::FeishuConfig {
             enabled: true,
             app_id: "cli_app123".into(),
             app_secret: "secret456".into(),
@@ -3329,7 +3329,7 @@ mod tests {
             verification_token: Some("vtoken789".into()),
             allowed_users: vec!["*".into()],
             mention_only: false,
-            receive_mode: zeroclaw_config::schema::LarkReceiveMode::Webhook,
+            receive_mode: brai_config::schema::LarkReceiveMode::Webhook,
             port: Some(9898),
             proxy_url: None,
         };
@@ -3570,7 +3570,7 @@ mod tests {
 
     #[test]
     fn lark_manager_none_when_disabled() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: false,
             ..Default::default()
         };
@@ -3580,7 +3580,7 @@ mod tests {
 
     #[test]
     fn lark_manager_none_and_warn_on_init_failure() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "groq".to_string(),
             api_key: Some(String::new()),
@@ -3709,10 +3709,10 @@ mod tests {
     #[tokio::test]
     async fn lark_audio_file_key_missing_returns_none() {
         let ch = make_channel();
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".to_string(),
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: "http://localhost:0/v1/transcribe".to_string(),
                 bearer_token: Some("unused".to_string()),
                 max_audio_bytes: 10 * 1024 * 1024,
@@ -3794,10 +3794,10 @@ mod tests {
             .mount(&whisper_server)
             .await;
 
-        let config = zeroclaw_config::schema::TranscriptionConfig {
+        let config = brai_config::schema::TranscriptionConfig {
             enabled: true,
             default_provider: "local_whisper".to_string(),
-            local_whisper: Some(zeroclaw_config::schema::LocalWhisperConfig {
+            local_whisper: Some(brai_config::schema::LocalWhisperConfig {
                 url: format!("{}/v1/transcribe", whisper_server.uri()),
                 bearer_token: Some("test-token".to_string()),
                 max_audio_bytes: 10 * 1024 * 1024,

@@ -6,7 +6,7 @@
 //! - Toggle integrations: `Config::integration_descriptors()` (per-struct
 //!   `#[integration(...)]` attribute on `BrowserConfig`, `CronConfig`,
 //!   `GoogleWorkspaceConfig`).
-//! - AI providers: `zeroclaw_providers::list_providers()` (each
+//! - AI providers: `brai_providers::list_providers()` (each
 //!   `ProviderInfo` row carries `display_name`, `description`, and a
 //!   `ProviderActivation` strategy).
 //! - Always-on built-in tools: `crate::tools::BUILTIN_TOOL_INTEGRATIONS`.
@@ -20,8 +20,8 @@
 use super::platform::PLATFORMS;
 use super::{IntegrationCategory, IntegrationEntry, IntegrationStatus};
 use crate::tools::BUILTIN_TOOL_INTEGRATIONS;
-use zeroclaw_config::schema::Config;
-use zeroclaw_providers::ProviderActivation;
+use brai_config::schema::Config;
+use brai_providers::ProviderActivation;
 
 fn bool_to_status(active: bool) -> IntegrationStatus {
     if active {
@@ -49,10 +49,10 @@ fn parse_category(label: &str) -> IntegrationCategory {
 /// Compute an AI-model integration's status from its `ProviderActivation`
 /// strategy. The registry never branches on a provider name — every
 /// per-vendor decision lives on the `ProviderInfo` row in
-/// `zeroclaw_providers::list_providers()`.
+/// `brai_providers::list_providers()`.
 fn evaluate_provider_activation(
     config: &Config,
-    info: &zeroclaw_providers::ProviderInfo,
+    info: &brai_providers::ProviderInfo,
 ) -> IntegrationStatus {
     let fallback = config.providers.fallback.as_deref();
     let active = match info.activation {
@@ -103,7 +103,7 @@ pub fn all_integrations(config: &Config) -> Vec<IntegrationEntry> {
             status: bool_to_status(d.active),
         });
 
-    let providers = zeroclaw_providers::list_providers()
+    let providers = brai_providers::list_providers()
         .into_iter()
         .map(|info| {
             let status = evaluate_provider_activation(config, &info);
@@ -142,8 +142,8 @@ pub fn all_integrations(config: &Config) -> Vec<IntegrationEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::Config;
-    use zeroclaw_config::schema::{IMessageConfig, MatrixConfig, StreamMode, TelegramConfig};
+    use brai_config::schema::Config;
+    use brai_config::schema::{IMessageConfig, MatrixConfig, StreamMode, TelegramConfig};
 
     #[test]
     fn registry_has_entries() {
@@ -300,7 +300,7 @@ mod tests {
             allowed_users: vec![],
             allowed_rooms: vec!["!r:m".into()],
             interrupt_on_new_message: false,
-            stream_mode: zeroclaw_config::schema::StreamMode::default(),
+            stream_mode: brai_config::schema::StreamMode::default(),
             draft_update_interval_ms: 1500,
             multi_message_delay_ms: 800,
             recovery_key: None,
@@ -406,7 +406,7 @@ mod tests {
             let mut config = Config::default();
             config.providers.fallback = Some(fallback_key.to_string());
             let entries = all_integrations(&config);
-            let info = zeroclaw_providers::list_providers()
+            let info = brai_providers::list_providers()
                 .into_iter()
                 .find(|p| p.name == canonical)
                 .unwrap_or_else(|| {

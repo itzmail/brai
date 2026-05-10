@@ -11,7 +11,7 @@
 use crate::conflict;
 use crate::importance;
 use crate::traits::{Memory, MemoryCategory};
-use zeroclaw_api::provider::Provider;
+use brai_api::provider::Provider;
 
 /// Output of consolidation extraction.
 #[derive(Debug, serde::Deserialize)]

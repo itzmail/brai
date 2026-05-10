@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::Config;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::Config;
 
 /// Tool that lets the agent manage recurring and one-shot scheduled tasks.
 pub struct ScheduleTool {
@@ -555,7 +555,7 @@ mod tests {
         let config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
-            autonomy: zeroclaw_config::schema::AutonomyConfig {
+            autonomy: brai_config::schema::AutonomyConfig {
                 level: AutonomyLevel::ReadOnly,
                 ..Default::default()
             },
@@ -592,7 +592,7 @@ mod tests {
         let config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
-            autonomy: zeroclaw_config::schema::AutonomyConfig {
+            autonomy: brai_config::schema::AutonomyConfig {
                 level: AutonomyLevel::Full,
                 max_actions_per_hour: 0,
                 ..Default::default()
@@ -636,7 +636,7 @@ mod tests {
         let config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
-            autonomy: zeroclaw_config::schema::AutonomyConfig {
+            autonomy: brai_config::schema::AutonomyConfig {
                 level: AutonomyLevel::Full,
                 max_actions_per_hour: 1,
                 ..Default::default()

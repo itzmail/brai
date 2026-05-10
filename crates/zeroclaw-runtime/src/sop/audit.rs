@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing::{info, warn};
 
 use super::types::{SopRun, SopStepResult};
-use zeroclaw_memory::traits::{Memory, MemoryCategory};
+use brai_memory::traits::{Memory, MemoryCategory};
 
 const SOP_CATEGORY: &str = "sop";
 
@@ -155,13 +155,13 @@ mod tests {
 
     #[tokio::test]
     async fn audit_roundtrip() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let logger = SopAuditLogger::new(memory);
 
@@ -193,13 +193,13 @@ mod tests {
 
     #[tokio::test]
     async fn log_approval_persists_entry() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let logger = SopAuditLogger::new(memory.clone());
         let run = test_run();
@@ -216,13 +216,13 @@ mod tests {
 
     #[tokio::test]
     async fn log_timeout_auto_approve_persists_entry() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let logger = SopAuditLogger::new(memory.clone());
         let run = test_run();
@@ -239,13 +239,13 @@ mod tests {
 
     #[tokio::test]
     async fn get_nonexistent_run_returns_none() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: Arc<dyn Memory> =
-            Arc::from(zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+            Arc::from(brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
 
         let logger = SopAuditLogger::new(memory);
         let result = logger.get_run("nonexistent").await.unwrap();

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::{SecurityPolicy, ToolOperation};
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::{SecurityPolicy, ToolOperation};
 
 const NOTION_API_BASE: &str = "https://api.notion.com/v1";
 const NOTION_VERSION: &str = "2022-06-28";
@@ -339,7 +339,7 @@ impl Tool for NotionTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_tool() -> NotionTool {
         let security = Arc::new(SecurityPolicy::default());

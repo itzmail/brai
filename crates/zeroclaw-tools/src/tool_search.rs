@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 
 use crate::mcp_deferred::{ActivatedToolSet, DeferredMcpToolSet};
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Default maximum number of search results.
 const DEFAULT_MAX_RESULTS: usize = 5;

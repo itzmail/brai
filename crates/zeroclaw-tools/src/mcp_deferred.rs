@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::mcp_client::McpRegistry;
 use crate::mcp_protocol::McpToolDef;
 use crate::mcp_tool::McpToolWrapper;
-use zeroclaw_api::tool::{Tool, ToolSpec};
+use brai_api::tool::{Tool, ToolSpec};
 
 // ── DeferredMcpToolStub ──────────────────────────────────────────────────
 
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn activated_set_tracks_activation() {
         use async_trait::async_trait;
-        use zeroclaw_api::tool::ToolResult;
+        use brai_api::tool::ToolResult;
 
         struct FakeTool;
         #[async_trait]
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn activated_set_resolves_unique_suffix() {
         use async_trait::async_trait;
-        use zeroclaw_api::tool::ToolResult;
+        use brai_api::tool::ToolResult;
 
         struct FakeTool;
         #[async_trait]
@@ -353,7 +353,7 @@ mod tests {
     #[test]
     fn activated_set_rejects_ambiguous_suffix() {
         use async_trait::async_trait;
-        use zeroclaw_api::tool::ToolResult;
+        use brai_api::tool::ToolResult;
 
         struct FakeTool(&'static str);
         #[async_trait]

@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::hooks::traits::{HookHandler, HookResult};
-use zeroclaw_api::tool::ToolResult;
-use zeroclaw_config::schema::WebhookAuditConfig;
+use brai_api::tool::ToolResult;
+use brai_config::schema::WebhookAuditConfig;
 
 /// Validate a webhook URL against SSRF attacks.
 ///

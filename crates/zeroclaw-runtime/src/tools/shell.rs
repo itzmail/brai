@@ -6,7 +6,7 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Default maximum shell command execution time before kill.
 const DEFAULT_SHELL_TIMEOUT_SECS: u64 = 60;
@@ -245,7 +245,7 @@ mod tests {
     use super::*;
     use crate::platform::{NativeRuntime, RuntimeAdapter};
     use crate::security::{AutonomyLevel, SecurityPolicy};
-    use zeroclaw_tools::wrappers::{PathGuardedTool, RateLimitedTool};
+    use brai_tools::wrappers::{PathGuardedTool, RateLimitedTool};
 
     fn test_security(autonomy: AutonomyLevel) -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {
@@ -498,7 +498,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn shell_does_not_leak_api_key() {
         let _g1 = EnvGuard::set("API_KEY", "sk-test-secret-12345");
-        let _g2 = EnvGuard::set("ZEROCLAW_API_KEY", "sk-test-secret-67890");
+        let _g2 = EnvGuard::set("BRAI_API_KEY", "sk-test-secret-67890");
 
         let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
         let result = tool
@@ -512,7 +512,7 @@ mod tests {
         );
         assert!(
             !result.output.contains("sk-test-secret-67890"),
-            "ZEROCLAW_API_KEY leaked to shell command output"
+            "BRAI_API_KEY leaked to shell command output"
         );
     }
 
@@ -554,9 +554,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn shell_allows_configured_env_passthrough() {
-        let _guard = EnvGuard::set("ZEROCLAW_TEST_PASSTHROUGH", "db://unit-test");
+        let _guard = EnvGuard::set("BRAI_TEST_PASSTHROUGH", "db://unit-test");
         let tool = ShellTool::new(
-            test_security_with_env_passthrough(&["ZEROCLAW_TEST_PASSTHROUGH"]),
+            test_security_with_env_passthrough(&["BRAI_TEST_PASSTHROUGH"]),
             test_runtime(),
         );
 
@@ -568,7 +568,7 @@ mod tests {
         assert!(
             result
                 .output
-                .contains("ZEROCLAW_TEST_PASSTHROUGH=db://unit-test")
+                .contains("BRAI_TEST_PASSTHROUGH=db://unit-test")
         );
     }
 
@@ -601,7 +601,7 @@ mod tests {
 
         let tool = ShellTool::new(security.clone(), test_runtime());
         let denied = tool
-            .execute(json!({"command": "touch zeroclaw_shell_approval_test"}))
+            .execute(json!({"command": "touch brai_shell_approval_test"}))
             .await
             .expect("unapproved command should return a result");
         assert!(!denied.success);
@@ -615,7 +615,7 @@ mod tests {
 
         let allowed = tool
             .execute(json!({
-                "command": "touch zeroclaw_shell_approval_test",
+                "command": "touch brai_shell_approval_test",
                 "approved": true
             }))
             .await
@@ -623,7 +623,7 @@ mod tests {
         assert!(allowed.success);
 
         let _ =
-            tokio::fs::remove_file(std::env::temp_dir().join("zeroclaw_shell_approval_test")).await;
+            tokio::fs::remove_file(std::env::temp_dir().join("brai_shell_approval_test")).await;
     }
 
     // ── shell timeout enforcement tests ─────────────────

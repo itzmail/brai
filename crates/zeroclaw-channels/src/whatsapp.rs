@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::{Mutex, oneshot};
 use uuid::Uuid;
-use zeroclaw_api::channel::{
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
 
@@ -198,7 +198,7 @@ impl WhatsAppChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             "channel.whatsapp",
             self.proxy_url.as_deref(),
         )

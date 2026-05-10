@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::fmt::Write;
-use zeroclaw_memory::{self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, decay};
+use brai_memory::{self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, decay};
 
 #[async_trait]
 pub trait MemoryLoader: Send + Sync {
@@ -56,13 +56,13 @@ impl MemoryLoader for DefaultMemoryLoader {
         let mut context = String::new();
         let mut included = false;
         for entry in entries {
-            if zeroclaw_memory::is_assistant_autosave_key(&entry.key) {
+            if brai_memory::is_assistant_autosave_key(&entry.key) {
                 continue;
             }
-            if zeroclaw_memory::is_user_autosave_key(&entry.key) {
+            if brai_memory::is_user_autosave_key(&entry.key) {
                 continue;
             }
-            if zeroclaw_memory::should_skip_autosave_content(&entry.content) {
+            if brai_memory::should_skip_autosave_content(&entry.content) {
                 continue;
             }
             if let Some(score) = entry.score
@@ -93,7 +93,7 @@ impl MemoryLoader for DefaultMemoryLoader {
 mod tests {
     use super::*;
     use std::sync::Arc;
-    use zeroclaw_memory::{
+    use brai_memory::{
         MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, MemoryCategory, MemoryEntry,
     };
 

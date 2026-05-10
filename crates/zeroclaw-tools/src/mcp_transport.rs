@@ -10,7 +10,7 @@ use tokio::time::{Duration, timeout};
 use tokio_stream::StreamExt;
 
 use crate::mcp_protocol::{INTERNAL_ERROR, JsonRpcError, JsonRpcRequest, JsonRpcResponse};
-use zeroclaw_config::schema::{McpServerConfig, McpTransport};
+use brai_config::schema::{McpServerConfig, McpTransport};
 
 /// Maximum bytes for a single JSON-RPC response.
 const MAX_LINE_BYTES: usize = 4 * 1024 * 1024; // 4 MB
@@ -1323,7 +1323,7 @@ mod tests {
         let config = McpServerConfig {
             name: "test-stdio".into(),
             transport: McpTransport::Stdio,
-            command: "/usr/bin/zeroclaw_nonexistent_binary_abc123".into(),
+            command: "/usr/bin/brai_nonexistent_binary_abc123".into(),
             ..Default::default()
         };
         let result = create_transport(&config);

@@ -3,7 +3,7 @@ use crate::cost::types::{BudgetCheck, TokenUsage as CostTokenUsage};
 use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
-use zeroclaw_config::schema::ModelPricing;
+use brai_config::schema::ModelPricing;
 
 // ── Cost tracking via task-local ──
 
@@ -82,7 +82,7 @@ fn lookup_pricing<'a>(
 pub fn record_tool_loop_cost_usage(
     provider_name: &str,
     model: &str,
-    usage: &zeroclaw_providers::traits::TokenUsage,
+    usage: &brai_providers::traits::TokenUsage,
 ) -> Option<(u64, f64)> {
     let input_tokens = usage.input_tokens.unwrap_or(0);
     let output_tokens = usage.output_tokens.unwrap_or(0);

@@ -65,7 +65,7 @@ pub fn build_spec() -> serde_json::Value {
         DriftEntry, DriftResponse, InitQuery, InitResponse, ListResponse, MigrateResponse, PatchOp,
         PatchResponse, PropPutBody, PropResponse, SecretResponse,
     };
-    use zeroclaw_config::api_error::ConfigApiError;
+    use brai_config::api_error::ConfigApiError;
 
     fn schema_value<T: JsonSchema>() -> serde_json::Value {
         serde_json::to_value(schema_for!(T)).unwrap_or(serde_json::Value::Null)
@@ -85,7 +85,7 @@ pub fn build_spec() -> serde_json::Value {
             "MigrateResponse":  schema_value::<MigrateResponse>(),
             "DriftEntry":       schema_value::<DriftEntry>(),
             "DriftResponse":    schema_value::<DriftResponse>(),
-            "Config":           schema_value::<zeroclaw_config::schema::Config>(),
+            "Config":           schema_value::<brai_config::schema::Config>(),
         },
         "securitySchemes": {
             "bearerAuth": {

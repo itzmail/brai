@@ -15,9 +15,9 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
 
 const COMPOSIO_API_BASE_V3: &str = "https://backend.composio.dev/api/v3";
 #[allow(dead_code)] // Used by WIP get_connection_url_v2
@@ -58,7 +58,7 @@ impl ComposioTool {
     }
 
     fn client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts("tool.composio", 60, 10)
+        brai_config::schema::build_runtime_proxy_client_with_timeouts("tool.composio", 60, 10)
     }
 
     /// List available Composio apps/actions for the authenticated user.
@@ -1326,8 +1326,8 @@ pub struct ComposioAction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy::default())

@@ -3,8 +3,8 @@ use serde_json::json;
 use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 /// Maximum file size we will read and base64-encode (5 MB).
 const MAX_IMAGE_BYTES: u64 = 5_242_880;
@@ -231,8 +231,8 @@ impl Tool for ImageInfoTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {
@@ -428,7 +428,7 @@ mod tests {
     #[tokio::test]
     async fn execute_real_file() {
         // Create a minimal valid PNG
-        let dir = std::env::temp_dir().join("zeroclaw_image_info_test");
+        let dir = std::env::temp_dir().join("brai_image_info_test");
         let _ = tokio::fs::create_dir_all(&dir).await;
         let png_path = dir.join("test.png");
 
@@ -467,7 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn execute_with_base64() {
-        let dir = std::env::temp_dir().join("zeroclaw_image_info_b64");
+        let dir = std::env::temp_dir().join("brai_image_info_b64");
         let _ = tokio::fs::create_dir_all(&dir).await;
         let png_path = dir.join("test_b64.png");
 

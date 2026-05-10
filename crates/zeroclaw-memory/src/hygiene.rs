@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration as StdDuration, SystemTime};
-use zeroclaw_config::schema::MemoryConfig;
+use brai_config::schema::MemoryConfig;
 
 const HYGIENE_INTERVAL_HOURS: i64 = 12;
 const STATE_FILE: &str = "memory_hygiene_state.json";

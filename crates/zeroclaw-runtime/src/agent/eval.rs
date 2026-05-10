@@ -1,4 +1,4 @@
-pub use zeroclaw_config::scattered_types::{AutoClassifyConfig, EvalConfig};
+pub use brai_config::scattered_types::{AutoClassifyConfig, EvalConfig};
 
 // ── Complexity estimation ───────────────────────────────────────
 

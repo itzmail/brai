@@ -53,7 +53,7 @@ async fn apply_comment_inline(
     path: &str,
     comment: &str,
 ) -> Result<()> {
-    zeroclaw_config::comment_writer::apply_comments(
+    brai_config::comment_writer::apply_comments(
         config_path,
         &[(path.to_string(), comment.to_string())],
     )
@@ -63,7 +63,7 @@ async fn apply_comment_inline(
 
 /// Coerce a JSON value into the string form `Config::set_prop` accepts.
 ///
-/// Thin wrapper over the shared `zeroclaw_config::typed_value::coerce_for_set_prop`
+/// Thin wrapper over the shared `brai_config::typed_value::coerce_for_set_prop`
 /// helper that the gateway PATCH/PUT endpoints use. Looking up a path's
 /// declared `PropKind` requires a `Config` reference, which the patch handler
 /// has — so this looks the kind up against the live config and forwards.
@@ -77,7 +77,7 @@ fn json_value_to_setprop_string(
         .into_iter()
         .find(|f| f.name == path)
         .map(|f| f.kind);
-    zeroclaw_config::typed_value::coerce_for_set_prop(value, kind)
+    brai_config::typed_value::coerce_for_set_prop(value, kind)
         .map_err(|e| anyhow::anyhow!("{}", e.message))
 }
 
@@ -141,7 +141,7 @@ mod cli_input;
 mod commands;
 #[cfg(feature = "agent-runtime")]
 mod rag {
-    pub use zeroclaw::rag::*;
+    pub use brai::rag::*;
 }
 mod config;
 #[cfg(feature = "agent-runtime")]
@@ -208,7 +208,7 @@ mod verifiable_intent;
 use config::Config;
 
 // Re-export so binary modules can use crate::<CommandEnum> while keeping a single source of truth.
-pub use zeroclaw::{
+pub use brai::{
     ChannelCommands, CronCommands, GatewayCommands, HardwareCommands, IntegrationCommands,
     MigrateCommands, PeripheralCommands, ServiceCommands, SkillCommands, SopCommands,
 };
@@ -364,7 +364,7 @@ Examples:
   zeroclaw gateway get-paircode       # show pairing code")]
     Gateway {
         #[command(subcommand)]
-        gateway_command: Option<zeroclaw::GatewayCommands>,
+        gateway_command: Option<brai::GatewayCommands>,
     },
 
     /// Start ACP (Agent Control Protocol) server over stdio
@@ -515,7 +515,7 @@ Examples:
   zeroclaw channel doctor
   zeroclaw channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
   zeroclaw channel remove my-bot
-  zeroclaw channel bind-telegram zeroclaw_user
+  zeroclaw channel bind-telegram brai_user
   zeroclaw channel send 'Alert!' --channel-id telegram --recipient 123456789")]
     Channel {
         #[command(subcommand)]
@@ -566,7 +566,7 @@ Examples:
   zeroclaw hardware info --chip STM32F401RETx")]
     Hardware {
         #[command(subcommand)]
-        hardware_command: zeroclaw::HardwareCommands,
+        hardware_command: brai::HardwareCommands,
     },
 
     /// Manage hardware peripherals (STM32, RPi GPIO, etc.)
@@ -585,7 +585,7 @@ Examples:
   zeroclaw peripheral flash-nucleo")]
     Peripheral {
         #[command(subcommand)]
-        peripheral_command: zeroclaw::PeripheralCommands,
+        peripheral_command: brai::PeripheralCommands,
     },
 
     /// Manage agent memory (list, get, stats, clear)
@@ -793,10 +793,10 @@ fn resolve_onboard_target(
     tunnel_only: bool,
     workspace_only: bool,
 ) -> (
-    zeroclaw_runtime::onboard::Section,
+    brai_runtime::onboard::Section,
     Option<(&'static str, &'static str)>,
 ) {
-    use zeroclaw_runtime::onboard::Section;
+    use brai_runtime::onboard::Section;
 
     let legacy = [
         (
@@ -1293,8 +1293,8 @@ async fn main() -> Result<()> {
         workspace_only,
     } = &cli.command
     {
-        use zeroclaw_runtime::onboard::ui::{QuickUi, TermUi};
-        use zeroclaw_runtime::onboard::{Flags, run as run_onboard};
+        use brai_runtime::onboard::ui::{QuickUi, TermUi};
+        use brai_runtime::onboard::{Flags, run as run_onboard};
 
         let (target, deprecation) = resolve_onboard_target(
             *section,
@@ -1311,15 +1311,15 @@ async fn main() -> Result<()> {
 
         // --reinit backs up the config dir BEFORE load_or_init re-materializes it.
         if *reinit {
-            let (zeroclaw_dir, _) =
+            let (brai_dir, _) =
                 crate::config::schema::resolve_runtime_dirs_for_onboarding().await?;
-            if zeroclaw_dir.exists() {
+            if brai_dir.exists() {
                 let ts = chrono::Local::now().format("%Y%m%d%H%M%S");
-                let backup = format!("{}.backup.{}", zeroclaw_dir.display(), ts);
+                let backup = format!("{}.backup.{}", brai_dir.display(), ts);
                 if !*force {
                     eprintln!(
                         "⚠️  --reinit will back up {} → {backup}",
-                        zeroclaw_dir.display()
+                        brai_dir.display()
                     );
                     eprint!("Continue? [y/N] ");
                     std::io::stderr().flush().ok();
@@ -1329,9 +1329,9 @@ async fn main() -> Result<()> {
                         bail!("Aborted.");
                     }
                 }
-                tokio::fs::rename(&zeroclaw_dir, &backup)
+                tokio::fs::rename(&brai_dir, &backup)
                     .await
-                    .with_context(|| format!("backup {} → {backup}", zeroclaw_dir.display()))?;
+                    .with_context(|| format!("backup {} → {backup}", brai_dir.display()))?;
             }
         }
 
@@ -1372,7 +1372,7 @@ async fn main() -> Result<()> {
                 {
                     use std::io::IsTerminal;
                     if std::io::stdout().is_terminal() {
-                        match zeroclaw_tui::RatatuiUi::new() {
+                        match brai_tui::RatatuiUi::new() {
                             Ok(mut ui) => {
                                 run_onboard(&mut cfg, &mut ui, target, &flags).await?;
                             }
@@ -1445,7 +1445,7 @@ async fn main() -> Result<()> {
                 config.ensure_fallback_provider().temperature = Some(final_temperature);
 
                 let provider_name = config.providers.fallback.as_deref().unwrap_or("openai");
-                let provider = zeroclaw::providers::create_provider(
+                let provider = brai::providers::create_provider(
                     provider_name,
                     config
                         .providers
@@ -1504,10 +1504,10 @@ async fn main() -> Result<()> {
         // manually-triggered cron announcements ("no delivery handler
         // registered"). `register_delivery_fn` is idempotent (backed by
         // `OnceLock::set`), so calling it once here is safe.
-        zeroclaw_runtime::cron::scheduler::register_delivery_fn(Box::new(
+        brai_runtime::cron::scheduler::register_delivery_fn(Box::new(
             |config, channel, target, output| {
                 Box::pin(async move {
-                    zeroclaw_channels::orchestrator::deliver_announcement(
+                    brai_channels::orchestrator::deliver_announcement(
                         &config, &channel, &target, &output,
                     )
                     .await
@@ -1540,8 +1540,8 @@ async fn main() -> Result<()> {
             });
 
             // Wire CLI channel for interactive mode
-            zeroclaw_runtime::agent::loop_::register_cli_channel_fn(Box::new(|| {
-                Box::new(zeroclaw_channels::cli::CliChannel::new())
+            brai_runtime::agent::loop_::register_cli_channel_fn(Box::new(|| {
+                Box::new(brai_channels::cli::CliChannel::new())
             }));
 
             Box::pin(agent::run(
@@ -1577,7 +1577,7 @@ async fn main() -> Result<()> {
 
         Commands::Gateway { gateway_command } => {
             match gateway_command {
-                Some(zeroclaw::GatewayCommands::Restart { port, host }) => {
+                Some(brai::GatewayCommands::Restart { port, host }) => {
                     let (port, host) = resolve_gateway_addr(&config, port, host);
                     let addr = format!("{host}:{port}");
                     info!("🔄 Restarting ZeroClaw Gateway on {addr}");
@@ -1614,7 +1614,7 @@ async fn main() -> Result<()> {
                     log_gateway_start(&host, port);
                     Box::pin(run_gateway_if_enabled(&host, port, config, None)).await
                 }
-                Some(zeroclaw::GatewayCommands::GetPaircode { new }) => {
+                Some(brai::GatewayCommands::GetPaircode { new }) => {
                     let port = config.gateway.port;
                     let host = &config.gateway.host;
 
@@ -1664,7 +1664,7 @@ async fn main() -> Result<()> {
                     }
                     Ok(())
                 }
-                Some(zeroclaw::GatewayCommands::Start { port, host }) => {
+                Some(brai::GatewayCommands::Start { port, host }) => {
                     let (port, host) = resolve_gateway_addr(&config, port, host);
                     log_gateway_start(&host, port);
                     Box::pin(run_gateway_if_enabled(&host, port, config, None)).await
@@ -1707,7 +1707,7 @@ async fn main() -> Result<()> {
 
             #[cfg(target_os = "linux")]
             {
-                use zeroclaw_config::schema::SandboxBackend;
+                use brai_config::schema::SandboxBackend;
                 let sandbox_docker =
                     matches!(config.security.sandbox.backend, SandboxBackend::Docker);
                 let runtime_docker_mem = config.runtime.kind == "docker"
@@ -1717,7 +1717,7 @@ async fn main() -> Result<()> {
                         .memory_limit_mb
                         .is_some_and(|mb| mb > 0);
                 if (sandbox_docker || runtime_docker_mem)
-                    && !zeroclaw_runtime::security::linux_memcg_available()
+                    && !brai_runtime::security::linux_memcg_available()
                 {
                     let which = match (sandbox_docker, runtime_docker_mem) {
                         (true, true) => {
@@ -1738,15 +1738,15 @@ async fn main() -> Result<()> {
 
             // Wire CLI channel for interactive mode
             #[cfg(feature = "agent-runtime")]
-            zeroclaw_runtime::agent::loop_::register_cli_channel_fn(Box::new(|| {
-                Box::new(zeroclaw_channels::cli::CliChannel::new())
+            brai_runtime::agent::loop_::register_cli_channel_fn(Box::new(|| {
+                Box::new(brai_channels::cli::CliChannel::new())
             }));
 
             // Wire peripheral tools from zeroclaw-hardware
             #[cfg(feature = "hardware")]
-            zeroclaw_runtime::agent::loop_::register_peripheral_tools_fn(Box::new(|config| {
+            brai_runtime::agent::loop_::register_peripheral_tools_fn(Box::new(|config| {
                 Box::pin(async move {
-                    zeroclaw_hardware::peripherals::create_peripheral_tools(&config).await
+                    brai_hardware::peripherals::create_peripheral_tools(&config).await
                 })
             }));
 
@@ -1758,7 +1758,7 @@ async fn main() -> Result<()> {
             // from Telegram / Discord / Slack reach the same subscribers the
             // web UI serves. Without this, channels build an orphaned
             // CanvasStore::default() and frames are silently dropped (#5356).
-            let canvas_store = zeroclaw_runtime::tools::CanvasStore::new();
+            let canvas_store = brai_runtime::tools::CanvasStore::new();
             let canvas_store_for_gateway = canvas_store.clone();
             let canvas_store_for_channels = canvas_store.clone();
 
@@ -1779,7 +1779,7 @@ async fn main() -> Result<()> {
                     gateway_start: Some(Box::new(move |host, port, config, tx, reload_tx| {
                         let canvas_store = canvas_store_for_gateway.clone();
                         Box::pin(async move {
-                            Box::pin(zeroclaw_gateway::run_gateway(
+                            Box::pin(brai_gateway::run_gateway(
                                 &host,
                                 port,
                                 config,
@@ -1795,7 +1795,7 @@ async fn main() -> Result<()> {
                     channels_start: Some(Box::new(move |config| {
                         let canvas_store = canvas_store_for_channels.clone();
                         Box::pin(async move {
-                            Box::pin(zeroclaw_channels::orchestrator::start_channels(
+                            Box::pin(brai_channels::orchestrator::start_channels(
                                 config,
                                 Some(canvas_store),
                             ))
@@ -1804,9 +1804,9 @@ async fn main() -> Result<()> {
                     })),
                     mqtt_start: Some(Box::new({
                         use std::sync::{Arc, Mutex};
-                        use zeroclaw_config::schema::SopConfig;
-                        use zeroclaw_memory::NoneMemory;
-                        use zeroclaw_runtime::sop::{SopAuditLogger, SopEngine};
+                        use brai_config::schema::SopConfig;
+                        use brai_memory::NoneMemory;
+                        use brai_runtime::sop::{SopAuditLogger, SopEngine};
                         let sop_config = current_config.sop.clone();
                         let workspace_dir = current_config.workspace_dir.clone();
                         move |mqtt_config| {
@@ -1820,7 +1820,7 @@ async fn main() -> Result<()> {
                             let engine = Arc::new(Mutex::new(engine));
                             let audit = Arc::new(SopAuditLogger::new(Arc::new(NoneMemory)));
                             Box::pin(async move {
-                                zeroclaw_channels::orchestrator::mqtt::run_mqtt_sop_listener(
+                                brai_channels::orchestrator::mqtt::run_mqtt_sop_listener(
                                     &mqtt_config,
                                     engine,
                                     audit,
@@ -2386,7 +2386,7 @@ async fn main() -> Result<()> {
                             // Same single-source-of-truth helper the gateway
                             // uses; never hardcode a code at the call site.
                             let api_err =
-                                zeroclaw_config::api_error::ConfigApiError::from_validation(
+                                brai_config::api_error::ConfigApiError::from_validation(
                                     anyhow::anyhow!("{e}"),
                                 )
                                 .with_path(&path);
@@ -2773,7 +2773,7 @@ async fn main() -> Result<()> {
         #[cfg(feature = "plugins-wasm")]
         Commands::Plugin { plugin_command } => match plugin_command {
             PluginCommands::List => {
-                let host = zeroclaw::plugins::host::PluginHost::new(&config.workspace_dir)?;
+                let host = brai::plugins::host::PluginHost::new(&config.workspace_dir)?;
                 let plugins = host.list_plugins();
                 if plugins.is_empty() {
                     println!("No plugins installed.");
@@ -2791,19 +2791,19 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             PluginCommands::Install { source } => {
-                let mut host = zeroclaw::plugins::host::PluginHost::new(&config.workspace_dir)?;
+                let mut host = brai::plugins::host::PluginHost::new(&config.workspace_dir)?;
                 host.install(&source)?;
                 println!("Plugin installed from {source}");
                 Ok(())
             }
             PluginCommands::Remove { name } => {
-                let mut host = zeroclaw::plugins::host::PluginHost::new(&config.workspace_dir)?;
+                let mut host = brai::plugins::host::PluginHost::new(&config.workspace_dir)?;
                 host.remove(&name)?;
                 println!("Plugin '{name}' removed.");
                 Ok(())
             }
             PluginCommands::Info { name } => {
-                let host = zeroclaw::plugins::host::PluginHost::new(&config.workspace_dir)?;
+                let host = brai::plugins::host::PluginHost::new(&config.workspace_dir)?;
                 match host.get_plugin(&name) {
                     Some(info) => {
                         println!("Plugin: {} v{}", info.name, info.version);
@@ -3857,7 +3857,7 @@ async fn handle_auth_command(auth_command: AuthCommands, config: &Config) -> Res
 async fn run_gateway_if_enabled(
     host: &str,
     port: u16,
-    config: zeroclaw::config::Config,
+    config: brai::config::Config,
     tx: Option<tokio::sync::broadcast::Sender<serde_json::Value>>,
 ) -> anyhow::Result<()> {
     // Standalone gateway (no daemon supervisor): pass None for reload_tx so
@@ -3872,7 +3872,7 @@ async fn run_gateway_if_enabled(
 async fn run_gateway_if_enabled(
     _host: &str,
     _port: u16,
-    _config: zeroclaw::config::Config,
+    _config: brai::config::Config,
     _tx: Option<tokio::sync::broadcast::Sender<serde_json::Value>>,
 ) -> anyhow::Result<()> {
     anyhow::bail!("Gateway feature is not enabled. Rebuild with --features gateway")
@@ -4063,7 +4063,7 @@ mod tests {
     #[test]
     #[cfg(feature = "agent-runtime")]
     fn resolve_onboard_target_no_explicit_no_legacy_runs_all() {
-        use zeroclaw_runtime::onboard::Section;
+        use brai_runtime::onboard::Section;
         let (target, deprecation) =
             resolve_onboard_target(None, false, false, false, false, false, false);
         assert_eq!(target, Section::All);
@@ -4073,7 +4073,7 @@ mod tests {
     #[test]
     #[cfg(feature = "agent-runtime")]
     fn resolve_onboard_target_positional_wins_and_emits_no_warning() {
-        use zeroclaw_runtime::onboard::Section;
+        use brai_runtime::onboard::Section;
         let (target, deprecation) = resolve_onboard_target(
             Some(OnboardSection::Channels),
             false,
@@ -4090,7 +4090,7 @@ mod tests {
     #[test]
     #[cfg(feature = "agent-runtime")]
     fn resolve_onboard_target_legacy_flag_routes_and_warns() {
-        use zeroclaw_runtime::onboard::Section;
+        use brai_runtime::onboard::Section;
         for (mut flags, expected_section, expected_old, expected_new) in [
             (
                 [true, false, false, false, false, false],
@@ -4149,7 +4149,7 @@ mod tests {
     #[test]
     #[cfg(feature = "agent-runtime")]
     fn resolve_onboard_target_explicit_plus_legacy_warns_but_picks_explicit() {
-        use zeroclaw_runtime::onboard::Section;
+        use brai_runtime::onboard::Section;
         let (target, deprecation) = resolve_onboard_target(
             Some(OnboardSection::Providers),
             true, // --channels-only

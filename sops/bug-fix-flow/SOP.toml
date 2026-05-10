@@ -1,0 +1,10 @@
+[sop]
+name = "bug-fix-flow"
+description = "Trace a bug from error log or user report, propose fix, apply after user approval. Non-blocking: approval gate does not block other agents."
+version = "0.1.0"
+priority = "normal"
+execution_mode = "supervised"
+cooldown_secs = 0
+
+[[triggers]]
+type = "manual"

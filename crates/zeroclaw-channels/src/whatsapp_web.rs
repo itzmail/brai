@@ -18,7 +18,7 @@
 //!
 //! ```toml
 //! [channels_config.whatsapp]
-//! session_path = "~/.zeroclaw/whatsapp-session.db"  # Required for Web mode
+//! session_path = "~/.brai/whatsapp-session.db"  # Required for Web mode
 //! pair_phone = "15551234567"  # Optional: for pair code linking
 //! allowed_numbers = ["+1234567890", "*"]  # Same as Cloud API
 //! ```
@@ -36,9 +36,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::select;
 use wa_rs_proto::whatsapp::device_props::PlatformType;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 #[cfg(not(feature = "whatsapp-web"))]
-use zeroclaw_runtime::i18n;
+use brai_runtime::i18n;
 
 /// WhatsApp Web channel using wa-rs with custom rusqlite storage
 ///
@@ -50,7 +50,7 @@ use zeroclaw_runtime::i18n;
 ///
 /// ```toml
 /// [channels_config.whatsapp]
-/// session_path = "~/.zeroclaw/whatsapp-session.db"
+/// session_path = "~/.brai/whatsapp-session.db"
 /// pair_phone = "15551234567"  # Optional
 /// allowed_numbers = ["+1234567890", "*"]
 /// ```
@@ -69,11 +69,11 @@ pub struct WhatsAppWebChannel {
     /// Bot phone number (digits only), resolved from pair_phone or device identity at runtime
     bot_phone: Arc<Mutex<Option<String>>>,
     /// Usage mode (business vs personal policy filtering)
-    mode: zeroclaw_config::schema::WhatsAppWebMode,
+    mode: brai_config::schema::WhatsAppWebMode,
     /// DM policy when mode = personal
-    dm_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
+    dm_policy: brai_config::schema::WhatsAppChatPolicy,
     /// Group policy when mode = personal
-    group_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
+    group_policy: brai_config::schema::WhatsAppChatPolicy,
     /// Whether to always respond in self-chat when mode = personal
     self_chat_mode: bool,
     /// Bot handle for shutdown
@@ -83,10 +83,10 @@ pub struct WhatsAppWebChannel {
     /// Message sender channel
     tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<ChannelMessage>>>>,
     /// Voice transcription (STT) config
-    transcription: Option<zeroclaw_config::schema::TranscriptionConfig>,
+    transcription: Option<brai_config::schema::TranscriptionConfig>,
     transcription_manager: Option<std::sync::Arc<super::transcription::TranscriptionManager>>,
     /// Text-to-speech config for voice replies
-    tts_config: Option<zeroclaw_config::schema::TtsConfig>,
+    tts_config: Option<brai_config::schema::TtsConfig>,
     /// Chats awaiting a voice reply — maps chat JID to the latest substantive
     /// reply text. A background task debounces and sends the voice note after
     /// the agent finishes its turn (no new send() for 3 seconds).
@@ -123,9 +123,9 @@ impl WhatsAppWebChannel {
         pair_code: Option<String>,
         allowed_numbers: Vec<String>,
         mention_only: bool,
-        mode: zeroclaw_config::schema::WhatsAppWebMode,
-        dm_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
-        group_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
+        mode: brai_config::schema::WhatsAppWebMode,
+        dm_policy: brai_config::schema::WhatsAppChatPolicy,
+        group_policy: brai_config::schema::WhatsAppChatPolicy,
         self_chat_mode: bool,
     ) -> Self {
         // Seed bot_phone from pair_phone (digits only)
@@ -170,7 +170,7 @@ impl WhatsAppWebChannel {
     #[cfg(feature = "whatsapp-web")]
     pub fn with_transcription(
         mut self,
-        config: zeroclaw_config::schema::TranscriptionConfig,
+        config: brai_config::schema::TranscriptionConfig,
     ) -> Self {
         if !config.enabled {
             return self;
@@ -191,7 +191,7 @@ impl WhatsAppWebChannel {
 
     /// Configure text-to-speech for outgoing voice replies.
     #[cfg(feature = "whatsapp-web")]
-    pub fn with_tts(mut self, config: zeroclaw_config::schema::TtsConfig) -> Self {
+    pub fn with_tts(mut self, config: brai_config::schema::TtsConfig) -> Self {
         if config.enabled {
             self.tts_config = Some(config);
         }
@@ -438,7 +438,7 @@ impl WhatsAppWebChannel {
     async fn try_transcribe_voice_note(
         client: &wa_rs::Client,
         audio: &wa_rs_proto::whatsapp::message::AudioMessage,
-        transcription_config: Option<&zeroclaw_config::schema::TranscriptionConfig>,
+        transcription_config: Option<&brai_config::schema::TranscriptionConfig>,
         transcription_manager: Option<&super::transcription::TranscriptionManager>,
     ) -> Option<String> {
         let config = transcription_config?;
@@ -506,7 +506,7 @@ impl WhatsAppWebChannel {
         client: &wa_rs::Client,
         to: &wa_rs_binary::jid::Jid,
         text: &str,
-        tts_config: &zeroclaw_config::schema::TtsConfig,
+        tts_config: &brai_config::schema::TtsConfig,
     ) -> Result<()> {
         let tts_manager = super::tts::TtsManager::new(tts_config)?;
         let audio_bytes = tts_manager.synthesize(text).await?;
@@ -1224,7 +1224,7 @@ impl Channel for WhatsAppWebChannel {
                                 let mut reply_target = chat.clone();
 
                                 // ── Personal-mode chat-type policy filtering ──
-                                if wa_mode == zeroclaw_config::schema::WhatsAppWebMode::Personal {
+                                if wa_mode == brai_config::schema::WhatsAppWebMode::Personal {
                                     // Self-chat: the chat JID user part matches
                                     // the sender's user part (message to "Notes
                                     // to Self").
@@ -1281,16 +1281,16 @@ impl Channel for WhatsAppWebChannel {
                                         return;
                                     } else if is_group {
                                         match wa_group_policy {
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::Ignore => {
+                                            brai_config::schema::WhatsAppChatPolicy::Ignore => {
                                                 tracing::debug!(
                                                     "WhatsApp Web: ignoring group message (group_policy=ignore)"
                                                 );
                                                 return;
                                             }
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::All => {
+                                            brai_config::schema::WhatsAppChatPolicy::All => {
                                                 // allow unconditionally
                                             }
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::Allowlist => {
+                                            brai_config::schema::WhatsAppChatPolicy::Allowlist => {
                                                 if normalized.is_none() {
                                                     let lid_diag = Self::lid_rejection_diagnostic(
                                                         &sender_jid,
@@ -1308,16 +1308,16 @@ impl Channel for WhatsAppWebChannel {
                                     } else {
                                         // DM (non-self)
                                         match wa_dm_policy {
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::Ignore => {
+                                            brai_config::schema::WhatsAppChatPolicy::Ignore => {
                                                 tracing::debug!(
                                                     "WhatsApp Web: ignoring DM (dm_policy=ignore)"
                                                 );
                                                 return;
                                             }
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::All => {
+                                            brai_config::schema::WhatsAppChatPolicy::All => {
                                                 // allow unconditionally
                                             }
-                                            zeroclaw_config::schema::WhatsAppChatPolicy::Allowlist => {
+                                            brai_config::schema::WhatsAppChatPolicy::Allowlist => {
                                                 if normalized.is_none() {
                                                     let lid_diag = Self::lid_rejection_diagnostic(
                                                         &sender_jid,
@@ -1731,19 +1731,19 @@ impl WhatsAppWebChannel {
         _pair_code: Option<String>,
         _allowed_numbers: Vec<String>,
         _mention_only: bool,
-        _mode: zeroclaw_config::schema::WhatsAppWebMode,
-        _dm_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
-        _group_policy: zeroclaw_config::schema::WhatsAppChatPolicy,
+        _mode: brai_config::schema::WhatsAppWebMode,
+        _dm_policy: brai_config::schema::WhatsAppChatPolicy,
+        _group_policy: brai_config::schema::WhatsAppChatPolicy,
         _self_chat_mode: bool,
     ) -> Self {
         Self { _private: () }
     }
 
-    pub fn with_transcription(self, _config: zeroclaw_config::schema::TranscriptionConfig) -> Self {
+    pub fn with_transcription(self, _config: brai_config::schema::TranscriptionConfig) -> Self {
         self
     }
 
-    pub fn with_tts(self, _config: zeroclaw_config::schema::TtsConfig) -> Self {
+    pub fn with_tts(self, _config: brai_config::schema::TtsConfig) -> Self {
         self
     }
 }
@@ -1798,9 +1798,9 @@ mod tests {
             None,
             vec!["+1234567890".into()],
             false,
-            zeroclaw_config::schema::WhatsAppWebMode::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppWebMode::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
             false,
         )
     }
@@ -1829,9 +1829,9 @@ mod tests {
             None,
             vec!["*".into()],
             false,
-            zeroclaw_config::schema::WhatsAppWebMode::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppWebMode::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
             false,
         );
         assert!(ch.is_number_allowed("+1234567890"));
@@ -1847,9 +1847,9 @@ mod tests {
             None,
             vec![],
             false,
-            zeroclaw_config::schema::WhatsAppWebMode::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppWebMode::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
             false,
         );
         // Empty allowlist means "deny all" (matches channel-wide allowlist policy).
@@ -2066,7 +2066,7 @@ mod tests {
     #[test]
     #[cfg(feature = "whatsapp-web")]
     fn with_transcription_sets_config_when_enabled() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig {
+        let tc = brai_config::schema::TranscriptionConfig {
             enabled: true,
             api_key: Some("test_key".to_string()),
             ..Default::default()
@@ -2080,7 +2080,7 @@ mod tests {
     #[test]
     #[cfg(feature = "whatsapp-web")]
     fn with_transcription_ignores_when_disabled() {
-        let tc = zeroclaw_config::schema::TranscriptionConfig::default(); // enabled = false
+        let tc = brai_config::schema::TranscriptionConfig::default(); // enabled = false
         let ch = make_channel().with_transcription(tc);
         assert!(ch.transcription.is_none());
         assert!(ch.transcription_manager.is_none());
@@ -2260,9 +2260,9 @@ mod tests {
             None,
             vec!["*".into()],
             true,
-            zeroclaw_config::schema::WhatsAppWebMode::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppWebMode::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
             false,
         );
         assert_eq!(*ch.bot_phone.lock(), Some("919211916069".to_string()));
@@ -2277,9 +2277,9 @@ mod tests {
             None,
             vec!["*".into()],
             true,
-            zeroclaw_config::schema::WhatsAppWebMode::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
-            zeroclaw_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppWebMode::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
+            brai_config::schema::WhatsAppChatPolicy::default(),
             false,
         );
         assert_eq!(*ch.bot_phone.lock(), None);

@@ -1,1 +1,1 @@
-pub use zeroclaw_config::secrets::*;
+pub use brai_config::secrets::*;

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use directories::UserDirs;
 use rusqlite::{Connection, OpenFlags};
 use tokio::sync::mpsc;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Extract plain text from an iMessage `attributedBody` typedstream blob.
 ///

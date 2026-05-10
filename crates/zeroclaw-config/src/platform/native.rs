@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use zeroclaw_api::runtime_traits::RuntimeAdapter;
+use brai_api::runtime_traits::RuntimeAdapter;
 
 /// Native runtime — full access, runs on Mac/Linux/Windows/Docker/Raspberry Pi
 pub struct NativeRuntime;
@@ -31,8 +31,8 @@ impl RuntimeAdapter for NativeRuntime {
 
     fn storage_path(&self) -> PathBuf {
         directories::UserDirs::new().map_or_else(
-            || PathBuf::from(".zeroclaw"),
-            |u| u.home_dir().join(".zeroclaw"),
+            || PathBuf::from(".brai"),
+            |u| u.home_dir().join(".brai"),
         )
     }
 

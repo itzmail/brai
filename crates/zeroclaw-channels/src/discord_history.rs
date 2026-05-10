@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
-use zeroclaw_memory::{Memory, MemoryCategory};
+use brai_memory::{Memory, MemoryCategory};
 
 /// Discord History channel — connects via Gateway WebSocket, stores ALL non-bot messages
 /// to a dedicated discord.db, and forwards @mention messages to the agent.
@@ -57,7 +57,7 @@ impl DiscordHistoryChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client(
+        brai_config::schema::build_channel_proxy_client(
             "channel.discord_history",
             self.proxy_url.as_deref(),
         )
@@ -137,7 +137,7 @@ impl DiscordHistoryChannel {
             .store(
                 &cache_key,
                 &resolved,
-                zeroclaw_memory::MemoryCategory::Custom("channel_cache".to_string()),
+                brai_memory::MemoryCategory::Custom("channel_cache".to_string()),
                 Some(channel_id),
             )
             .await;
@@ -240,7 +240,7 @@ impl Channel for DiscordHistoryChannel {
         let ws_url = format!("{gw_url}/?v=10&encoding=json");
         tracing::info!("DiscordHistory: connecting to gateway...");
 
-        let (ws_stream, _) = zeroclaw_config::schema::ws_connect_with_proxy(
+        let (ws_stream, _) = brai_config::schema::ws_connect_with_proxy(
             &ws_url,
             "channel.discord",
             self.proxy_url.as_deref(),

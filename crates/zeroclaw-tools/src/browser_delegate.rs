@@ -14,10 +14,10 @@ use async_trait::async_trait;
 use regex::Regex;
 use std::sync::Arc;
 use tokio::time::{Duration, timeout};
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
-pub use zeroclaw_config::scattered_types::BrowserDelegateConfig;
+pub use brai_config::scattered_types::BrowserDelegateConfig;
 
 /// Tool that delegates browser-based tasks to a browser-capable CLI subprocess.
 pub struct BrowserDelegateTool {

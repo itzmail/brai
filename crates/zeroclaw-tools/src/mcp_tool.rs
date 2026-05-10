@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::mcp_client::McpRegistry;
 use crate::mcp_protocol::McpToolDef;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// A zeroclaw [`Tool`] backed by an MCP server tool.
 ///

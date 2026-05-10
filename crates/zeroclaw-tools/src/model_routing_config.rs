@@ -4,9 +4,9 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::{ClassificationRule, Config, DelegateAgentConfig, ModelRouteConfig};
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::{ClassificationRule, Config, DelegateAgentConfig, ModelRouteConfig};
 
 const DEFAULT_AGENT_MAX_DEPTH: u32 = 3;
 const DEFAULT_AGENT_MAX_ITERATIONS: usize = 10;
@@ -29,7 +29,7 @@ impl ModelRoutingConfigTool {
             )
         })?;
 
-        let compat: zeroclaw_config::migration::V1Compat =
+        let compat: brai_config::migration::V1Compat =
             toml::from_str(&contents).map_err(|error| {
                 anyhow::anyhow!(
                     "Failed to parse config file {}: {error}",
@@ -453,7 +453,7 @@ impl ModelRoutingConfigTool {
         if let (Some(provider_name), Some(model_name)) = (current_provider, current_model)
             && let Err(probe_err) = self.probe_model(&provider_name, &model_name).await
         {
-            if zeroclaw_providers::reliable::is_non_retryable(&probe_err) {
+            if brai_providers::reliable::is_non_retryable(&probe_err) {
                 let reverted_model = previous_fallback_provider
                     .as_ref()
                     .and_then(|e| e.model.as_deref())
@@ -511,7 +511,7 @@ impl ModelRoutingConfigTool {
             return Ok(());
         }
 
-        let provider = match zeroclaw_providers::create_provider_with_url(
+        let provider = match brai_providers::create_provider_with_url(
             provider_name,
             api_key,
             self.config
@@ -1018,8 +1018,8 @@ impl Tool for ModelRoutingConfigTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {

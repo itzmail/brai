@@ -4,11 +4,11 @@ use std::time::Duration;
 use anyhow::Result;
 use std::sync::Arc;
 
-use zeroclaw_api::provider::{ChatMessage, Provider};
-use zeroclaw_memory::traits::Memory;
-use zeroclaw_providers::multimodal;
+use brai_api::provider::{ChatMessage, Provider};
+use brai_memory::traits::Memory;
+use brai_providers::multimodal;
 
-pub use zeroclaw_config::scattered_types::ContextCompressionConfig;
+pub use brai_config::scattered_types::ContextCompressionConfig;
 
 // ---------------------------------------------------------------------------
 // Result
@@ -367,7 +367,7 @@ impl ContextCompressor {
                 .store(
                     &facts_key,
                     &summary,
-                    zeroclaw_memory::traits::MemoryCategory::Daily,
+                    brai_memory::traits::MemoryCategory::Daily,
                     None,
                 )
                 .await
@@ -561,10 +561,10 @@ mod tests {
 
         async fn chat(
             &self,
-            _request: zeroclaw_api::provider::ChatRequest<'_>,
+            _request: brai_api::provider::ChatRequest<'_>,
             _model: &str,
             _temperature: Option<f64>,
-        ) -> Result<zeroclaw_api::provider::ChatResponse> {
+        ) -> Result<brai_api::provider::ChatResponse> {
             unreachable!("context compressor uses chat_with_system")
         }
 

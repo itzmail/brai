@@ -33,9 +33,9 @@ use crate::tools::{Tool, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use zeroclaw_config::schema::{AgentConfig, MemoryConfig};
-use zeroclaw_memory::{self, Memory};
-use zeroclaw_providers::{
+use brai_config::schema::{AgentConfig, MemoryConfig};
+use brai_memory::{self, Memory};
+use brai_providers::{
     ChatMessage, ChatRequest, ChatResponse, ConversationMessage, Provider, ToolCall,
     ToolResultMessage,
 };
@@ -310,7 +310,7 @@ fn make_memory() -> Arc<dyn Memory> {
         backend: "none".into(),
         ..MemoryConfig::default()
     };
-    Arc::from(zeroclaw_memory::create_memory(&cfg, &std::env::temp_dir(), None).unwrap())
+    Arc::from(brai_memory::create_memory(&cfg, &std::env::temp_dir(), None).unwrap())
 }
 
 fn make_sqlite_memory() -> (Arc<dyn Memory>, tempfile::TempDir) {
@@ -319,7 +319,7 @@ fn make_sqlite_memory() -> (Arc<dyn Memory>, tempfile::TempDir) {
         backend: "sqlite".into(),
         ..MemoryConfig::default()
     };
-    let mem = Arc::from(zeroclaw_memory::create_memory(&cfg, tmp.path(), None).unwrap());
+    let mem = Arc::from(brai_memory::create_memory(&cfg, tmp.path(), None).unwrap());
     (mem, tmp)
 }
 

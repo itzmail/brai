@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 const OPENAI_CODEX_PROVIDER: &str = "openai-codex";
 const ANTHROPIC_PROVIDER: &str = "anthropic";

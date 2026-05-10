@@ -47,7 +47,7 @@
 //! `request_id`, never to the summary string. The runtime must not echo
 //! any `#[secret]` or `#[derived_from_secret]` field (auth tokens, API
 //! keys, OAuth secrets) into the summary. The agent's tool loop runs
-//! tool args through `zeroclaw_runtime::approval::summarize_args` before
+//! tool args through `brai_runtime::approval::summarize_args` before
 //! the request reaches this transport; do not stringify raw args here.
 //!
 //! Query params:
@@ -71,7 +71,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
-use zeroclaw_api::channel::ChannelApprovalResponse;
+use brai_api::channel::ChannelApprovalResponse;
 
 /// Default wall-clock budget for the operator to answer an
 /// `approval_request` frame before the channel auto-denies. Mirrors the
@@ -334,7 +334,7 @@ async fn handle_socket(
     // across turns. The session cwd becomes the security sandbox root; config
     // workspace remains the daemon data directory.
     let mut agent =
-        match zeroclaw_runtime::agent::Agent::from_config_with_session_cwd_and_mcp_backchannel(
+        match brai_runtime::agent::Agent::from_config_with_session_cwd_and_mcp_backchannel(
             &config,
             Some(&session_cwd),
             true,
@@ -375,7 +375,7 @@ async fn handle_socket(
     // so inbound `approval_response` frames can resolve the matching
     // oneshot waiter.
     let (approval_event_tx, mut approval_event_rx) =
-        tokio::sync::mpsc::channel::<zeroclaw_api::agent::TurnEvent>(8);
+        tokio::sync::mpsc::channel::<brai_api::agent::TurnEvent>(8);
     let pending_approvals: PendingApprovals = new_pending_approvals();
     let approval_channel = Arc::new(WsApprovalChannel::new(
         approval_event_tx.clone(),
@@ -394,7 +394,7 @@ async fn handle_socket(
                 if !content.is_empty() {
                     // Persist user message
                     if let Some(ref backend) = state.session_backend {
-                        let user_msg = zeroclaw_providers::ChatMessage::user(&content);
+                        let user_msg = brai_providers::ChatMessage::user(&content);
                         let _ = backend.append(&session_key, &user_msg);
                     }
                     process_chat_message(
@@ -545,7 +545,7 @@ async fn handle_socket(
 
                 // Persist user message
                 if let Some(ref backend) = state.session_backend {
-                    let user_msg = zeroclaw_providers::ChatMessage::user(&content);
+                    let user_msg = brai_providers::ChatMessage::user(&content);
                     let _ = backend.append(&session_key, &user_msg);
                 }
 
@@ -578,7 +578,7 @@ async fn handle_socket(
             approval_event = approval_event_rx.recv() => {
                 let Some(event) = approval_event else { break };
                 let frame = match event {
-                    zeroclaw_api::agent::TurnEvent::ApprovalRequest {
+                    brai_api::agent::TurnEvent::ApprovalRequest {
                         request_id,
                         tool_name,
                         arguments_summary,
@@ -616,7 +616,7 @@ fn resolve_session_cwd(
 }
 
 fn needs_onboarding_ws_error(
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
 ) -> Option<serde_json::Value> {
     let model = config.providers.resolve_default_model().unwrap_or_default();
     crate::needs_onboarding_for(&model)?;
@@ -635,16 +635,16 @@ fn needs_onboarding_ws_error(
 /// and tool results are forwarded to the WebSocket client in real time.
 async fn process_chat_message(
     state: &AppState,
-    agent: &mut zeroclaw_runtime::agent::Agent,
+    agent: &mut brai_runtime::agent::Agent,
     sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
     receiver: &mut futures_util::stream::SplitStream<WebSocket>,
-    approval_event_rx: &mut tokio::sync::mpsc::Receiver<zeroclaw_api::agent::TurnEvent>,
+    approval_event_rx: &mut tokio::sync::mpsc::Receiver<brai_api::agent::TurnEvent>,
     pending_approvals: &PendingApprovals,
     content: &str,
     session_key: &str,
 ) {
     use futures_util::StreamExt as _;
-    use zeroclaw_runtime::agent::TurnEvent;
+    use brai_runtime::agent::TurnEvent;
 
     let provider_label = state
         .config
@@ -691,7 +691,7 @@ async fn process_chat_message(
     let content_owned = content.to_string();
     let session_key_owned = session_key.to_string();
     let turn_fut = async {
-        zeroclaw_runtime::agent::loop_::scope_session_key(
+        brai_runtime::agent::loop_::scope_session_key(
             Some(session_key_owned),
             agent.turn_streamed(&content_owned, event_tx, Some(cancel_token.clone())),
         )
@@ -798,7 +798,7 @@ async fn process_chat_message(
                             // chunks update in-place.
                             if last_partial_save.elapsed() >= partial_save_interval {
                                 if let Some(ref backend) = state.session_backend {
-                                    let partial = zeroclaw_providers::ChatMessage::assistant(
+                                    let partial = brai_providers::ChatMessage::assistant(
                                         &accumulated_text,
                                     );
                                     if partial_saved {
@@ -854,7 +854,7 @@ async fn process_chat_message(
     // Check if this turn was cancelled. `turn_streamed` propagates
     // `ToolLoopCancelled` through anyhow, so we detect it here.
     let was_cancelled = match &result {
-        Err(e) => zeroclaw_runtime::agent::loop_::is_tool_loop_cancelled(e),
+        Err(e) => brai_runtime::agent::loop_::is_tool_loop_cancelled(e),
         Ok(_) => false,
     };
 
@@ -868,7 +868,7 @@ async fn process_chat_message(
         };
 
         if let Some(ref backend) = state.session_backend {
-            let assistant_msg = zeroclaw_providers::ChatMessage::assistant(&truncated);
+            let assistant_msg = brai_providers::ChatMessage::assistant(&truncated);
             if partial_saved {
                 let _ = backend.update_last(session_key, &assistant_msg);
             } else {
@@ -894,7 +894,7 @@ async fn process_chat_message(
 
         // Trace the cancelled turn so the doctor / replay tool sees it
         // alongside successful turns. #6001 follow-through.
-        zeroclaw_runtime::observability::runtime_trace::record_event(
+        brai_runtime::observability::runtime_trace::record_event(
             "gateway_ws_turn",
             Some("ws"),
             Some(&provider_label),
@@ -913,7 +913,7 @@ async fn process_chat_message(
             // Persist final assistant response. If we saved partial content
             // during streaming, update it in-place; otherwise append fresh.
             if let Some(ref backend) = state.session_backend {
-                let assistant_msg = zeroclaw_providers::ChatMessage::assistant(&response);
+                let assistant_msg = brai_providers::ChatMessage::assistant(&response);
                 if partial_saved {
                     let _ = backend.update_last(session_key, &assistant_msg);
                 } else {
@@ -930,7 +930,7 @@ async fn process_chat_message(
                 let user_msg = content.to_string();
                 let assistant_resp = response.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = zeroclaw_memory::consolidation::consolidate_turn(
+                    if let Err(e) = brai_memory::consolidation::consolidate_turn(
                         provider.as_ref(),
                         &model,
                         mem.as_ref(),
@@ -993,7 +993,7 @@ async fn process_chat_message(
             // Append a runtime-trace.jsonl record so a `zeroclaw doctor`
             // sweep sees gateway WS turns alongside channel and CLI turns.
             // Closes the gateway-side trace gap from #6001.
-            zeroclaw_runtime::observability::runtime_trace::record_event(
+            brai_runtime::observability::runtime_trace::record_event(
                 "gateway_ws_turn",
                 Some("ws"),
                 Some(&provider_label),
@@ -1017,7 +1017,7 @@ async fn process_chat_message(
             }
 
             tracing::error!(error = %e, "Agent turn failed");
-            let sanitized = zeroclaw_providers::sanitize_api_error(&e.to_string());
+            let sanitized = brai_providers::sanitize_api_error(&e.to_string());
             let error_code = if sanitized.to_lowercase().contains("api key")
                 || sanitized.to_lowercase().contains("authentication")
                 || sanitized.to_lowercase().contains("unauthorized")
@@ -1047,7 +1047,7 @@ async fn process_chat_message(
             // Trace the failed turn so the doctor / replay tool sees the
             // failure mode and the turn_id can be cross-referenced with
             // costs.jsonl. #6001 follow-through.
-            zeroclaw_runtime::observability::runtime_trace::record_event(
+            brai_runtime::observability::runtime_trace::record_event(
                 "gateway_ws_turn",
                 Some("ws"),
                 Some(&provider_label),
@@ -1091,7 +1091,7 @@ fn record_turn_cost(
                 .rsplit_once('/')
                 .and_then(|(_, suffix)| prices.get(suffix))
         });
-    let usage = zeroclaw_runtime::cost::types::TokenUsage::new(
+    let usage = brai_runtime::cost::types::TokenUsage::new(
         model,
         input,
         output,
@@ -1223,7 +1223,7 @@ mod tests {
 
     #[test]
     fn needs_onboarding_ws_error_points_to_onboard() {
-        let config = zeroclaw_config::schema::Config::default();
+        let config = brai_config::schema::Config::default();
         let frame = needs_onboarding_ws_error(&config)
             .expect("empty model must produce a WS onboarding error");
 
@@ -1246,8 +1246,8 @@ mod tests {
 
     #[test]
     fn needs_onboarding_ws_error_uses_current_configured_model() {
-        let mut config = zeroclaw_config::schema::Config {
-            providers: zeroclaw_config::providers::ProvidersConfig {
+        let mut config = brai_config::schema::Config {
+            providers: brai_config::providers::ProvidersConfig {
                 fallback: Some("openai".to_string()),
                 ..Default::default()
             },

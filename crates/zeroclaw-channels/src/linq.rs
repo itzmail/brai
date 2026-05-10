@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Linq channel — uses the Linq Partner V3 API for iMessage, RCS, and SMS.
 ///

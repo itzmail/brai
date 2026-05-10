@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 /// Edit a file by replacing an exact string match with new content.
 ///
@@ -236,8 +236,8 @@ impl Tool for FileEditTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_tool(workspace: std::path::PathBuf) -> FileEditTool {
         let security = Arc::new(SecurityPolicy {
@@ -283,7 +283,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_replaces_single_match() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_single");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_single");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "hello world")
@@ -313,7 +313,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_not_found() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_notfound");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_notfound");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "hello world")
@@ -343,7 +343,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_multiple_matches() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_multi");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_multi");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "aaa bbb aaa")
@@ -379,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_delete_via_empty_new_string() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_delete");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_delete");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "keep remove keep")
@@ -439,7 +439,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_rejects_empty_old_string() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_empty_old_string");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_empty_old_string");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "hello")
@@ -475,7 +475,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_blocks_path_traversal() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_traversal");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_traversal");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
@@ -513,7 +513,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_normalizes_workspace_prefixed_relative_path() {
-        let root = std::env::temp_dir().join("zeroclaw_test_file_edit_workspace_prefixed");
+        let root = std::env::temp_dir().join("brai_test_file_edit_workspace_prefixed");
         let workspace = root.join("workspace");
         let _ = tokio::fs::remove_dir_all(&root).await;
         tokio::fs::create_dir_all(workspace.join("nested"))
@@ -552,7 +552,7 @@ mod tests {
     async fn file_edit_blocks_symlink_escape() {
         use std::os::unix::fs::symlink;
 
-        let root = std::env::temp_dir().join("zeroclaw_test_file_edit_symlink_escape");
+        let root = std::env::temp_dir().join("brai_test_file_edit_symlink_escape");
         let workspace = root.join("workspace");
         let outside = root.join("outside");
 
@@ -589,7 +589,7 @@ mod tests {
     async fn file_edit_blocks_symlink_target_file() {
         use std::os::unix::fs::symlink;
 
-        let root = std::env::temp_dir().join("zeroclaw_test_file_edit_symlink_target");
+        let root = std::env::temp_dir().join("brai_test_file_edit_symlink_target");
         let workspace = root.join("workspace");
         let outside = root.join("outside");
 
@@ -628,7 +628,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_blocks_readonly_mode() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_readonly");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_readonly");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "hello")
@@ -658,7 +658,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_blocks_when_rate_limited() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_rate_limited");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_rate_limited");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("test.txt"), "hello")
@@ -694,7 +694,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_nonexistent_file() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_nofile");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_nofile");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
@@ -722,7 +722,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_absolute_path_in_workspace() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_abs_path");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_abs_path");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
@@ -761,7 +761,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_blocks_null_byte_in_path() {
-        let dir = std::env::temp_dir().join("zeroclaw_test_file_edit_null_byte");
+        let dir = std::env::temp_dir().join("brai_test_file_edit_null_byte");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
@@ -782,7 +782,7 @@ mod tests {
 
     #[tokio::test]
     async fn file_edit_blocks_path_outside_workspace() {
-        let root = std::env::temp_dir().join("zeroclaw_test_file_edit_outside_workspace");
+        let root = std::env::temp_dir().join("brai_test_file_edit_outside_workspace");
         let workspace = root.join("workspace");
         let outside = root.join("outside.txt");
         let _ = tokio::fs::remove_dir_all(&root).await;

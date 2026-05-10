@@ -2,8 +2,8 @@ use crate::cron;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::Config;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::Config;
 
 pub struct CronListTool {
     config: Arc<Config>,
@@ -61,7 +61,7 @@ impl Tool for CronListTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::Config;
+    use brai_config::schema::Config;
 
     async fn test_config(tmp: &TempDir) -> Arc<Config> {
         let config = Config {

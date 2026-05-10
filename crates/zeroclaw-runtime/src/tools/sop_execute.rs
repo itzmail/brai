@@ -6,7 +6,7 @@ use tracing::warn;
 
 use crate::sop::types::{SopEvent, SopRunAction, SopTriggerSource};
 use crate::sop::{SopAuditLogger, SopEngine};
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Manually trigger an SOP by name. Returns the run ID and first step instruction.
 pub struct SopExecuteTool {
@@ -164,7 +164,7 @@ mod tests {
     use super::*;
     use crate::sop::engine::SopEngine;
     use crate::sop::types::*;
-    use zeroclaw_config::schema::SopConfig;
+    use brai_config::schema::SopConfig;
 
     fn test_sop(name: &str, mode: SopExecutionMode) -> Sop {
         Sop {

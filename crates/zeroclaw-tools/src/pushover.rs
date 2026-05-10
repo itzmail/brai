@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 const PUSHOVER_API_URL: &str = "https://api.pushover.net/1/messages.json";
 const PUSHOVER_REQUEST_TIMEOUT_SECS: u64 = 15;
@@ -173,7 +173,7 @@ impl Tool for PushoverTool {
             form = form.text("sound", sound);
         }
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        let client = brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "tool.pushover",
             PUSHOVER_REQUEST_TIMEOUT_SECS,
             10,
@@ -219,7 +219,7 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
-    use zeroclaw_config::autonomy::AutonomyLevel;
+    use brai_config::autonomy::AutonomyLevel;
 
     fn test_security(level: AutonomyLevel, max_actions_per_hour: u32) -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {

@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-channels"
+name = "brai-channels"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,13 +7,13 @@ description = "Channel implementations for messaging platform integrations."
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-infra.workspace = true
-zeroclaw-config = { workspace = true, default-features = true }
-zeroclaw-memory.workspace = true
-zeroclaw-providers.workspace = true
-zeroclaw-runtime.workspace = true
-zeroclaw-tools.workspace = true
+brai-api.workspace = true
+brai-infra.workspace = true
+brai-config = { workspace = true, default-features = true }
+brai-memory.workspace = true
+brai-providers.workspace = true
+brai-runtime.workspace = true
+brai-tools.workspace = true
 anyhow = "1.0"
 lru = "0.16"
 rumqttc = "0.25"
@@ -90,7 +90,7 @@ channel-email = ["dep:lettre", "dep:mail-parser", "dep:async-imap"]
 channel-telegram = ["dep:image"]
 channel-lark = ["dep:prost"]
 channel-line = []
-channel-nostr = ["dep:nostr-sdk", "zeroclaw-config/channel-nostr"]
+channel-nostr = ["dep:nostr-sdk", "brai-config/channel-nostr"]
 whatsapp-web = ["dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:serde-big-array", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:qrcode"]
 # Channels with no optional deps (cfg gate only)
 channel-discord = []
@@ -117,7 +117,7 @@ channel-whatsapp-cloud = []
 channel-voice-call = []
 channel-acp-server = []
 channel-matrix = ["dep:matrix-sdk", "dep:mime_guess"]
-voice-wake = ["dep:cpal", "zeroclaw-config/voice-wake"]
+voice-wake = ["dep:cpal", "brai-config/voice-wake"]
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter"] }
@@ -127,3 +127,6 @@ tempfile = "3.26"
 toml = "1.0"
 wiremock = "0.6"
 tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true

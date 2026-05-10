@@ -10,7 +10,7 @@ use chrono::{DateTime, Duration, Utc};
 use parking_lot::Mutex;
 use rusqlite::{Connection, params};
 use std::path::{Path, PathBuf};
-use zeroclaw_api::provider::ChatMessage;
+use brai_api::provider::ChatMessage;
 
 /// SQLite-backed session store with FTS5 and WAL mode.
 pub struct SqliteSessionBackend {

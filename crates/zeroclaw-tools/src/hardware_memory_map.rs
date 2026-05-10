@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use serde_json::json;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Known memory maps (from datasheets). Used when probe-rs is unavailable.
 const MEMORY_MAPS: &[(&str, &str)] = &[

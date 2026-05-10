@@ -4,8 +4,8 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use zeroclaw_config::schema::Config;
-use zeroclaw_memory::{self, Memory, MemoryCategory};
+use brai_config::schema::Config;
+use brai_memory::{self, Memory, MemoryCategory};
 
 #[derive(Debug, Clone)]
 struct SourceEntry {
@@ -106,7 +106,7 @@ pub async fn migrate_openclaw_memory(
 }
 
 fn target_memory_backend(config: &Config) -> Result<Box<dyn Memory>> {
-    zeroclaw_memory::create_memory_for_migration(&config.memory.backend, &config.workspace_dir)
+    brai_memory::create_memory_for_migration(&config.memory.backend, &config.workspace_dir)
 }
 
 fn collect_source_entries(
@@ -417,8 +417,8 @@ mod tests {
     use super::*;
     use rusqlite::params;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::{Config, MemoryConfig};
-    use zeroclaw_memory::SqliteMemory;
+    use brai_config::schema::{Config, MemoryConfig};
+    use brai_memory::SqliteMemory;
 
     fn test_config(workspace: &Path) -> Config {
         Config {

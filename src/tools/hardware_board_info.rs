@@ -1,1 +1,1 @@
-pub use zeroclaw_tools::hardware_board_info::*;
+pub use brai_tools::hardware_board_info::*;

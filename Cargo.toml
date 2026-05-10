@@ -1,7 +1,13 @@
 [workspace]
-members = [".", "crates/zeroclaw-api", "crates/zeroclaw-infra", "crates/zeroclaw-config", "crates/zeroclaw-providers", "crates/zeroclaw-memory", "crates/zeroclaw-channels", "crates/zeroclaw-tools", "crates/zeroclaw-runtime", "crates/zeroclaw-tui", "crates/zeroclaw-plugins", "crates/zeroclaw-gateway", "crates/zeroclaw-hardware", "crates/zeroclaw-tool-call-parser", "crates/robot-kit", "crates/aardvark-sys", "crates/zeroclaw-macros", "apps/tauri", "tools/fill-translations", "xtask"]
+members = [".", "crates/zeroclaw-api", "crates/zeroclaw-infra", "crates/zeroclaw-config", "crates/zeroclaw-providers", "crates/zeroclaw-memory", "crates/zeroclaw-channels", "crates/zeroclaw-tools", "crates/zeroclaw-runtime", "crates/zeroclaw-tui", "crates/zeroclaw-gateway", "crates/zeroclaw-tool-call-parser", "crates/zeroclaw-macros", "tools/fill-translations", "xtask"]
 resolver = "2"
 exclude = ["plugins/image-gen-fal"]
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = [
+    'cfg(brai_root_crate)',
+    'cfg(feature, values("hardware", "peripheral-rpi", "probe", "plugins-wasm", "browser-native"))',
+] }
 
 [workspace.package]
 version = "0.7.5"
@@ -11,30 +17,27 @@ repository = "https://github.com/zeroclaw-labs/zeroclaw"
 rust-version = "1.87"
 
 [workspace.dependencies]
-zeroclaw-api = { path = "crates/zeroclaw-api", version = "0.7.5" }
-zeroclaw-infra = { path = "crates/zeroclaw-infra", version = "0.7.5" }
-zeroclaw-config = { path = "crates/zeroclaw-config", version = "0.7.5", default-features = false }
-zeroclaw-providers = { path = "crates/zeroclaw-providers", version = "0.7.5" }
-zeroclaw-memory = { path = "crates/zeroclaw-memory", version = "0.7.5" }
-zeroclaw-channels = { path = "crates/zeroclaw-channels", version = "0.7.5", default-features = false }
-zeroclaw-tools = { path = "crates/zeroclaw-tools", version = "0.7.5" }
-zeroclaw-runtime = { path = "crates/zeroclaw-runtime", version = "0.7.5", default-features = false }
-zeroclaw-tui = { path = "crates/zeroclaw-tui", version = "0.7.5" }
-zeroclaw-plugins = { path = "crates/zeroclaw-plugins", version = "0.7.5" }
-zeroclaw-gateway = { path = "crates/zeroclaw-gateway", version = "0.7.5" }
-zeroclaw-hardware = { path = "crates/zeroclaw-hardware", version = "0.7.5" }
-zeroclaw-tool-call-parser = { path = "crates/zeroclaw-tool-call-parser", version = "0.7.5" }
-zeroclaw-macros = { path = "crates/zeroclaw-macros", version = "0.7.5" }
-aardvark-sys = { path = "crates/aardvark-sys", version = "0.1.0" }
+brai-api = { path = "crates/zeroclaw-api", version = "0.7.5" }
+brai-infra = { path = "crates/zeroclaw-infra", version = "0.7.5" }
+brai-config = { path = "crates/zeroclaw-config", version = "0.7.5", default-features = false }
+brai-providers = { path = "crates/zeroclaw-providers", version = "0.7.5" }
+brai-memory = { path = "crates/zeroclaw-memory", version = "0.7.5" }
+brai-channels = { path = "crates/zeroclaw-channels", version = "0.7.5", default-features = false }
+brai-tools = { path = "crates/zeroclaw-tools", version = "0.7.5" }
+brai-runtime = { path = "crates/zeroclaw-runtime", version = "0.7.5", default-features = false }
+brai-tui = { path = "crates/zeroclaw-tui", version = "0.7.5" }
+brai-gateway = { path = "crates/zeroclaw-gateway", version = "0.7.5" }
+brai-tool-call-parser = { path = "crates/zeroclaw-tool-call-parser", version = "0.7.5" }
+brai-macros = { path = "crates/zeroclaw-macros", version = "0.7.5" }
 
 [package]
-name = "zeroclawlabs"
+name = "brailabs"
 # Publishing blocked during microkernel workspace transition — see #5811.
 # All 14 workspace sub-crates are publish = false and therefore unresolvable
 # on crates.io. Flip or remove this once the multi-crate publish topology is
 # designed per RFC #5579.
 publish = false
-default-run = "zeroclaw"
+default-run = "brai"
 version.workspace = true
 edition.workspace = true
 authors = ["theonlyhennygod"]
@@ -57,34 +60,32 @@ include = [
 ]
 
 [[bin]]
-name = "zeroclaw"
+name = "brai"
 path = "src/main.rs"
 
 [[bin]]
-name = "zeroclaw-acp-bridge"
+name = "brai-acp-bridge"
 path = "src/bin/zeroclaw-acp-bridge.rs"
 required-features = ["acp-bridge"]
 
 [lib]
-name = "zeroclaw"
+name = "brai"
 path = "src/lib.rs"
 
 [dependencies]
 # Internal workspace crates — versions and paths declared once in [workspace.dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-infra.workspace = true
-zeroclaw-config.workspace = true
-zeroclaw-providers.workspace = true
-zeroclaw-memory.workspace = true
-zeroclaw-channels = { workspace = true, optional = true }
-zeroclaw-tools = { workspace = true, optional = true }
-zeroclaw-runtime = { workspace = true, optional = true }
-zeroclaw-tui = { workspace = true, optional = true }
-zeroclaw-plugins = { workspace = true, optional = true }
-zeroclaw-gateway = { workspace = true, optional = true }
-zeroclaw-hardware = { workspace = true, optional = true }
-zeroclaw-tool-call-parser.workspace = true
-zeroclaw-macros.workspace = true
+brai-api.workspace = true
+brai-infra.workspace = true
+brai-config.workspace = true
+brai-providers.workspace = true
+brai-memory.workspace = true
+brai-channels = { workspace = true, optional = true }
+brai-tools = { workspace = true, optional = true }
+brai-runtime = { workspace = true, optional = true }
+brai-tui = { workspace = true, optional = true }
+brai-gateway = { workspace = true, optional = true }
+brai-tool-call-parser.workspace = true
+brai-macros.workspace = true
 # CLI - minimal and fast
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
@@ -143,9 +144,6 @@ zip = { version = "8.1", default-features = false, features = ["deflate-flate2"]
 # Error handling
 anyhow = "1.0"
 thiserror = "2.0"
-
-# Aardvark I2C/SPI/GPIO USB adapter (Total Phase) — stub when SDK absent
-aardvark-sys.workspace = true
 
 # UUID generation
 uuid = { version = "1.22", default-features = false, features = ["v4", "std"] }
@@ -252,10 +250,9 @@ default = [
 # Without this, you get the kernel: config + providers + memory + CLI chat.
 # Gateway and TUI onboarding are opt-in separately (included in `default`).
 agent-runtime = [
-    "dep:zeroclaw-runtime", "dep:zeroclaw-channels", "dep:zeroclaw-tools",
+    "dep:brai-runtime", "dep:brai-channels", "dep:brai-tools",
     "dep:rusqlite",
     "dep:ring", "dep:lru", "dep:chrono-tz", "dep:cron", "dep:glob", "dep:which",
-    "dep:ratatui", "dep:crossterm",
     "dep:tokio-tungstenite", "dep:tokio-socks", "dep:hostname",
     "dep:rustls", "dep:rustls-pemfile", "dep:rustls-pki-types", "dep:tokio-rustls", "dep:webpki-roots",
     "dep:lettre", "dep:mail-parser", "dep:async-imap",
@@ -272,67 +269,61 @@ agent-runtime = [
 
 # Major subsystems — each forwards to exactly ONE crate
 gateway = [
-    "dep:zeroclaw-gateway",
+    "dep:brai-gateway",
     "dep:axum", "dep:hyper", "dep:hyper-util", "dep:tower", "dep:tower-http", "dep:http-body-util",
     "dep:mime_guess",
 ]
-tui-onboarding = ["dep:zeroclaw-tui"]
-schema-export = ["zeroclaw-config/schema-export"]
+tui-onboarding = ["dep:brai-tui", "dep:ratatui", "dep:crossterm"]
+schema-export = ["brai-config/schema-export"]
 acp-bridge = ["dep:tokio-tungstenite"]
 
 # Channels — each forwards directly to zeroclaw-channels (1 hop)
-channel-email = ["zeroclaw-channels/channel-email"]
-channel-telegram = ["zeroclaw-channels/channel-telegram"]
-channel-lark = ["zeroclaw-channels/channel-lark"]
-channel-nostr = ["zeroclaw-channels/channel-nostr", "zeroclaw-runtime/channel-nostr", "dep:nostr-sdk"]
-channel-matrix = ["zeroclaw-channels/channel-matrix"]
-channel-discord = ["zeroclaw-channels/channel-discord"]
-channel-slack = ["zeroclaw-channels/channel-slack"]
-channel-signal = ["zeroclaw-channels/channel-signal"]
-channel-mattermost = ["zeroclaw-channels/channel-mattermost"]
-channel-irc = ["zeroclaw-channels/channel-irc"]
-channel-imessage = ["zeroclaw-channels/channel-imessage"]
-channel-dingtalk = ["zeroclaw-channels/channel-dingtalk"]
-channel-qq = ["zeroclaw-channels/channel-qq"]
-channel-bluesky = ["zeroclaw-channels/channel-bluesky"]
-channel-twitter = ["zeroclaw-channels/channel-twitter"]
-channel-reddit = ["zeroclaw-channels/channel-reddit"]
-channel-notion = ["zeroclaw-channels/channel-notion"]
-channel-linq = ["zeroclaw-channels/channel-linq"]
-channel-wati = ["zeroclaw-channels/channel-wati"]
-channel-nextcloud = ["zeroclaw-channels/channel-nextcloud"]
-channel-mochat = ["zeroclaw-channels/channel-mochat"]
-channel-wechat = ["zeroclaw-channels/channel-wechat"]
-channel-wecom = ["zeroclaw-channels/channel-wecom"]
-channel-clawdtalk = ["zeroclaw-channels/channel-clawdtalk"]
-channel-webhook = ["zeroclaw-channels/channel-webhook"]
-channel-acp-server = ["zeroclaw-channels/channel-acp-server"]
-channel-whatsapp-cloud = ["zeroclaw-channels/channel-whatsapp-cloud"]
-channel-voice-call = ["zeroclaw-channels/channel-voice-call"]
+channel-email = ["brai-channels/channel-email"]
+channel-telegram = ["brai-channels/channel-telegram"]
+channel-lark = ["brai-channels/channel-lark"]
+channel-nostr = ["brai-channels/channel-nostr", "brai-runtime/channel-nostr", "dep:nostr-sdk"]
+channel-matrix = ["brai-channels/channel-matrix"]
+channel-discord = ["brai-channels/channel-discord"]
+channel-slack = ["brai-channels/channel-slack"]
+channel-signal = ["brai-channels/channel-signal"]
+channel-mattermost = ["brai-channels/channel-mattermost"]
+channel-irc = ["brai-channels/channel-irc"]
+channel-imessage = ["brai-channels/channel-imessage"]
+channel-dingtalk = ["brai-channels/channel-dingtalk"]
+channel-qq = ["brai-channels/channel-qq"]
+channel-bluesky = ["brai-channels/channel-bluesky"]
+channel-twitter = ["brai-channels/channel-twitter"]
+channel-reddit = ["brai-channels/channel-reddit"]
+channel-notion = ["brai-channels/channel-notion"]
+channel-linq = ["brai-channels/channel-linq"]
+channel-wati = ["brai-channels/channel-wati"]
+channel-nextcloud = ["brai-channels/channel-nextcloud"]
+channel-mochat = ["brai-channels/channel-mochat"]
+channel-wechat = ["brai-channels/channel-wechat"]
+channel-wecom = ["brai-channels/channel-wecom"]
+channel-clawdtalk = ["brai-channels/channel-clawdtalk"]
+channel-webhook = ["brai-channels/channel-webhook"]
+channel-acp-server = ["brai-channels/channel-acp-server"]
+channel-whatsapp-cloud = ["brai-channels/channel-whatsapp-cloud"]
+channel-voice-call = ["brai-channels/channel-voice-call"]
 channel-feishu = ["channel-lark"]
-whatsapp-web = ["zeroclaw-channels/whatsapp-web"]
-voice-wake = ["zeroclaw-channels/voice-wake"]
-memory-postgres = ["zeroclaw-memory/memory-postgres"]
+whatsapp-web = ["brai-channels/whatsapp-web"]
+voice-wake = ["brai-channels/voice-wake"]
+memory-postgres = ["brai-memory/memory-postgres"]
 
 # Backends and platform flags — each forwards to ONE crate
 observability-prometheus = [
-    "zeroclaw-runtime/observability-prometheus",
-    "zeroclaw-gateway/observability-prometheus",
+    "brai-runtime/observability-prometheus",
+    "brai-gateway/observability-prometheus",
 ]
-observability-otel = ["zeroclaw-runtime/observability-otel"]
-hardware = ["dep:zeroclaw-hardware", "zeroclaw-hardware/hardware"]
-peripheral-rpi = ["dep:zeroclaw-hardware", "zeroclaw-hardware/peripheral-rpi"]
-sandbox-landlock = ["zeroclaw-runtime/sandbox-landlock"]
-sandbox-bubblewrap = ["zeroclaw-runtime/sandbox-bubblewrap"]
-browser-native = ["zeroclaw-tools/browser-native"]
-plugins-wasm = ["dep:zeroclaw-plugins", "zeroclaw-runtime/plugins-wasm"]
-probe = ["dep:zeroclaw-hardware", "zeroclaw-hardware/probe"]
-rag-pdf = ["zeroclaw-tools/rag-pdf", "zeroclaw-runtime/rag-pdf"]
-webauthn = ["zeroclaw-runtime/webauthn"]
-embedded-web = ["zeroclaw-gateway/embedded-web"]
+observability-otel = ["brai-runtime/observability-otel"]
+sandbox-landlock = ["brai-runtime/sandbox-landlock"]
+sandbox-bubblewrap = ["brai-runtime/sandbox-bubblewrap"]
+rag-pdf = ["brai-tools/rag-pdf", "brai-runtime/rag-pdf"]
+webauthn = ["brai-runtime/webauthn"]
+embedded-web = ["brai-gateway/embedded-web"]
 
 # Backward-compatible aliases
-fantoccini = ["browser-native"]
 landlock = ["sandbox-landlock"]
 metrics = ["observability-prometheus"]
 
@@ -341,10 +332,8 @@ ci-all = [
     "agent-runtime",
     "channel-nostr", "channel-matrix", "whatsapp-web",
     "observability-prometheus", "observability-otel",
-    "hardware", "peripheral-rpi",
     "sandbox-landlock", "sandbox-bubblewrap",
-    "browser-native", "plugins-wasm", "probe", "rag-pdf",
-    "webauthn", "memory-postgres",
+    "rag-pdf", "webauthn", "memory-postgres",
 ]
 
 [profile.dev]
@@ -403,3 +392,6 @@ path = "tests/test_live.rs"
 [[bench]]
 name = "agent_benchmarks"
 harness = false
+
+[lints]
+workspace = true

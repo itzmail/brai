@@ -28,10 +28,10 @@ pub mod rpi;
 pub use traits::Peripheral;
 
 use anyhow::Result;
-use zeroclaw_api::tool::Tool;
-use zeroclaw_config::schema::{PeripheralBoardConfig, PeripheralsConfig};
+use brai_api::tool::Tool;
+use brai_config::schema::{PeripheralBoardConfig, PeripheralsConfig};
 #[cfg(feature = "hardware")]
-use zeroclaw_tools::hardware_memory_map::HardwareMemoryMapTool;
+use brai_tools::hardware_memory_map::HardwareMemoryMapTool;
 
 /// List configured boards from config (no connection yet).
 pub fn list_configured_boards(config: &PeripheralsConfig) -> Vec<&PeripheralBoardConfig> {
@@ -117,10 +117,10 @@ pub async fn create_peripheral_tools(config: &PeripheralsConfig) -> Result<Vec<B
         let board_names: Vec<String> = config.boards.iter().map(|b| b.board.clone()).collect();
         tools.push(Box::new(HardwareMemoryMapTool::new(board_names.clone())));
         tools.push(Box::new(
-            zeroclaw_tools::hardware_board_info::HardwareBoardInfoTool::new(board_names.clone()),
+            brai_tools::hardware_board_info::HardwareBoardInfoTool::new(board_names.clone()),
         ));
         tools.push(Box::new(
-            zeroclaw_tools::hardware_memory_read::HardwareMemoryReadTool::new(board_names),
+            brai_tools::hardware_memory_read::HardwareMemoryReadTool::new(board_names),
         ));
     }
 
@@ -151,12 +151,12 @@ pub fn create_board_info_tools(config: &PeripheralsConfig) -> Vec<Box<dyn Tool>>
     let board_names: Vec<String> = config.boards.iter().map(|b| b.board.clone()).collect();
     vec![
         Box::new(
-            zeroclaw_tools::hardware_memory_map::HardwareMemoryMapTool::new(board_names.clone()),
+            brai_tools::hardware_memory_map::HardwareMemoryMapTool::new(board_names.clone()),
         ),
         Box::new(
-            zeroclaw_tools::hardware_board_info::HardwareBoardInfoTool::new(board_names.clone()),
+            brai_tools::hardware_board_info::HardwareBoardInfoTool::new(board_names.clone()),
         ),
-        Box::new(zeroclaw_tools::hardware_memory_read::HardwareMemoryReadTool::new(board_names)),
+        Box::new(brai_tools::hardware_memory_read::HardwareMemoryReadTool::new(board_names)),
     ]
 }
 
@@ -168,7 +168,7 @@ pub fn create_board_info_tools(_config: &PeripheralsConfig) -> Vec<Box<dyn Tool>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::{PeripheralBoardConfig, PeripheralsConfig};
+    use brai_config::schema::{PeripheralBoardConfig, PeripheralsConfig};
 
     #[test]
     fn list_configured_boards_when_disabled_returns_empty() {

@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::mattermost::*;
+pub use brai_channels::mattermost::*;

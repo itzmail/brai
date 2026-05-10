@@ -145,7 +145,7 @@ impl GlmProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts("provider.glm", 120, 10)
+        brai_config::schema::build_runtime_proxy_client_with_timeouts("provider.glm", 120, 10)
     }
 }
 

@@ -2,7 +2,7 @@ use crate::agent::history_pruner::remove_orphaned_tool_messages;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use zeroclaw_providers::ChatMessage;
+use brai_providers::ChatMessage;
 
 /// Default trigger for auto-compaction when non-system message count exceeds this threshold.
 /// Prefer passing the config-driven value via `run_tool_call_loop`; this constant is only
@@ -80,7 +80,7 @@ pub fn truncate_tool_message(msg_content: &str, max_chars: usize) -> String {
 /// context overflow. Keeps the last `protect_last_n` messages untouched.
 /// Returns total characters saved.
 pub fn fast_trim_tool_results(
-    history: &mut [zeroclaw_providers::ChatMessage],
+    history: &mut [brai_providers::ChatMessage],
     protect_last_n: usize,
 ) -> usize {
     let trim_to = 2000;
@@ -101,7 +101,7 @@ pub fn fast_trim_tool_results(
 /// atomically to preserve tool_use/tool_result pairing. See #4810.
 /// Returns number of messages dropped.
 pub fn emergency_history_trim(
-    history: &mut Vec<zeroclaw_providers::ChatMessage>,
+    history: &mut Vec<brai_providers::ChatMessage>,
     keep_recent: usize,
 ) -> usize {
     let mut dropped = 0;

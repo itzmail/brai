@@ -1,6 +1,6 @@
 use crate::security::SecurityPolicy;
 use anyhow::{Result, anyhow, bail};
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 mod schedule;
 mod store;
@@ -208,7 +208,7 @@ pub fn parse_delay(input: &str) -> Result<chrono::Duration> {
     Ok(duration)
 }
 
-#[cfg(all(test, zeroclaw_root_crate))] // Tests need root crate handle_command
+#[cfg(all(test, brai_root_crate))] // Tests need root crate handle_command
 mod tests {
     use super::*;
     use tempfile::TempDir;

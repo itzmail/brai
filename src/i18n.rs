@@ -1,1 +1,1 @@
-pub use zeroclaw_runtime::i18n::*;
+pub use brai_runtime::i18n::*;

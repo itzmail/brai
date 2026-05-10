@@ -1,1 +1,1 @@
-pub use zeroclaw_tools::proxy_config::*;
+pub use brai_tools::proxy_config::*;

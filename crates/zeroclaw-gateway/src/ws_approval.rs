@@ -2,7 +2,7 @@
 //! prompts to the gateway client and waits for the operator's decision.
 //!
 //! The agent's tool loop calls
-//! [`Channel::request_approval`](zeroclaw_api::channel::Channel::request_approval)
+//! [`Channel::request_approval`](brai_api::channel::Channel::request_approval)
 //! whenever a supervised-mode tool needs operator consent. This struct mints
 //! a `request_id`, emits a [`TurnEvent::ApprovalRequest`] that the existing
 //! forward loop serialises onto the wire, and parks on a oneshot until the
@@ -22,8 +22,8 @@ use async_trait::async_trait;
 use parking_lot::Mutex;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
-use zeroclaw_api::agent::TurnEvent;
-use zeroclaw_api::channel::{
+use brai_api::agent::TurnEvent;
+use brai_api::channel::{
     Channel, ChannelApprovalRequest, ChannelApprovalResponse, ChannelMessage, SendMessage,
 };
 

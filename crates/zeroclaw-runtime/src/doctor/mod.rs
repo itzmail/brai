@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::io::Write;
 use std::path::Path;
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 const DAEMON_STALE_SECONDS: i64 = 30;
 const SCHEDULER_STALE_SECONDS: i64 = 120;
@@ -95,7 +95,7 @@ async fn probe_models(config: &Config) -> Vec<DiagResult> {
     let mut out = Vec::new();
 
     for provider_name in &targets {
-        let result = match zeroclaw_providers::create_provider(provider_name, None) {
+        let result = match brai_providers::create_provider(provider_name, None) {
             Ok(handle) => handle.list_models().await,
             Err(e) => Err(e),
         };
@@ -246,7 +246,7 @@ pub async fn run_models(
     for provider_name in &targets {
         println!("  [{}]", provider_name);
 
-        let outcome = match zeroclaw_providers::create_provider(provider_name, None) {
+        let outcome = match brai_providers::create_provider(provider_name, None) {
             Ok(handle) => handle.list_models().await,
             Err(e) => Err(e),
         };
@@ -637,7 +637,7 @@ fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>) {
 }
 
 fn provider_validation_error(name: &str) -> Option<String> {
-    match zeroclaw_providers::create_provider(name, None) {
+    match brai_providers::create_provider(name, None) {
         Ok(_) => None,
         Err(err) => Some(
             err.to_string()
@@ -781,7 +781,7 @@ fn workspace_probe_path(workspace_dir: &Path) -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |duration| duration.as_nanos());
     workspace_dir.join(format!(
-        ".zeroclaw_doctor_probe_{}_{}",
+        ".brai_doctor_probe_{}_{}",
         std::process::id(),
         nanos
     ))
@@ -1177,7 +1177,7 @@ mod tests {
     #[test]
     fn config_validation_warns_empty_model_route() {
         let mut config = Config::default();
-        config.providers.model_routes = vec![zeroclaw_config::schema::ModelRouteConfig {
+        config.providers.model_routes = vec![brai_config::schema::ModelRouteConfig {
             hint: "fast".into(),
             provider: "groq".into(),
             model: String::new(),
@@ -1193,7 +1193,7 @@ mod tests {
     #[test]
     fn config_validation_warns_empty_embedding_route_model() {
         let mut config = Config::default();
-        config.providers.embedding_routes = vec![zeroclaw_config::schema::EmbeddingRouteConfig {
+        config.providers.embedding_routes = vec![brai_config::schema::EmbeddingRouteConfig {
             hint: "semantic".into(),
             provider: "openai".into(),
             model: String::new(),
@@ -1214,7 +1214,7 @@ mod tests {
     #[test]
     fn config_validation_warns_invalid_embedding_route_provider() {
         let mut config = Config::default();
-        config.providers.embedding_routes = vec![zeroclaw_config::schema::EmbeddingRouteConfig {
+        config.providers.embedding_routes = vec![brai_config::schema::EmbeddingRouteConfig {
             hint: "semantic".into(),
             provider: "groq".into(),
             model: "text-embedding-3-small".into(),
@@ -1280,7 +1280,7 @@ mod tests {
             first
                 .file_name()
                 .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with(".zeroclaw_doctor_probe_"))
+                .is_some_and(|name| name.starts_with(".brai_doctor_probe_"))
         );
     }
 
@@ -1289,7 +1289,7 @@ mod tests {
         let mut config = Config::default();
         config.agents.insert(
             "zeta".into(),
-            zeroclaw_config::schema::DelegateAgentConfig {
+            brai_config::schema::DelegateAgentConfig {
                 provider: "totally-fake".into(),
                 model: "model-z".into(),
                 system_prompt: None,
@@ -1307,7 +1307,7 @@ mod tests {
         );
         config.agents.insert(
             "alpha".into(),
-            zeroclaw_config::schema::DelegateAgentConfig {
+            brai_config::schema::DelegateAgentConfig {
                 provider: "totally-fake".into(),
                 model: "model-a".into(),
                 system_prompt: None,

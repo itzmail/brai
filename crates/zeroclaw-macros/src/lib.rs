@@ -65,7 +65,7 @@ fn has_serde_skip(field: &syn::Field) -> bool {
 ///    section is opt-in:
 ///
 /// ```ignore
-/// use zeroclaw_macros::Configurable;
+/// use brai_macros::Configurable;
 ///
 /// #[derive(Debug, Clone, Default, Serialize, Deserialize, Configurable)]
 /// #[prefix = "channels.your-channel"]

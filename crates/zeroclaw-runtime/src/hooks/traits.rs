@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::time::Duration;
 
-use zeroclaw_api::channel::ChannelMessage;
-use zeroclaw_api::provider::{ChatMessage, ChatResponse};
-use zeroclaw_api::tool::ToolResult;
+use brai_api::channel::ChannelMessage;
+use brai_api::provider::{ChatMessage, ChatResponse};
+use brai_api::tool::ToolResult;
 
 /// Result of a modifying hook — continue with (possibly modified) data, or cancel.
 #[derive(Debug, Clone)]

@@ -1,9 +1,9 @@
-pub use zeroclaw_config::platform::*;
+pub use brai_config::platform::*;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::RuntimeConfig;
+    use brai_config::schema::RuntimeConfig;
 
     #[test]
     fn factory_native() {

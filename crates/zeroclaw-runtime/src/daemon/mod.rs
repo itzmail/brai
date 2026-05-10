@@ -4,8 +4,8 @@ use std::future::Future;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
-use zeroclaw_config::schema::Config;
-use zeroclaw_memory::{MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN};
+use brai_config::schema::Config;
+use brai_memory::{MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN};
 
 const STATUS_FLUSH_SECONDS: u64 = 5;
 
@@ -126,7 +126,7 @@ pub struct DaemonSubsystems {
     pub mqtt_start: Option<
         Box<
             dyn Fn(
-                    zeroclaw_config::schema::MqttConfig,
+                    brai_config::schema::MqttConfig,
                 ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send>>
                 + Send
                 + Sync,
@@ -541,8 +541,8 @@ async fn run_heartbeat_worker(config: Config) -> Result<()> {
         };
 
         // Create memory once per tick for recall + consolidation.
-        let heartbeat_memory: Option<Box<dyn zeroclaw_memory::Memory>> =
-            zeroclaw_memory::create_memory(
+        let heartbeat_memory: Option<Box<dyn brai_memory::Memory>> =
+            brai_memory::create_memory(
                 &config.memory,
                 &config.workspace_dir,
                 config
@@ -568,7 +568,7 @@ async fn run_heartbeat_worker(config: Config) -> Result<()> {
                             .filter(|e| {
                                 !matches!(
                                     e.category,
-                                    zeroclaw_memory::traits::MemoryCategory::Conversation
+                                    brai_memory::traits::MemoryCategory::Conversation
                                 )
                             })
                             .map(|e| format!("- {}: {}", e.key, e.content))
@@ -663,7 +663,7 @@ async fn run_heartbeat_worker(config: Config) -> Result<()> {
                             .store(
                                 &key,
                                 &format!("Heartbeat task '{}': {}", task.text, summary),
-                                zeroclaw_memory::MemoryCategory::Daily,
+                                brai_memory::MemoryCategory::Daily,
                                 None,
                             )
                             .await;
@@ -795,7 +795,7 @@ fn resolve_heartbeat_delivery(config: &Config) -> Result<Option<(String, String)
 const HEARTBEAT_SESSION_CONTEXT_MESSAGES: usize = 20;
 
 fn load_heartbeat_session_context(config: &Config) -> Option<String> {
-    use zeroclaw_providers::traits::ChatMessage;
+    use brai_providers::traits::ChatMessage;
 
     let channel = config
         .heartbeat
@@ -936,7 +936,7 @@ fn load_heartbeat_session_context(config: &Config) -> Option<String> {
 /// Read the last `HEARTBEAT_SESSION_CONTEXT_MESSAGES` `ChatMessage` lines from
 /// a JSONL session file using a bounded rolling window so we never hold the
 /// entire file in memory.
-fn load_jsonl_messages(path: &std::path::Path) -> Vec<zeroclaw_providers::traits::ChatMessage> {
+fn load_jsonl_messages(path: &std::path::Path) -> Vec<brai_providers::traits::ChatMessage> {
     use std::collections::VecDeque;
     use std::io::BufRead;
 
@@ -945,7 +945,7 @@ fn load_jsonl_messages(path: &std::path::Path) -> Vec<zeroclaw_providers::traits
         Err(_) => return Vec::new(),
     };
     let reader = std::io::BufReader::new(file);
-    let mut window: VecDeque<zeroclaw_providers::traits::ChatMessage> =
+    let mut window: VecDeque<brai_providers::traits::ChatMessage> =
         VecDeque::with_capacity(HEARTBEAT_SESSION_CONTEXT_MESSAGES + 1);
     for line in reader.lines() {
         let Ok(line) = line else { continue };
@@ -953,7 +953,7 @@ fn load_jsonl_messages(path: &std::path::Path) -> Vec<zeroclaw_providers::traits
         if trimmed.is_empty() {
             continue;
         }
-        if let Ok(msg) = serde_json::from_str::<zeroclaw_providers::traits::ChatMessage>(trimmed) {
+        if let Ok(msg) = serde_json::from_str::<brai_providers::traits::ChatMessage>(trimmed) {
             window.push_back(msg);
             if window.len() > HEARTBEAT_SESSION_CONTEXT_MESSAGES {
                 window.pop_front();
@@ -1107,11 +1107,11 @@ mod tests {
     #[test]
     fn detects_supervised_channels_present() {
         let mut config = Config::default();
-        config.channels.telegram = Some(zeroclaw_config::schema::TelegramConfig {
+        config.channels.telegram = Some(brai_config::schema::TelegramConfig {
             enabled: true,
             bot_token: "token".into(),
             allowed_users: vec![],
-            stream_mode: zeroclaw_config::schema::StreamMode::default(),
+            stream_mode: brai_config::schema::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -1125,7 +1125,7 @@ mod tests {
     #[test]
     fn detects_dingtalk_as_supervised_channel() {
         let mut config = Config::default();
-        config.channels.dingtalk = Some(zeroclaw_config::schema::DingTalkConfig {
+        config.channels.dingtalk = Some(brai_config::schema::DingTalkConfig {
             enabled: true,
             client_id: "client_id".into(),
             client_secret: "client_secret".into(),
@@ -1138,7 +1138,7 @@ mod tests {
     #[test]
     fn detects_mattermost_as_supervised_channel() {
         let mut config = Config::default();
-        config.channels.mattermost = Some(zeroclaw_config::schema::MattermostConfig {
+        config.channels.mattermost = Some(brai_config::schema::MattermostConfig {
             enabled: true,
             url: "https://mattermost.example.com".into(),
             bot_token: "token".into(),
@@ -1155,7 +1155,7 @@ mod tests {
     #[test]
     fn detects_qq_as_supervised_channel() {
         let mut config = Config::default();
-        config.channels.qq = Some(zeroclaw_config::schema::QQConfig {
+        config.channels.qq = Some(brai_config::schema::QQConfig {
             enabled: true,
             app_id: "app-id".into(),
             app_secret: "app-secret".into(),
@@ -1168,7 +1168,7 @@ mod tests {
     #[test]
     fn detects_nextcloud_talk_as_supervised_channel() {
         let mut config = Config::default();
-        config.channels.nextcloud_talk = Some(zeroclaw_config::schema::NextcloudTalkConfig {
+        config.channels.nextcloud_talk = Some(brai_config::schema::NextcloudTalkConfig {
             enabled: true,
             base_url: "https://cloud.example.com".into(),
             app_token: "app-token".into(),
@@ -1176,7 +1176,7 @@ mod tests {
             allowed_users: vec!["*".into()],
             proxy_url: None,
             bot_name: None,
-            stream_mode: zeroclaw_config::schema::StreamMode::default(),
+            stream_mode: brai_config::schema::StreamMode::default(),
             draft_update_interval_ms: 1000,
         });
         assert!(has_supervised_channels(&config));
@@ -1185,7 +1185,7 @@ mod tests {
     #[test]
     fn webhook_only_config_is_supervised() {
         let mut config = Config::default();
-        config.channels.webhook = Some(zeroclaw_config::schema::WebhookConfig {
+        config.channels.webhook = Some(brai_config::schema::WebhookConfig {
             enabled: true,
             port: 8080,
             listen_path: None,
@@ -1255,11 +1255,11 @@ mod tests {
         let mut config = Config::default();
         config.heartbeat.target = Some("telegram".into());
         config.heartbeat.to = Some("123456".into());
-        config.channels.telegram = Some(zeroclaw_config::schema::TelegramConfig {
+        config.channels.telegram = Some(brai_config::schema::TelegramConfig {
             enabled: true,
             bot_token: "bot-token".into(),
             allowed_users: vec![],
-            stream_mode: zeroclaw_config::schema::StreamMode::default(),
+            stream_mode: brai_config::schema::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,
@@ -1275,11 +1275,11 @@ mod tests {
     #[test]
     fn auto_detect_telegram_when_configured() {
         let mut config = Config::default();
-        config.channels.telegram = Some(zeroclaw_config::schema::TelegramConfig {
+        config.channels.telegram = Some(brai_config::schema::TelegramConfig {
             enabled: true,
             bot_token: "bot-token".into(),
             allowed_users: vec!["user123".into()],
-            stream_mode: zeroclaw_config::schema::StreamMode::default(),
+            stream_mode: brai_config::schema::StreamMode::default(),
             draft_update_interval_ms: 1000,
             interrupt_on_new_message: false,
             mention_only: false,

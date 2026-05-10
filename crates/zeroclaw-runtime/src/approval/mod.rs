@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::{self, BufRead, Write};
-use zeroclaw_config::schema::AutonomyConfig;
+use brai_config::schema::AutonomyConfig;
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -332,7 +332,7 @@ fn truncate_for_summary(input: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::AutonomyConfig;
+    use brai_config::schema::AutonomyConfig;
 
     fn supervised_config() -> AutonomyConfig {
         AutonomyConfig {
@@ -693,7 +693,7 @@ mod tests {
 
     #[test]
     fn channel_approve_maps_to_yes() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
         let mapped = match ChannelApprovalResponse::Approve {
             ChannelApprovalResponse::Approve => ApprovalResponse::Yes,
             ChannelApprovalResponse::AlwaysApprove => ApprovalResponse::Always,
@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn channel_always_approve_maps_to_always() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
         let mapped = match ChannelApprovalResponse::AlwaysApprove {
             ChannelApprovalResponse::Approve => ApprovalResponse::Yes,
             ChannelApprovalResponse::AlwaysApprove => ApprovalResponse::Always,
@@ -715,7 +715,7 @@ mod tests {
 
     #[test]
     fn channel_deny_maps_to_no() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
         let mapped = match ChannelApprovalResponse::Deny {
             ChannelApprovalResponse::Approve => ApprovalResponse::Yes,
             ChannelApprovalResponse::AlwaysApprove => ApprovalResponse::Always,
@@ -726,7 +726,7 @@ mod tests {
 
     #[test]
     fn channel_approval_request_serde_roundtrip() {
-        use zeroclaw_api::channel::ChannelApprovalRequest;
+        use brai_api::channel::ChannelApprovalRequest;
         let req = ChannelApprovalRequest {
             tool_name: "shell".into(),
             arguments_summary: "command: ls -la".into(),
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn channel_approval_response_serde_roundtrip() {
-        use zeroclaw_api::channel::ChannelApprovalResponse;
+        use brai_api::channel::ChannelApprovalResponse;
         // AlwaysApprove serializes to "always" to match the CLI-side
         // ApprovalResponse::Always and keep audit logs consistent.
         let json = serde_json::to_string(&ChannelApprovalResponse::AlwaysApprove).unwrap();

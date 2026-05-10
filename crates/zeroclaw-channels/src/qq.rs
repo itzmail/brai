@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 const QQ_API_BASE: &str = "https://api.sgroup.qq.com";
 const QQ_AUTH_URL: &str = "https://bots.qq.com/app/getAppAccessToken";
@@ -330,7 +330,7 @@ impl QQChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_channel_proxy_client("channel.qq", self.proxy_url.as_deref())
+        brai_config::schema::build_channel_proxy_client("channel.qq", self.proxy_url.as_deref())
     }
 
     fn is_user_allowed(&self, user_id: &str) -> bool {
@@ -1034,7 +1034,7 @@ impl Channel for QQChannel {
         let gw_url = self.get_gateway_url(&token).await?;
 
         tracing::info!("QQ: connecting to gateway WebSocket...");
-        let (ws_stream, _) = zeroclaw_config::schema::ws_connect_with_proxy(
+        let (ws_stream, _) = brai_config::schema::ws_connect_with_proxy(
             &gw_url,
             "channel.qq",
             self.proxy_url.as_deref(),
@@ -1469,7 +1469,7 @@ app_id = "12345"
 app_secret = "secret_abc"
 allowed_users = ["user1"]
 "#;
-        let config: zeroclaw_config::schema::QQConfig = toml::from_str(toml_str).unwrap();
+        let config: brai_config::schema::QQConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(config.app_id, "12345");
         assert_eq!(config.app_secret, "secret_abc");
         assert_eq!(config.allowed_users, vec!["user1"]);

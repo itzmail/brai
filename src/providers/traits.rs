@@ -1,4 +1,4 @@
-pub use zeroclaw_api::provider::*;
+pub use brai_api::provider::*;
 
 #[cfg(test)]
 mod tests {

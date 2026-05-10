@@ -11,10 +11,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::{DelegateAgentConfig, DelegateToolConfig};
-use zeroclaw_memory::{Memory, NamespacedMemory};
-use zeroclaw_providers::{self, ChatMessage, Provider};
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::{DelegateAgentConfig, DelegateToolConfig};
+use brai_memory::{Memory, NamespacedMemory};
+use brai_providers::{self, ChatMessage, Provider};
 
 /// Fallback temperature for sub-agent tool loops when the delegate config
 /// leaves it unset; matches the longstanding agentic default that balances
@@ -74,13 +74,13 @@ pub struct DelegateTool {
     /// Global credential fallback (from config.api_key)
     fallback_credential: Option<String>,
     /// Provider runtime options inherited from root config.
-    provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+    provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     /// Depth at which this tool instance lives in the delegation chain.
     depth: u32,
     /// Parent tool registry for agentic sub-agents.
     parent_tools: Arc<RwLock<Vec<Arc<dyn Tool>>>>,
     /// Inherited multimodal handling config for sub-agent loops.
-    multimodal_config: zeroclaw_config::schema::MultimodalConfig,
+    multimodal_config: brai_config::schema::MultimodalConfig,
     /// Global delegate tool config providing default timeout values.
     delegate_config: DelegateToolConfig,
     /// Workspace directory inherited from the root agent context.
@@ -101,7 +101,7 @@ impl DelegateTool {
             agents,
             fallback_credential,
             security,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         )
     }
 
@@ -109,7 +109,7 @@ impl DelegateTool {
         agents: HashMap<String, DelegateAgentConfig>,
         fallback_credential: Option<String>,
         security: Arc<SecurityPolicy>,
-        provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+        provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     ) -> Self {
         Self {
             agents: Arc::new(agents),
@@ -118,7 +118,7 @@ impl DelegateTool {
             provider_runtime_options,
             depth: 0,
             parent_tools: Arc::new(RwLock::new(Vec::new())),
-            multimodal_config: zeroclaw_config::schema::MultimodalConfig::default(),
+            multimodal_config: brai_config::schema::MultimodalConfig::default(),
             delegate_config: DelegateToolConfig::default(),
             workspace_dir: PathBuf::new(),
             cancellation_token: CancellationToken::new(),
@@ -140,7 +140,7 @@ impl DelegateTool {
             fallback_credential,
             security,
             depth,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         )
     }
 
@@ -149,7 +149,7 @@ impl DelegateTool {
         fallback_credential: Option<String>,
         security: Arc<SecurityPolicy>,
         depth: u32,
-        provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+        provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     ) -> Self {
         Self {
             agents: Arc::new(agents),
@@ -158,7 +158,7 @@ impl DelegateTool {
             provider_runtime_options,
             depth,
             parent_tools: Arc::new(RwLock::new(Vec::new())),
-            multimodal_config: zeroclaw_config::schema::MultimodalConfig::default(),
+            multimodal_config: brai_config::schema::MultimodalConfig::default(),
             delegate_config: DelegateToolConfig::default(),
             workspace_dir: PathBuf::new(),
             cancellation_token: CancellationToken::new(),
@@ -175,7 +175,7 @@ impl DelegateTool {
     /// Attach multimodal configuration for sub-agent tool loops.
     pub fn with_multimodal_config(
         mut self,
-        config: zeroclaw_config::schema::MultimodalConfig,
+        config: brai_config::schema::MultimodalConfig,
     ) -> Self {
         self.multimodal_config = config;
         self
@@ -458,7 +458,7 @@ impl DelegateTool {
         #[allow(clippy::option_as_ref_deref)]
         let provider_credential = provider_credential_owned.as_ref().map(String::as_str);
 
-        let provider: Box<dyn Provider> = match zeroclaw_providers::create_provider_with_options(
+        let provider: Box<dyn Provider> = match brai_providers::create_provider_with_options(
             &agent_config.provider,
             provider_credential,
             &self.provider_runtime_options,
@@ -1094,7 +1094,7 @@ impl DelegateTool {
             model_name: &agent_config.model,
             tools: sub_tools,
             skills: &skills,
-            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            skills_prompt_mode: brai_config::schema::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
             sends_native_tool_specs: false,
@@ -1226,7 +1226,7 @@ impl DelegateTool {
                 &[],
                 None,
                 None,
-                &zeroclaw_config::schema::PacingConfig::default(),
+                &brai_config::schema::PacingConfig::default(),
                 0,    // max_tool_result_chars: inherit from parent config in future
                 0,    // context_token_budget: 0 = disabled for subagents
                 None, // shared_budget: TODO thread from parent in future
@@ -1321,10 +1321,10 @@ mod tests {
     use super::*;
     use crate::security::{AutonomyLevel, SecurityPolicy};
     use anyhow::anyhow;
-    use zeroclaw_config::schema::{
+    use brai_config::schema::{
         DEFAULT_DELEGATE_AGENTIC_TIMEOUT_SECS, DEFAULT_DELEGATE_TIMEOUT_SECS,
     };
-    use zeroclaw_providers::{ChatRequest, ChatResponse, ToolCall};
+    use brai_providers::{ChatRequest, ChatResponse, ToolCall};
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy::default())
@@ -2184,7 +2184,7 @@ mod tests {
 
         let tools: Vec<Box<dyn Tool>> = vec![Box::new(EchoTool)];
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_enrich_test_{}",
+            "brai_delegate_enrich_test_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2407,7 +2407,7 @@ mod tests {
 
     #[test]
     fn config_validation_rejects_zero_timeout() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "bad".into(),
             DelegateAgentConfig {
@@ -2435,7 +2435,7 @@ mod tests {
 
     #[test]
     fn config_validation_rejects_zero_agentic_timeout() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "bad".into(),
             DelegateAgentConfig {
@@ -2463,7 +2463,7 @@ mod tests {
 
     #[test]
     fn config_validation_rejects_excessive_timeout() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "bad".into(),
             DelegateAgentConfig {
@@ -2491,7 +2491,7 @@ mod tests {
 
     #[test]
     fn config_validation_rejects_excessive_agentic_timeout() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "bad".into(),
             DelegateAgentConfig {
@@ -2519,7 +2519,7 @@ mod tests {
 
     #[test]
     fn config_validation_accepts_max_boundary_timeout() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "ok".into(),
             DelegateAgentConfig {
@@ -2543,7 +2543,7 @@ mod tests {
 
     #[test]
     fn config_validation_accepts_none_timeouts() {
-        let mut config = zeroclaw_config::schema::Config::default();
+        let mut config = brai_config::schema::Config::default();
         config.agents.insert(
             "ok".into(),
             DelegateAgentConfig {
@@ -2568,7 +2568,7 @@ mod tests {
     #[test]
     fn enriched_prompt_loads_skills_from_scoped_directory() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_skills_test_{}",
+            "brai_delegate_skills_test_{}",
             uuid::Uuid::new_v4()
         ));
         let scoped_skills_dir = workspace.join("skills/code-review");
@@ -2615,7 +2615,7 @@ mod tests {
     #[test]
     fn enriched_prompt_falls_back_to_default_skills_dir() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_fallback_test_{}",
+            "brai_delegate_fallback_test_{}",
             uuid::Uuid::new_v4()
         ));
         let default_skills_dir = workspace.join("skills");
@@ -2664,7 +2664,7 @@ mod tests {
     #[tokio::test]
     async fn background_delegation_returns_task_id() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_bg_test_{}",
+            "brai_delegate_bg_test_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2698,7 +2698,7 @@ mod tests {
     #[tokio::test]
     async fn background_unknown_agent_rejected() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_bg_unknown_{}",
+            "brai_delegate_bg_unknown_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2723,7 +2723,7 @@ mod tests {
     #[tokio::test]
     async fn check_result_missing_task_id() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_check_noid_{}",
+            "brai_delegate_check_noid_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2740,7 +2740,7 @@ mod tests {
     #[tokio::test]
     async fn check_result_nonexistent_task() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_check_miss_{}",
+            "brai_delegate_check_miss_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2766,7 +2766,7 @@ mod tests {
     #[tokio::test]
     async fn list_results_empty() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_list_empty_{}",
+            "brai_delegate_list_empty_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2841,7 +2841,7 @@ mod tests {
     #[tokio::test]
     async fn cancel_task_nonexistent() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_cancel_miss_{}",
+            "brai_delegate_cancel_miss_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2888,7 +2888,7 @@ mod tests {
     #[tokio::test]
     async fn background_task_result_persisted_to_disk() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_bg_persist_{}",
+            "brai_delegate_bg_persist_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2946,7 +2946,7 @@ mod tests {
     #[tokio::test]
     async fn check_result_retrieves_persisted_background_result() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_check_retrieve_{}",
+            "brai_delegate_check_retrieve_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -2995,7 +2995,7 @@ mod tests {
     #[tokio::test]
     async fn list_results_includes_background_tasks() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_list_tasks_{}",
+            "brai_delegate_list_tasks_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -3052,7 +3052,7 @@ mod tests {
     #[tokio::test]
     async fn check_result_rejects_path_traversal() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_traversal_check_{}",
+            "brai_delegate_traversal_check_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();
@@ -3076,7 +3076,7 @@ mod tests {
     #[tokio::test]
     async fn cancel_task_rejects_path_traversal() {
         let workspace = std::env::temp_dir().join(format!(
-            "zeroclaw_delegate_traversal_cancel_{}",
+            "brai_delegate_traversal_cancel_{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace).unwrap();

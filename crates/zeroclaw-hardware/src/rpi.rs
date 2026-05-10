@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use std::fmt::Write as _;
 use std::fs;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 // ─── LED sysfs helpers ──────────────────────────────────────────────────────
 
@@ -273,13 +273,13 @@ impl RpiSystemContext {
         s
     }
 
-    /// Write an `rpi0.md` hardware context file to `~/.zeroclaw/hardware/devices/`.
+    /// Write an `rpi0.md` hardware context file to `~/.brai/hardware/devices/`.
     /// Silently skips on failure so boot is never blocked.
     pub fn write_hardware_context_file(&self) {
         let Some(home) = directories::BaseDirs::new().map(|b| b.home_dir().to_path_buf()) else {
             return;
         };
-        let devices_dir = home.join(".zeroclaw").join("hardware").join("devices");
+        let devices_dir = home.join(".brai").join("hardware").join("devices");
         if let Err(e) = fs::create_dir_all(&devices_dir) {
             tracing::warn!("Failed to create hardware devices dir: {e}");
             return;

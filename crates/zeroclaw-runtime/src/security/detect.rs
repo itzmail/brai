@@ -3,7 +3,7 @@
 use crate::security::traits::Sandbox;
 use std::path::Path;
 use std::sync::Arc;
-use zeroclaw_config::schema::{SandboxBackend, SecurityConfig};
+use brai_config::schema::{SandboxBackend, SecurityConfig};
 
 /// Create a sandbox based on auto-detection or explicit config.
 ///
@@ -221,7 +221,7 @@ pub fn linux_memcg_available() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::{SandboxConfig, SecurityConfig};
+    use brai_config::schema::{SandboxConfig, SecurityConfig};
 
     #[test]
     fn detect_best_sandbox_returns_something() {

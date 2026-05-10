@@ -159,7 +159,7 @@ impl LlamaCppProvider {
     fn http_client(&self) -> Client {
         let timeout = self.timeout_secs;
         if self.extra_headers.is_empty() {
-            return zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+            return brai_config::schema::build_runtime_proxy_client_with_timeouts(
                 "provider.llamacpp",
                 timeout,
                 10,
@@ -184,7 +184,7 @@ impl LlamaCppProvider {
             .connect_timeout(std::time::Duration::from_secs(10))
             .default_headers(headers);
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "provider.llamacpp");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "provider.llamacpp");
         builder.build().unwrap_or_else(|e| {
             warn!("Failed to build llama.cpp HTTP client: {e}");
             Client::new()
@@ -195,7 +195,7 @@ impl LlamaCppProvider {
     fn streaming_http_client(&self) -> Client {
         if self.extra_headers.is_empty() {
             let builder = Client::builder().connect_timeout(std::time::Duration::from_secs(10));
-            let builder = zeroclaw_config::schema::apply_runtime_proxy_to_builder(
+            let builder = brai_config::schema::apply_runtime_proxy_to_builder(
                 builder,
                 "provider.llamacpp",
             );
@@ -217,7 +217,7 @@ impl LlamaCppProvider {
             .connect_timeout(std::time::Duration::from_secs(10))
             .default_headers(headers);
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "provider.llamacpp");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "provider.llamacpp");
         builder.build().unwrap_or_else(|e| {
             warn!("Failed to build llama.cpp streaming client: {e}");
             Client::new()
@@ -225,13 +225,13 @@ impl LlamaCppProvider {
     }
 
     fn convert_tools(
-        tools: Option<&[zeroclaw_api::tool::ToolSpec]>,
+        tools: Option<&[brai_api::tool::ToolSpec]>,
     ) -> Option<Vec<serde_json::Value>> {
         tools.map(|items| {
             items
                 .iter()
                 .map(|tool| {
-                    let params = zeroclaw_api::schema::SchemaCleanr::clean_for_openai(
+                    let params = brai_api::schema::SchemaCleanr::clean_for_openai(
                         tool.parameters.clone(),
                     );
                     serde_json::json!({
@@ -387,8 +387,8 @@ impl LlamaCppProvider {
 
 #[async_trait]
 impl Provider for LlamaCppProvider {
-    fn capabilities(&self) -> zeroclaw_api::provider::ProviderCapabilities {
-        zeroclaw_api::provider::ProviderCapabilities {
+    fn capabilities(&self) -> brai_api::provider::ProviderCapabilities {
+        brai_api::provider::ProviderCapabilities {
             native_tool_calling: true,
             vision: false,
             prompt_caching: false,

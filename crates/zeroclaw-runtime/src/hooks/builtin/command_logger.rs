@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::hooks::traits::HookHandler;
-use zeroclaw_api::tool::ToolResult;
+use brai_api::tool::ToolResult;
 
 /// Logs tool calls for auditing.
 pub struct CommandLoggerHook {

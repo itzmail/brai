@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 #[cfg(feature = "hardware")]
-pub use zeroclaw_hardware::peripherals::*;
+pub use brai_hardware::peripherals::*;
 
 use crate::config::{Config, PeripheralBoardConfig};
 use anyhow::Result;

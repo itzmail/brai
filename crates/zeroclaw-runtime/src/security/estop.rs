@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use zeroclaw_config::schema::EstopConfig;
+use brai_config::schema::EstopConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EstopLevel {
@@ -303,7 +303,7 @@ mod tests {
     use crate::security::SecretStore;
     use crate::security::otp::OtpValidator;
     use tempfile::tempdir;
-    use zeroclaw_config::schema::OtpConfig;
+    use brai_config::schema::OtpConfig;
 
     fn estop_config(path: &Path) -> EstopConfig {
         EstopConfig {

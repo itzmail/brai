@@ -2,12 +2,12 @@ use crate::approval::{ApprovalManager, ApprovalRequest, ApprovalRequirement, App
 
 /// CLI channel factory, injected by the binary. Returns a `Box<dyn Channel>` for interactive mode.
 pub static CLI_CHANNEL_FN: std::sync::OnceLock<
-    Box<dyn Fn() -> Box<dyn zeroclaw_api::channel::Channel> + Send + Sync>,
+    Box<dyn Fn() -> Box<dyn brai_api::channel::Channel> + Send + Sync>,
 > = std::sync::OnceLock::new();
 
 /// Register the CLI channel factory. Called once at startup by the binary.
 pub fn register_cli_channel_fn(
-    f: Box<dyn Fn() -> Box<dyn zeroclaw_api::channel::Channel> + Send + Sync>,
+    f: Box<dyn Fn() -> Box<dyn brai_api::channel::Channel> + Send + Sync>,
 ) {
     let _ = CLI_CHANNEL_FN.set(f);
 }
@@ -15,7 +15,7 @@ pub fn register_cli_channel_fn(
 /// Peripheral tools factory type — takes owned config so the returned future is 'static.
 pub type PeripheralToolsFn = Box<
     dyn Fn(
-            zeroclaw_config::schema::PeripheralsConfig,
+            brai_config::schema::PeripheralsConfig,
         ) -> std::pin::Pin<
             Box<dyn std::future::Future<Output = anyhow::Result<Vec<Box<dyn Tool>>>> + Send>,
         > + Send
@@ -46,14 +46,14 @@ use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use zeroclaw_api::channel::Channel;
-use zeroclaw_api::provider::StreamEvent;
-use zeroclaw_config::schema::Config;
-use zeroclaw_memory::{
+use brai_api::channel::Channel;
+use brai_api::provider::StreamEvent;
+use brai_config::schema::Config;
+use brai_memory::{
     self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, MemoryCategory, decay,
 };
-use zeroclaw_providers::multimodal;
-use zeroclaw_providers::{
+use brai_providers::multimodal;
+use brai_providers::{
     self, ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall,
 };
 
@@ -130,10 +130,10 @@ fn glob_match(pattern: &str, name: &str) -> bool {
 ///     at least one keyword (case-insensitive substring).
 pub fn filter_tool_specs_for_turn(
     tool_specs: Vec<crate::tools::ToolSpec>,
-    groups: &[zeroclaw_config::schema::ToolFilterGroup],
+    groups: &[brai_config::schema::ToolFilterGroup],
     user_message: &str,
 ) -> Vec<crate::tools::ToolSpec> {
-    use zeroclaw_config::schema::ToolFilterGroupMode;
+    use brai_config::schema::ToolFilterGroupMode;
 
     if groups.is_empty() {
         return tool_specs;
@@ -185,11 +185,11 @@ pub fn filter_by_allowed_tools(
 }
 
 // Re-export from zeroclaw-types for backwards compatibility.
-pub use zeroclaw_api::TOOL_LOOP_SESSION_KEY;
-pub use zeroclaw_api::TOOL_LOOP_THREAD_ID;
+pub use brai_api::TOOL_LOOP_SESSION_KEY;
+pub use brai_api::TOOL_LOOP_THREAD_ID;
 
 // Re-export tool call parsing from the standalone parser crate.
-pub use zeroclaw_tool_call_parser::{
+pub use brai_tool_call_parser::{
     ParsedToolCall, build_native_assistant_history_from_parsed_calls,
     canonicalize_json_for_tool_signature, detect_tool_call_parse_issue, parse_tool_calls,
     strip_think_tags, strip_tool_result_blocks,
@@ -221,7 +221,7 @@ where
 /// Returns an empty `Vec` when `groups` is empty (no filtering).
 fn compute_excluded_mcp_tools(
     tools_registry: &[Box<dyn Tool>],
-    groups: &[zeroclaw_config::schema::ToolFilterGroup],
+    groups: &[brai_config::schema::ToolFilterGroup],
     user_message: &str,
 ) -> Vec<String> {
     if groups.is_empty() {
@@ -309,7 +309,7 @@ pub enum StreamDelta {
 /// Backwards-compatible alias while callers are migrated.
 pub type DraftEvent = StreamDelta;
 
-pub use zeroclaw_api::TOOL_CHOICE_OVERRIDE;
+pub use brai_api::TOOL_CHOICE_OVERRIDE;
 
 /// Convert a tool registry to OpenAI function-calling format for native tool support.
 #[cfg(test)]
@@ -375,16 +375,16 @@ async fn build_context(
                 if exclude_conversation && matches!(entry.category, MemoryCategory::Conversation) {
                     continue;
                 }
-                if zeroclaw_memory::is_assistant_autosave_key(&entry.key) {
+                if brai_memory::is_assistant_autosave_key(&entry.key) {
                     continue;
                 }
                 // Skip raw per-turn user messages: re-injecting them causes each
                 // recalled entry to embed all prior generations, growing exponentially.
                 // Consolidated knowledge is already promoted to Core/Daily entries.
-                if zeroclaw_memory::is_user_autosave_key(&entry.key) {
+                if brai_memory::is_user_autosave_key(&entry.key) {
                     continue;
                 }
-                if zeroclaw_memory::should_skip_autosave_content(&entry.content) {
+                if brai_memory::should_skip_autosave_content(&entry.content) {
                     continue;
                 }
                 // Skip entries containing tool_result blocks — they can leak
@@ -574,7 +574,7 @@ struct StreamedChatOutcome {
     reasoning_content: String,
     tool_calls: Vec<ToolCall>,
     forwarded_live_deltas: bool,
-    usage: Option<zeroclaw_providers::traits::TokenUsage>,
+    usage: Option<brai_providers::traits::TokenUsage>,
 }
 
 async fn consume_provider_streaming_response(
@@ -593,7 +593,7 @@ async fn consume_provider_streaming_response(
         },
         model,
         Some(temperature),
-        zeroclaw_providers::traits::StreamOptions::new(true),
+        brai_providers::traits::StreamOptions::new(true),
     );
     let mut outcome = StreamedChatOutcome::default();
     let mut delta_sender = on_delta;
@@ -702,7 +702,7 @@ pub async fn agent_turn(
     silent: bool,
     channel_name: &str,
     channel_reply_target: Option<&str>,
-    multimodal_config: &zeroclaw_config::schema::MultimodalConfig,
+    multimodal_config: &brai_config::schema::MultimodalConfig,
     max_tool_iterations: usize,
     approval: Option<&ApprovalManager>,
     excluded_tools: &[String],
@@ -732,7 +732,7 @@ pub async fn agent_turn(
         dedup_exempt_tools,
         activated_tools,
         model_switch_callback,
-        &zeroclaw_config::schema::PacingConfig::default(),
+        &brai_config::schema::PacingConfig::default(),
         0,    // max_tool_result_chars: 0 = disabled (legacy callers)
         0,    // context_token_budget: 0 = disabled (legacy callers)
         None, // shared_budget: no shared budget for legacy callers
@@ -865,7 +865,7 @@ pub async fn run_tool_call_loop(
     approval: Option<&ApprovalManager>,
     channel_name: &str,
     channel_reply_target: Option<&str>,
-    multimodal_config: &zeroclaw_config::schema::MultimodalConfig,
+    multimodal_config: &brai_config::schema::MultimodalConfig,
     max_tool_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<DraftEvent>>,
@@ -874,7 +874,7 @@ pub async fn run_tool_call_loop(
     dedup_exempt_tools: &[String],
     activated_tools: Option<&std::sync::Arc<std::sync::Mutex<crate::tools::ActivatedToolSet>>>,
     model_switch_callback: Option<ModelSwitchCallback>,
-    pacing: &zeroclaw_config::schema::PacingConfig,
+    pacing: &brai_config::schema::PacingConfig,
     max_tool_result_chars: usize,
     context_token_budget: usize,
     shared_budget: Option<Arc<std::sync::atomic::AtomicUsize>>,
@@ -1017,7 +1017,7 @@ pub async fn run_tool_call_loop(
             && !provider.supports_vision()
         {
             if let Some(ref vp) = multimodal_config.vision_provider {
-                let vp_instance = zeroclaw_providers::create_provider(vp, None)
+                let vp_instance = brai_providers::create_provider(vp, None)
                     .map_err(|e| anyhow::anyhow!("failed to create vision provider '{vp}': {e}"))?;
                 if !vp_instance.supports_vision() {
                     return Err(ProviderCapabilityError {
@@ -1148,7 +1148,7 @@ pub async fn run_tool_call_loop(
                     } else {
                         Some(streamed.reasoning_content)
                     };
-                    Ok(zeroclaw_providers::ChatResponse {
+                    Ok(brai_providers::ChatResponse {
                         text: Some(streamed.response_text),
                         tool_calls: streamed.tool_calls,
                         usage: streamed.usage,
@@ -1387,7 +1387,7 @@ pub async fn run_tool_call_loop(
                 )
             }
             Err(e) => {
-                let safe_error = zeroclaw_providers::sanitize_api_error(&e.to_string());
+                let safe_error = brai_providers::sanitize_api_error(&e.to_string());
                 observer.record_event(&ObserverEvent::LlmResponse {
                     provider: provider_name.to_string(),
                     model: model.to_string(),
@@ -1412,7 +1412,7 @@ pub async fn run_tool_call_loop(
                 );
 
                 // Context overflow recovery: trim history and retry
-                if zeroclaw_providers::reliable::is_context_window_exceeded(&e) {
+                if brai_providers::reliable::is_context_window_exceeded(&e) {
                     tracing::warn!(
                         iteration = iteration + 1,
                         "Context window exceeded, attempting in-loop recovery"
@@ -1626,7 +1626,7 @@ pub async fn run_tool_call_loop(
                 // back to auto-deny.
                 let decision = if mgr.is_non_interactive() {
                     let channel_decision = if let Some(ch) = channel {
-                        let ch_request = zeroclaw_api::channel::ChannelApprovalRequest {
+                        let ch_request = brai_api::channel::ChannelApprovalRequest {
                             tool_name: request.tool_name.clone(),
                             arguments_summary: crate::approval::summarize_args(&request.arguments),
                         };
@@ -1643,13 +1643,13 @@ pub async fn run_tool_call_loop(
                         None
                     };
                     match channel_decision {
-                        Some(zeroclaw_api::channel::ChannelApprovalResponse::Approve) => {
+                        Some(brai_api::channel::ChannelApprovalResponse::Approve) => {
                             ApprovalResponse::Yes
                         }
-                        Some(zeroclaw_api::channel::ChannelApprovalResponse::AlwaysApprove) => {
+                        Some(brai_api::channel::ChannelApprovalResponse::AlwaysApprove) => {
                             ApprovalResponse::Always
                         }
-                        Some(zeroclaw_api::channel::ChannelApprovalResponse::Deny) => {
+                        Some(brai_api::channel::ChannelApprovalResponse::Deny) => {
                             ApprovalResponse::No
                         }
                         // Channel doesn't support approval — auto-deny.
@@ -2061,7 +2061,7 @@ pub async fn run_tool_call_loop(
             .to_string(),
     ));
 
-    let summary_request = zeroclaw_providers::ChatRequest {
+    let summary_request = brai_providers::ChatRequest {
         messages: history,
         tools: None, // No tools — force a text response
     };
@@ -2178,7 +2178,7 @@ pub async fn run(
     let fallback_provider_loop = config.providers.fallback_provider();
 
     // ── Memory (the brain) ────────────────────────────────────────
-    let mem: Arc<dyn Memory> = Arc::from(zeroclaw_memory::create_memory_with_storage_and_routes(
+    let mem: Arc<dyn Memory> = Arc::from(brai_memory::create_memory_with_storage_and_routes(
         &config.memory,
         &config.providers.embedding_routes,
         Some(&config.storage.provider.config),
@@ -2339,9 +2339,9 @@ pub async fn run(
         .to_string();
 
     let provider_runtime_options =
-        zeroclaw_providers::provider_runtime_options_from_config(&config);
+        brai_providers::provider_runtime_options_from_config(&config);
 
-    let mut provider: Box<dyn Provider> = zeroclaw_providers::create_routed_provider_with_options(
+    let mut provider: Box<dyn Provider> = brai_providers::create_routed_provider_with_options(
         &provider_name,
         fallback_provider_loop.and_then(|e| e.api_key.as_deref()),
         fallback_provider_loop.and_then(|e| e.base_url.as_deref()),
@@ -2422,7 +2422,7 @@ pub async fn run(
     ];
     if matches!(
         config.skills.prompt_injection_mode,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Compact
+        brai_config::schema::SkillsPromptInjectionMode::Compact
     ) {
         tool_descs.push((
             "read_skill",
@@ -2603,7 +2603,7 @@ pub async fn run(
         // Auto-save user message to memory (skip short/trivial messages)
         if config.memory.auto_save
             && effective_msg.chars().count() >= AUTOSAVE_MIN_MESSAGE_CHARS
-            && !zeroclaw_memory::should_skip_autosave_content(&effective_msg)
+            && !brai_memory::should_skip_autosave_content(&effective_msg)
         {
             let user_key = autosave_memory_key("user_msg");
             let _ = mem
@@ -2713,7 +2713,7 @@ pub async fn run(
                             new_model
                         );
 
-                        provider = zeroclaw_providers::create_routed_provider_with_options(
+                        provider = brai_providers::create_routed_provider_with_options(
                             &new_provider,
                             fallback_provider_loop.and_then(|e| e.api_key.as_deref()),
                             fallback_provider_loop.and_then(|e| e.base_url.as_deref()),
@@ -2894,7 +2894,7 @@ pub async fn run(
             // Auto-save conversation turns (skip short/trivial messages)
             if config.memory.auto_save
                 && effective_input.chars().count() >= AUTOSAVE_MIN_MESSAGE_CHARS
-                && !zeroclaw_memory::should_skip_autosave_content(&effective_input)
+                && !brai_memory::should_skip_autosave_content(&effective_input)
             {
                 let user_key = autosave_memory_key("user_msg");
                 let _ = mem
@@ -3029,7 +3029,7 @@ pub async fn run(
                                 new_model
                             );
 
-                            provider = zeroclaw_providers::create_routed_provider_with_options(
+                            provider = brai_providers::create_routed_provider_with_options(
                                 &new_provider,
                                 fallback_provider_loop.and_then(|e| e.api_key.as_deref()),
                                 fallback_provider_loop.and_then(|e| e.base_url.as_deref()),
@@ -3052,7 +3052,7 @@ pub async fn run(
                             continue;
                         }
                         // Context overflow recovery: compress and retry
-                        if zeroclaw_providers::reliable::is_context_window_exceeded(&e) {
+                        if brai_providers::reliable::is_context_window_exceeded(&e) {
                             tracing::warn!(
                                 "Context overflow in interactive loop, attempting recovery"
                             );
@@ -3104,9 +3104,9 @@ pub async fn run(
             final_output = response.clone();
             if content_was_streamed.load(std::sync::atomic::Ordering::Relaxed) {
                 println!();
-            } else if let Err(e) = zeroclaw_api::channel::Channel::send(
+            } else if let Err(e) = brai_api::channel::Channel::send(
                 &*cli,
-                &zeroclaw_api::channel::SendMessage::new(format!("\n{response}\n"), "user"),
+                &brai_api::channel::SendMessage::new(format!("\n{response}\n"), "user"),
             )
             .await
             {
@@ -3190,7 +3190,7 @@ pub async fn process_message(
     ));
     let fallback_provider_pm = config.providers.fallback_provider();
     let approval_manager = ApprovalManager::for_non_interactive(&config.autonomy);
-    let mem: Arc<dyn Memory> = Arc::from(zeroclaw_memory::create_memory_with_storage_and_routes(
+    let mem: Arc<dyn Memory> = Arc::from(brai_memory::create_memory_with_storage_and_routes(
         &config.memory,
         &config.providers.embedding_routes,
         Some(&config.storage.provider.config),
@@ -3332,8 +3332,8 @@ pub async fn process_message(
         },
     };
     let provider_runtime_options =
-        zeroclaw_providers::provider_runtime_options_from_config(&config);
-    let provider: Box<dyn Provider> = zeroclaw_providers::create_routed_provider_with_options(
+        brai_providers::provider_runtime_options_from_config(&config);
+    let provider: Box<dyn Provider> = brai_providers::create_routed_provider_with_options(
         provider_name,
         fallback_provider_pm.and_then(|e| e.api_key.as_deref()),
         fallback_provider_pm.and_then(|e| e.base_url.as_deref()),
@@ -3388,7 +3388,7 @@ pub async fn process_message(
     ];
     if matches!(
         config.skills.prompt_injection_mode,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Compact
+        brai_config::schema::SkillsPromptInjectionMode::Compact
     ) {
         tool_descs.push((
             "read_skill",
@@ -3580,8 +3580,8 @@ mod tests {
     use crate::agent::history::{DEFAULT_MAX_HISTORY_MESSAGES, InteractiveSessionState};
     use crate::agent::tool_execution::execute_one_tool;
     use tempfile::tempdir;
-    use zeroclaw_providers::ChatMessage;
-    use zeroclaw_tool_call_parser::parse_tool_calls;
+    use brai_providers::ChatMessage;
+    use brai_tool_call_parser::parse_tool_calls;
 
     // ── truncate_tool_result tests ────────────────────────────────
 
@@ -4038,10 +4038,10 @@ mod tests {
     }
     use crate::observability::NoopObserver;
     use tempfile::TempDir;
-    use zeroclaw_api::provider::{ProviderCapabilities, StreamChunk, StreamEvent, StreamOptions};
-    use zeroclaw_memory::{Memory, MemoryCategory, SqliteMemory};
-    use zeroclaw_providers::ChatResponse;
-    use zeroclaw_providers::router::{Route, RouterProvider};
+    use brai_api::provider::{ProviderCapabilities, StreamChunk, StreamEvent, StreamOptions};
+    use brai_memory::{Memory, MemoryCategory, SqliteMemory};
+    use brai_providers::ChatResponse;
+    use brai_providers::router::{Route, RouterProvider};
 
     struct NonVisionProvider {
         calls: Arc<AtomicUsize>,
@@ -4094,7 +4094,7 @@ mod tests {
         ) -> anyhow::Result<ChatResponse> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             let marker_count =
-                zeroclaw_providers::multimodal::count_image_markers(request.messages);
+                brai_providers::multimodal::count_image_markers(request.messages);
             if marker_count == 0 {
                 anyhow::bail!("expected image markers in request messages");
             }
@@ -4226,7 +4226,7 @@ mod tests {
             options: StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<StreamChunk>,
+            brai_providers::traits::StreamResult<StreamChunk>,
         > {
             self.stream_calls.fetch_add(1, Ordering::SeqCst);
             if !options.enabled {
@@ -4324,7 +4324,7 @@ mod tests {
             options: StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<StreamEvent>,
+            brai_providers::traits::StreamResult<StreamEvent>,
         > {
             self.stream_calls.fetch_add(1, Ordering::SeqCst);
             if request.tools.is_some_and(|tools| !tools.is_empty()) {
@@ -4414,7 +4414,7 @@ mod tests {
             options: StreamOptions,
         ) -> futures_util::stream::BoxStream<
             'static,
-            zeroclaw_providers::traits::StreamResult<StreamChunk>,
+            brai_providers::traits::StreamResult<StreamChunk>,
         > {
             self.stream_calls.fetch_add(1, Ordering::SeqCst);
             *self
@@ -4704,7 +4704,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             3,
             None,
             None,
@@ -4713,7 +4713,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -4743,7 +4743,7 @@ mod tests {
 
         let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
         let observer = NoopObserver;
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             max_images: 4,
             max_image_size_mb: 1,
             allow_remote_fetch: false,
@@ -4771,7 +4771,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -4814,7 +4814,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             3,
             None,
             None,
@@ -4823,7 +4823,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -4865,7 +4865,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             3,
             None,
             None,
@@ -4874,7 +4874,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -4905,7 +4905,7 @@ mod tests {
         let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
         let observer = NoopObserver;
 
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             vision_provider: Some("nonexistent-provider-xyz".to_string()),
             vision_model: Some("some-model".to_string()),
             ..Default::default()
@@ -4932,7 +4932,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -4961,7 +4961,7 @@ mod tests {
         let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
         let observer = NoopObserver;
 
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             vision_provider: Some("nonexistent-provider-xyz".to_string()),
             vision_model: Some("some-model".to_string()),
             ..Default::default()
@@ -4990,7 +4990,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5022,7 +5022,7 @@ mod tests {
         // vision_provider set but vision_model is None — the code should
         // fall back to the default model. Since the provider name is invalid,
         // we just verify the error path references the correct provider.
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             vision_provider: Some("nonexistent-provider-xyz".to_string()),
             vision_model: None,
             ..Default::default()
@@ -5049,7 +5049,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5080,7 +5080,7 @@ mod tests {
         let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
         let observer = NoopObserver;
 
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             vision_provider: Some("nonexistent-provider-xyz".to_string()),
             ..Default::default()
         };
@@ -5106,7 +5106,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5136,7 +5136,7 @@ mod tests {
         let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
         let observer = NoopObserver;
 
-        let multimodal = zeroclaw_config::schema::MultimodalConfig {
+        let multimodal = brai_config::schema::MultimodalConfig {
             vision_provider: Some("nonexistent-provider-xyz".to_string()),
             vision_model: Some("llava:7b".to_string()),
             ..Default::default()
@@ -5163,7 +5163,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5206,7 +5206,7 @@ mod tests {
                 tool_call_id: None,
             },
         ];
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig::default();
+        let approval_cfg = brai_config::schema::AutonomyConfig::default();
         let approval_mgr = ApprovalManager::from_config(&approval_cfg);
 
         assert!(!should_execute_tools_in_parallel(
@@ -5229,9 +5229,9 @@ mod tests {
                 tool_call_id: None,
             },
         ];
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig {
+        let approval_cfg = brai_config::schema::AutonomyConfig {
             level: crate::security::AutonomyLevel::Full,
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let approval_mgr = ApprovalManager::from_config(&approval_cfg);
 
@@ -5270,9 +5270,9 @@ mod tests {
             )),
         ];
 
-        let approval_cfg = zeroclaw_config::schema::AutonomyConfig {
+        let approval_cfg = brai_config::schema::AutonomyConfig {
             level: crate::security::AutonomyLevel::Full,
-            ..zeroclaw_config::schema::AutonomyConfig::default()
+            ..brai_config::schema::AutonomyConfig::default()
         };
         let approval_mgr = ApprovalManager::from_config(&approval_cfg);
 
@@ -5294,7 +5294,7 @@ mod tests {
             Some(&approval_mgr),
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5303,7 +5303,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5374,7 +5374,7 @@ mod tests {
             None,
             "telegram",
             Some("chat-42"),
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5383,7 +5383,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5446,7 +5446,7 @@ mod tests {
             None,
             "telegram",
             Some("chat-42"),
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5455,7 +5455,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5513,7 +5513,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5522,7 +5522,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5578,7 +5578,7 @@ mod tests {
         ];
         let observer = NoopObserver;
         let approval_mgr = ApprovalManager::for_non_interactive(
-            &zeroclaw_config::schema::AutonomyConfig::default(),
+            &brai_config::schema::AutonomyConfig::default(),
         );
 
         let result = run_tool_call_loop(
@@ -5593,7 +5593,7 @@ mod tests {
             Some(&approval_mgr),
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5602,7 +5602,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5663,7 +5663,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5672,7 +5672,7 @@ mod tests {
             &exempt,
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5753,7 +5753,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5762,7 +5762,7 @@ mod tests {
             &exempt,
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5817,7 +5817,7 @@ mod tests {
             None,
             "cli",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             None,
@@ -5826,7 +5826,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5909,7 +5909,7 @@ mod tests {
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             Some(tx),
@@ -5918,7 +5918,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -5977,7 +5977,7 @@ mod tests {
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             Some(tx),
@@ -5986,7 +5986,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -6048,7 +6048,7 @@ mod tests {
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             5,
             None,
             Some(tx),
@@ -6057,7 +6057,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -6127,7 +6127,7 @@ mod tests {
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             5,
             None,
             Some(tx),
@@ -6136,7 +6136,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -6214,7 +6214,7 @@ mod tests {
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             Some(tx),
@@ -6223,7 +6223,7 @@ mod tests {
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -6306,7 +6306,7 @@ mod tests {
                 true,
                 "daemon",
                 None,
-                &zeroclaw_config::schema::MultimodalConfig::default(),
+                &brai_config::schema::MultimodalConfig::default(),
                 4,
                 None,
                 &[],
@@ -6364,7 +6364,7 @@ mod tests {
     fn build_tool_instructions_includes_all_tools() {
         use crate::security::SecurityPolicy;
         let security = Arc::new(SecurityPolicy::from_config(
-            &zeroclaw_config::schema::AutonomyConfig::default(),
+            &brai_config::schema::AutonomyConfig::default(),
             std::path::Path::new("/tmp"),
         ));
         let tools = tools::default_tools(security);
@@ -6389,7 +6389,7 @@ mod tests {
     fn tools_to_openai_format_produces_valid_schema() {
         use crate::security::SecurityPolicy;
         let security = Arc::new(SecurityPolicy::from_config(
-            &zeroclaw_config::schema::AutonomyConfig::default(),
+            &brai_config::schema::AutonomyConfig::default(),
             std::path::Path::new("/tmp"),
         ));
         let tools = tools::default_tools(security);
@@ -6989,7 +6989,7 @@ Let me check the result."#;
             None, // no identity config
             None, // no bootstrap_max_chars
             true, // native_tools
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             crate::security::AutonomyLevel::default(),
         );
 
@@ -7040,7 +7040,7 @@ Let me check the result."#;
             None,
             None,
             false,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            brai_config::schema::SkillsPromptInjectionMode::Full,
             crate::security::AutonomyLevel::default(),
         );
 
@@ -7313,7 +7313,7 @@ Let me check the result."#;
                 _options: StreamOptions,
             ) -> futures_util::stream::BoxStream<
                 'static,
-                zeroclaw_providers::traits::StreamResult<StreamEvent>,
+                brai_providers::traits::StreamResult<StreamEvent>,
             > {
                 Box::pin(futures_util::stream::iter(vec![
                     Ok(StreamEvent::TextDelta(StreamChunk::reasoning("Step 1: "))),
@@ -7399,7 +7399,7 @@ Let me check the result."#;
 
     #[test]
     fn filter_tool_specs_always_group_includes_matching_mcp_tool() {
-        use zeroclaw_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
+        use brai_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
 
         let specs = vec![
             make_spec("shell_exec"),
@@ -7422,7 +7422,7 @@ Let me check the result."#;
 
     #[test]
     fn filter_tool_specs_dynamic_group_included_on_keyword_match() {
-        use zeroclaw_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
+        use brai_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
 
         let specs = vec![make_spec("shell_exec"), make_spec("mcp_browser_navigate")];
         let groups = vec![ToolFilterGroup {
@@ -7439,7 +7439,7 @@ Let me check the result."#;
 
     #[test]
     fn filter_tool_specs_dynamic_group_excluded_on_no_keyword_match() {
-        use zeroclaw_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
+        use brai_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
 
         let specs = vec![make_spec("shell_exec"), make_spec("mcp_browser_navigate")];
         let groups = vec![ToolFilterGroup {
@@ -7456,7 +7456,7 @@ Let me check the result."#;
 
     #[test]
     fn filter_tool_specs_dynamic_keyword_match_is_case_insensitive() {
-        use zeroclaw_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
+        use brai_config::schema::{ToolFilterGroup, ToolFilterGroupMode};
 
         let specs = vec![make_spec("mcp_browser_navigate")];
         let groups = vec![ToolFilterGroup {
@@ -7529,7 +7529,7 @@ Let me check the result."#;
             None,
             "telegram",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             4,
             None,
             Some(tx),
@@ -7538,7 +7538,7 @@ Let me check the result."#;
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,
@@ -7641,13 +7641,13 @@ Let me check the result."#;
         use crate::cost::CostTracker;
         use crate::observability::noop::NoopObserver;
         use std::collections::HashMap;
-        use zeroclaw_config::schema::ModelPricing;
+        use brai_config::schema::ModelPricing;
 
         let provider = ScriptedProvider {
             responses: Arc::new(Mutex::new(VecDeque::from([ChatResponse {
                 text: Some("done".to_string()),
                 tool_calls: Vec::new(),
-                usage: Some(zeroclaw_providers::traits::TokenUsage {
+                usage: Some(brai_providers::traits::TokenUsage {
                     input_tokens: Some(1_000),
                     output_tokens: Some(200),
                     cached_input_tokens: None,
@@ -7658,9 +7658,9 @@ Let me check the result."#;
         };
         let observer = NoopObserver;
         let workspace = tempfile::TempDir::new().unwrap();
-        let mut cost_config = zeroclaw_config::schema::CostConfig {
+        let mut cost_config = brai_config::schema::CostConfig {
             enabled: true,
-            ..zeroclaw_config::schema::CostConfig::default()
+            ..brai_config::schema::CostConfig::default()
         };
         cost_config.prices = HashMap::from([(
             "mock-model".to_string(),
@@ -7691,7 +7691,7 @@ Let me check the result."#;
                     None,
                     "test",
                     None,
-                    &zeroclaw_config::schema::MultimodalConfig::default(),
+                    &brai_config::schema::MultimodalConfig::default(),
                     2,
                     None,
                     None,
@@ -7700,7 +7700,7 @@ Let me check the result."#;
                     &[],
                     None,
                     None,
-                    &zeroclaw_config::schema::PacingConfig::default(),
+                    &brai_config::schema::PacingConfig::default(),
                     0,
                     0,
                     None,
@@ -7730,15 +7730,15 @@ Let me check the result."#;
         use crate::cost::CostTracker;
         use crate::observability::noop::NoopObserver;
         use std::collections::HashMap;
-        use zeroclaw_config::schema::ModelPricing;
+        use brai_config::schema::ModelPricing;
 
         let provider = ScriptedProvider::from_text_responses(vec!["should not reach this"]);
         let observer = NoopObserver;
         let workspace = tempfile::TempDir::new().unwrap();
-        let cost_config = zeroclaw_config::schema::CostConfig {
+        let cost_config = brai_config::schema::CostConfig {
             enabled: true,
             daily_limit_usd: 0.001, // very low limit
-            ..zeroclaw_config::schema::CostConfig::default()
+            ..brai_config::schema::CostConfig::default()
         };
         let tracker = Arc::new(CostTracker::new(cost_config.clone(), workspace.path()).unwrap());
         // Record a usage that already exceeds the limit
@@ -7779,7 +7779,7 @@ Let me check the result."#;
                     None,
                     "test",
                     None,
-                    &zeroclaw_config::schema::MultimodalConfig::default(),
+                    &brai_config::schema::MultimodalConfig::default(),
                     2,
                     None,
                     None,
@@ -7788,7 +7788,7 @@ Let me check the result."#;
                     &[],
                     None,
                     None,
-                    &zeroclaw_config::schema::PacingConfig::default(),
+                    &brai_config::schema::PacingConfig::default(),
                     0,
                     0,
                     None,
@@ -7816,7 +7816,7 @@ Let me check the result."#;
             responses: Arc::new(Mutex::new(VecDeque::from([ChatResponse {
                 text: Some("ok".to_string()),
                 tool_calls: Vec::new(),
-                usage: Some(zeroclaw_providers::traits::TokenUsage {
+                usage: Some(brai_providers::traits::TokenUsage {
                     input_tokens: Some(500),
                     output_tokens: Some(100),
                     cached_input_tokens: None,
@@ -7840,7 +7840,7 @@ Let me check the result."#;
             None,
             "test",
             None,
-            &zeroclaw_config::schema::MultimodalConfig::default(),
+            &brai_config::schema::MultimodalConfig::default(),
             2,
             None,
             None,
@@ -7849,7 +7849,7 @@ Let me check the result."#;
             &[],
             None,
             None,
-            &zeroclaw_config::schema::PacingConfig::default(),
+            &brai_config::schema::PacingConfig::default(),
             0,
             0,
             None,

@@ -698,7 +698,7 @@ fn zai_base_url(name: &str) -> Option<&'static str> {
 pub struct ProviderRuntimeOptions {
     pub auth_profile_override: Option<String>,
     pub provider_api_url: Option<String>,
-    pub zeroclaw_dir: Option<PathBuf>,
+    pub brai_dir: Option<PathBuf>,
     pub secrets_encrypt: bool,
     pub reasoning_enabled: Option<bool>,
     pub reasoning_effort: Option<String>,
@@ -706,7 +706,7 @@ pub struct ProviderRuntimeOptions {
     /// `None` uses the provider's built-in default (120s for compatible providers).
     pub provider_timeout_secs: Option<u64>,
     /// Extra HTTP headers to include in provider API requests.
-    /// These are merged from the config file and `ZEROCLAW_EXTRA_HEADERS` env var.
+    /// These are merged from the config file and `BRAI_EXTRA_HEADERS` env var.
     pub extra_headers: std::collections::HashMap<String, String>,
     /// Custom API path suffix for OpenAI-compatible providers
     /// (e.g. "/v2/generate" instead of the default "/chat/completions").
@@ -760,7 +760,7 @@ impl Default for ProviderRuntimeOptions {
         Self {
             auth_profile_override: None,
             provider_api_url: None,
-            zeroclaw_dir: None,
+            brai_dir: None,
             secrets_encrypt: true,
             reasoning_enabled: None,
             reasoning_effort: None,
@@ -782,7 +782,7 @@ impl Default for ProviderRuntimeOptions {
 }
 
 pub fn provider_runtime_options_from_config(
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
 ) -> ProviderRuntimeOptions {
     let fallback = config.providers.fallback_provider();
     // Resolve merge_system_into_user from the active model provider profile by
@@ -808,7 +808,7 @@ pub fn provider_runtime_options_from_config(
     ProviderRuntimeOptions {
         auth_profile_override: None,
         provider_api_url: fallback.and_then(|e| e.base_url.clone()),
-        zeroclaw_dir: config.config_path.parent().map(PathBuf::from),
+        brai_dir: config.config_path.parent().map(PathBuf::from),
         secrets_encrypt: config.secrets.encrypt,
         reasoning_enabled: config.runtime.reasoning_enabled,
         reasoning_effort: config.runtime.reasoning_effort.clone(),
@@ -916,7 +916,7 @@ pub async fn api_error(provider: &str, response: reqwest::Response) -> anyhow::E
 /// Resolution order:
 /// 1. Explicitly provided `api_key` parameter (trimmed, filtered if empty)
 /// 2. Provider-specific environment variable (e.g., `ANTHROPIC_OAUTH_TOKEN`, `OPENROUTER_API_KEY`)
-/// 3. Generic fallback variables (`ZEROCLAW_API_KEY`, `API_KEY`)
+/// 3. Generic fallback variables (`BRAI_API_KEY`, `API_KEY`)
 ///
 /// For Anthropic, the provider-specific env var is `ANTHROPIC_OAUTH_TOKEN` (for setup-tokens)
 /// followed by `ANTHROPIC_API_KEY` (for regular API keys).
@@ -1045,7 +1045,7 @@ fn resolve_provider_credential(name: &str, credential_override: Option<&str>) ->
         return None;
     }
 
-    for env_var in ["ZEROCLAW_API_KEY", "API_KEY"] {
+    for env_var in ["BRAI_API_KEY", "API_KEY"] {
         if let Ok(value) = std::env::var(env_var) {
             let value = value.trim();
             if !value.is_empty() {
@@ -1144,8 +1144,8 @@ pub fn create_provider(name: &str, api_key: Option<&str>) -> anyhow::Result<Box<
 /// Returns `ModelProviderConfig::default()` (all `None`) for unknown
 /// providers — the form just opens blank, callers don't have to special
 /// case.
-pub fn default_provider_config(name: &str) -> zeroclaw_config::schema::ModelProviderConfig {
-    use zeroclaw_config::schema::ModelProviderConfig;
+pub fn default_provider_config(name: &str) -> brai_config::schema::ModelProviderConfig {
+    use brai_config::schema::ModelProviderConfig;
     let Ok(handle) = create_provider(name, None) else {
         return ModelProviderConfig::default();
     };
@@ -1288,7 +1288,7 @@ fn create_provider_with_url_and_options(
         }
         // Ollama uses api_url for custom base URL (e.g. remote Ollama instance)
         "ollama" => {
-            let env_url = std::env::var("ZEROCLAW_PROVIDER_URL").ok();
+            let env_url = std::env::var("BRAI_PROVIDER_URL").ok();
 
             let api_url = env_url.as_deref().or(api_url);
 
@@ -1304,10 +1304,10 @@ fn create_provider_with_url_and_options(
             ))
         }
         "gemini" | "google" | "google-gemini" => {
-            let state_dir = options.zeroclaw_dir.clone().unwrap_or_else(|| {
+            let state_dir = options.brai_dir.clone().unwrap_or_else(|| {
                 directories::UserDirs::new().map_or_else(
-                    || PathBuf::from(".zeroclaw"),
-                    |dirs| dirs.home_dir().join(".zeroclaw"),
+                    || PathBuf::from(".brai"),
+                    |dirs| dirs.home_dir().join(".brai"),
                 )
             });
             let auth_service = AuthService::new(&state_dir, options.secrets_encrypt);
@@ -1870,7 +1870,7 @@ pub fn create_resilient_provider(
     primary_name: &str,
     api_key: Option<&str>,
     api_url: Option<&str>,
-    reliability: &zeroclaw_config::schema::ReliabilityConfig,
+    reliability: &brai_config::schema::ReliabilityConfig,
 ) -> anyhow::Result<Box<dyn Provider>> {
     create_resilient_provider_with_options(
         primary_name,
@@ -1886,7 +1886,7 @@ pub fn create_resilient_provider_with_options(
     primary_name: &str,
     api_key: Option<&str>,
     api_url: Option<&str>,
-    reliability: &zeroclaw_config::schema::ReliabilityConfig,
+    reliability: &brai_config::schema::ReliabilityConfig,
     options: &ProviderRuntimeOptions,
 ) -> anyhow::Result<Box<dyn Provider>> {
     let mut providers: Vec<(String, Box<dyn Provider>)> = Vec::new();
@@ -1953,8 +1953,8 @@ pub fn create_routed_provider(
     primary_name: &str,
     api_key: Option<&str>,
     api_url: Option<&str>,
-    reliability: &zeroclaw_config::schema::ReliabilityConfig,
-    model_routes: &[zeroclaw_config::schema::ModelRouteConfig],
+    reliability: &brai_config::schema::ReliabilityConfig,
+    model_routes: &[brai_config::schema::ModelRouteConfig],
     default_model: &str,
 ) -> anyhow::Result<Box<dyn Provider>> {
     create_routed_provider_with_options(
@@ -1973,8 +1973,8 @@ pub fn create_routed_provider_with_options(
     primary_name: &str,
     api_key: Option<&str>,
     api_url: Option<&str>,
-    reliability: &zeroclaw_config::schema::ReliabilityConfig,
-    model_routes: &[zeroclaw_config::schema::ModelRouteConfig],
+    reliability: &brai_config::schema::ReliabilityConfig,
+    model_routes: &[brai_config::schema::ModelRouteConfig],
     default_model: &str,
     options: &ProviderRuntimeOptions,
 ) -> anyhow::Result<Box<dyn Provider>> {
@@ -3070,7 +3070,7 @@ mod tests {
         let _env_lock = env_lock();
         let _provider_guard = EnvGuard::set("OPENCODE_GO_API_KEY", Some("go-test-key"));
         let _generic_guard = EnvGuard::set("API_KEY", None);
-        let _zeroclaw_guard = EnvGuard::set("ZEROCLAW_API_KEY", None);
+        let _brai_guard = EnvGuard::set("BRAI_API_KEY", None);
 
         let resolved = resolve_provider_credential("opencode-go", None);
         assert_eq!(resolved.as_deref(), Some("go-test-key"));
@@ -3338,8 +3338,8 @@ mod tests {
         // The end-to-end path the operator uses: setting `native_tools` on
         // the active provider profile must reach `ProviderRuntimeOptions`
         // so the Groq factory branch sees it (#5932).
-        let mut config = zeroclaw_config::schema::Config::default();
-        let mut groq = zeroclaw_config::schema::ModelProviderConfig {
+        let mut config = brai_config::schema::Config::default();
+        let mut groq = brai_config::schema::ModelProviderConfig {
             native_tools: Some(true),
             ..Default::default()
         };
@@ -3590,7 +3590,7 @@ mod tests {
 
     #[test]
     fn resilient_provider_ignores_duplicate_and_invalid_fallbacks() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec![
@@ -3618,7 +3618,7 @@ mod tests {
 
     #[test]
     fn resilient_provider_errors_for_invalid_primary() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig::default();
+        let reliability = brai_config::schema::ReliabilityConfig::default();
         let provider = create_resilient_provider(
             "totally-invalid",
             Some("provider-test-credential"),
@@ -3634,7 +3634,7 @@ mod tests {
     /// successfully even when the primary uses a completely different key.
     #[test]
     fn resilient_fallback_resolves_own_credential() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec!["lmstudio".into(), "ollama".into()],
@@ -3656,7 +3656,7 @@ mod tests {
     /// OpenAI-compatible endpoints (e.g. local LM Studio on a Docker host).
     #[test]
     fn resilient_fallback_supports_custom_url() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec!["custom:http://host.docker.internal:1234/v1".into()],
@@ -3677,7 +3677,7 @@ mod tests {
     /// all coexist.  Invalid entries are silently ignored; valid ones initialize.
     #[test]
     fn resilient_fallback_mixed_chain() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec![
@@ -3714,7 +3714,7 @@ mod tests {
     /// Osaurus works as a fallback provider alongside other named providers.
     #[test]
     fn resilient_fallback_includes_osaurus() {
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec!["osaurus".into(), "lmstudio".into()],
@@ -4012,7 +4012,7 @@ mod tests {
     fn resilient_fallback_with_profile_syntax() {
         let _guard = env_lock();
 
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec!["openai-codex:second".into()],
@@ -4036,7 +4036,7 @@ mod tests {
     fn resilient_fallback_mixed_profiles_and_custom() {
         let _guard = env_lock();
 
-        let reliability = zeroclaw_config::schema::ReliabilityConfig {
+        let reliability = brai_config::schema::ReliabilityConfig {
             provider_retries: 1,
             provider_backoff_ms: 100,
             fallback_providers: vec![
@@ -4123,7 +4123,7 @@ mod tests {
     #[test]
     fn env_provider_url_overrides_api_url() {
         // SAFETY: test-only, single-threaded test runner.
-        unsafe { std::env::set_var("ZEROCLAW_PROVIDER_URL", "http://env-ollama:11434") };
+        unsafe { std::env::set_var("BRAI_PROVIDER_URL", "http://env-ollama:11434") };
 
         let options = ProviderRuntimeOptions::default();
 
@@ -4137,7 +4137,7 @@ mod tests {
         assert!(provider.is_ok());
 
         // SAFETY: test-only, single-threaded test runner.
-        unsafe { std::env::remove_var("ZEROCLAW_PROVIDER_URL") };
+        unsafe { std::env::remove_var("BRAI_PROVIDER_URL") };
     }
 
     #[test]

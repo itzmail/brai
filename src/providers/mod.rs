@@ -1,6 +1,6 @@
 //! Provider subsystem — re-exported from `zeroclaw-providers`.
 
-pub use zeroclaw_providers::*;
+pub use brai_providers::*;
 
 // Keep traits.rs as a file module so its #[cfg(test)] block compiles.
 #[path = "traits.rs"]

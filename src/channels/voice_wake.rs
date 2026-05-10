@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::voice_wake::*;
+pub use brai_channels::voice_wake::*;

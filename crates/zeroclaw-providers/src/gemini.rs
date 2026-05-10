@@ -844,7 +844,7 @@ impl GeminiProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.gemini",
             120,
             10,
@@ -1201,8 +1201,8 @@ impl Provider for GeminiProvider {
         Some(BASE_URL)
     }
 
-    fn capabilities(&self) -> zeroclaw_api::provider::ProviderCapabilities {
-        zeroclaw_api::provider::ProviderCapabilities {
+    fn capabilities(&self) -> brai_api::provider::ProviderCapabilities {
+        brai_api::provider::ProviderCapabilities {
             vision: true,
             native_tool_calling: false,
             prompt_caching: false,

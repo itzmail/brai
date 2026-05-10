@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::gmail_push::*;
+pub use brai_channels::gmail_push::*;

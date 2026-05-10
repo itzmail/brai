@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::email_channel::*;
+pub use brai_channels::email_channel::*;

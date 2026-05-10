@@ -5,7 +5,7 @@ use super::traits::{
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use std::collections::HashMap;
-use zeroclaw_config::schema::ModelPricing;
+use brai_config::schema::ModelPricing;
 
 /// A single route: maps a task hint to a provider + model combo.
 #[derive(Debug, Clone)]
@@ -321,7 +321,7 @@ mod tests {
     use futures_util::StreamExt;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use zeroclaw_api::tool::ToolSpec;
+    use brai_api::tool::ToolSpec;
 
     struct MockProvider {
         calls: Arc<AtomicUsize>,

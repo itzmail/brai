@@ -12,7 +12,7 @@ use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio_rustls::TlsAcceptor;
-use zeroclaw_config::schema::{GatewayClientAuthConfig, GatewayTlsConfig};
+use brai_config::schema::{GatewayClientAuthConfig, GatewayTlsConfig};
 
 /// Build a [`TlsAcceptor`] from the gateway TLS configuration.
 pub fn build_tls_acceptor(config: &GatewayTlsConfig) -> Result<TlsAcceptor> {

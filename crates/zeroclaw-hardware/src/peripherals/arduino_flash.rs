@@ -94,7 +94,7 @@ pub fn flash_arduino_firmware(port: &str) -> Result<()> {
     ensure_arduino_cli()?;
     ensure_avr_core()?;
 
-    let temp_dir = std::env::temp_dir().join(format!("zeroclaw_flash_{}", uuid::Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("brai_flash_{}", uuid::Uuid::new_v4()));
     let sketch_dir = temp_dir.join(SKETCH_NAME);
     let ino_path = sketch_dir.join(format!("{}.ino", SKETCH_NAME));
 
@@ -140,7 +140,7 @@ pub fn flash_arduino_firmware(port: &str) -> Result<()> {
 
 /// Resolve port from config or path. Returns the path to use for flashing.
 pub fn resolve_port(
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
     path_override: Option<&str>,
 ) -> Option<String> {
     if let Some(p) = path_override {

@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::link_enricher::*;
+pub use brai_channels::link_enricher::*;

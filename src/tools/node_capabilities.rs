@@ -1,1 +1,1 @@
-pub use zeroclaw_tools::node_capabilities::*;
+pub use brai_tools::node_capabilities::*;

@@ -377,7 +377,7 @@ impl OpenAiCompatibleProvider {
                 .timeout(std::time::Duration::from_secs(timeout))
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .default_headers(headers);
-            let builder = zeroclaw_config::schema::apply_runtime_proxy_to_builder(
+            let builder = brai_config::schema::apply_runtime_proxy_to_builder(
                 builder,
                 "provider.compatible",
             );
@@ -390,7 +390,7 @@ impl OpenAiCompatibleProvider {
             });
         }
 
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.compatible",
             timeout,
             10,
@@ -428,7 +428,7 @@ impl OpenAiCompatibleProvider {
             let builder = Client::builder()
                 .connect_timeout(std::time::Duration::from_secs(10))
                 .default_headers(headers);
-            let builder = zeroclaw_config::schema::apply_runtime_proxy_to_builder(
+            let builder = brai_config::schema::apply_runtime_proxy_to_builder(
                 builder,
                 "provider.compatible",
             );
@@ -442,7 +442,7 @@ impl OpenAiCompatibleProvider {
 
         let builder = Client::builder().connect_timeout(std::time::Duration::from_secs(10));
         let builder =
-            zeroclaw_config::schema::apply_runtime_proxy_to_builder(builder, "provider.compatible");
+            brai_config::schema::apply_runtime_proxy_to_builder(builder, "provider.compatible");
         builder.build().unwrap_or_else(|error| {
             tracing::warn!("Failed to build proxied streaming client: {error}");
             Client::new()
@@ -497,13 +497,13 @@ impl OpenAiCompatibleProvider {
 
     #[allow(dead_code)]
     fn tool_specs_to_openai_format(
-        tools: &[zeroclaw_api::tool::ToolSpec],
+        tools: &[brai_api::tool::ToolSpec],
     ) -> Vec<serde_json::Value> {
         tools
             .iter()
             .map(|tool| {
                 let params =
-                    zeroclaw_api::schema::SchemaCleanr::clean_for_openai(tool.parameters.clone());
+                    brai_api::schema::SchemaCleanr::clean_for_openai(tool.parameters.clone());
                 serde_json::json!({
                     "type": "function",
                     "function": {
@@ -714,7 +714,7 @@ struct ToolCall {
     )]
     parameters: Option<serde_json::Value>,
 
-    /// See [`zeroclaw_api::ToolCall::extra_content`].
+    /// See [`brai_api::ToolCall::extra_content`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     extra_content: Option<serde_json::Value>,
 }
@@ -1323,7 +1323,7 @@ fn sse_bytes_to_events_for_contract(
                         }
 
                         if let Some(usage) = chunk.usage.as_ref() {
-                            let token_usage = zeroclaw_api::provider::TokenUsage {
+                            let token_usage = brai_api::provider::TokenUsage {
                                 input_tokens: usage.prompt_tokens,
                                 output_tokens: usage.completion_tokens,
                                 cached_input_tokens: None,
@@ -1396,13 +1396,13 @@ impl OpenAiCompatibleProvider {
     }
 
     fn convert_tool_specs(
-        tools: Option<&[zeroclaw_api::tool::ToolSpec]>,
+        tools: Option<&[brai_api::tool::ToolSpec]>,
     ) -> Option<Vec<serde_json::Value>> {
         tools.map(|items| {
             items
                 .iter()
                 .map(|tool| {
-                    let params = zeroclaw_api::schema::SchemaCleanr::clean_for_openai(
+                    let params = brai_api::schema::SchemaCleanr::clean_for_openai(
                         tool.parameters.clone(),
                     );
                     serde_json::json!({
@@ -1625,7 +1625,7 @@ impl OpenAiCompatibleProvider {
 
     fn with_prompt_guided_tool_instructions(
         messages: &[ChatMessage],
-        tools: Option<&[zeroclaw_api::tool::ToolSpec]>,
+        tools: Option<&[brai_api::tool::ToolSpec]>,
     ) -> Vec<ChatMessage> {
         let Some(tools) = tools else {
             return messages.to_vec();
@@ -1635,7 +1635,7 @@ impl OpenAiCompatibleProvider {
             return messages.to_vec();
         }
 
-        let instructions = zeroclaw_api::provider::build_tool_instructions_text(tools);
+        let instructions = brai_api::provider::build_tool_instructions_text(tools);
         let mut modified_messages = messages.to_vec();
 
         if let Some(system_message) = modified_messages.iter_mut().find(|m| m.role == "system") {
@@ -1738,8 +1738,8 @@ impl OpenAiCompatibleProvider {
 
 #[async_trait]
 impl Provider for OpenAiCompatibleProvider {
-    fn capabilities(&self) -> zeroclaw_api::provider::ProviderCapabilities {
-        zeroclaw_api::provider::ProviderCapabilities {
+    fn capabilities(&self) -> brai_api::provider::ProviderCapabilities {
+        brai_api::provider::ProviderCapabilities {
             native_tool_calling: self.native_tool_calling,
             vision: self.supports_vision,
             prompt_caching: false,
@@ -3269,7 +3269,7 @@ mod tests {
     #[test]
     fn prompt_guided_tool_fallback_injects_system_instruction() {
         let input = vec![ChatMessage::user("check status")];
-        let tools = vec![zeroclaw_api::tool::ToolSpec {
+        let tools = vec![brai_api::tool::ToolSpec {
             name: "shell_exec".to_string(),
             description: "Execute shell command".to_string(),
             parameters: serde_json::json!({
@@ -3578,7 +3578,7 @@ mod tests {
 
     #[test]
     fn tool_specs_convert_to_openai_format() {
-        let specs = vec![zeroclaw_api::tool::ToolSpec {
+        let specs = vec![brai_api::tool::ToolSpec {
             name: "shell".to_string(),
             description: "Run shell command".to_string(),
             parameters: serde_json::json!({

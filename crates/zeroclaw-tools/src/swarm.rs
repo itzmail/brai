@@ -3,11 +3,11 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::provider::Provider;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
-use zeroclaw_config::schema::{DelegateAgentConfig, SwarmConfig, SwarmStrategy};
+use brai_api::provider::Provider;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
+use brai_config::schema::{DelegateAgentConfig, SwarmConfig, SwarmStrategy};
 
 /// Default timeout for individual agent calls within a swarm.
 const SWARM_AGENT_TIMEOUT_SECS: u64 = 120;
@@ -19,7 +19,7 @@ pub struct SwarmTool {
     agents: Arc<HashMap<String, DelegateAgentConfig>>,
     security: Arc<SecurityPolicy>,
     fallback_credential: Option<String>,
-    provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+    provider_runtime_options: brai_providers::ProviderRuntimeOptions,
 }
 
 impl SwarmTool {
@@ -28,7 +28,7 @@ impl SwarmTool {
         agents: HashMap<String, DelegateAgentConfig>,
         fallback_credential: Option<String>,
         security: Arc<SecurityPolicy>,
-        provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+        provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     ) -> Self {
         Self {
             swarms: Arc::new(swarms),
@@ -49,7 +49,7 @@ impl SwarmTool {
             .clone()
             .or_else(|| self.fallback_credential.clone());
 
-        zeroclaw_providers::create_provider_with_options(
+        brai_providers::create_provider_with_options(
             &agent_config.provider,
             credential.as_deref(),
             &self.provider_runtime_options,
@@ -197,7 +197,7 @@ impl SwarmTool {
                 .clone()
                 .or_else(|| self.fallback_credential.clone());
 
-            let provider = match zeroclaw_providers::create_provider_with_options(
+            let provider = match brai_providers::create_provider_with_options(
                 &agent_config.provider,
                 credential.as_deref(),
                 &self.provider_runtime_options,
@@ -547,8 +547,8 @@ impl Tool for SwarmTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy::default())
@@ -637,7 +637,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         assert_eq!(tool.name(), "swarm");
         let schema = tool.parameters_schema();
@@ -657,7 +657,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         assert!(!tool.description().is_empty());
     }
@@ -669,7 +669,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let schema = tool.parameters_schema();
         let desc = schema["properties"]["swarm"]["description"]
@@ -685,7 +685,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let schema = tool.parameters_schema();
         let desc = schema["properties"]["swarm"]["description"]
@@ -701,7 +701,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "nonexistent", "prompt": "test"}))
@@ -718,7 +718,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool.execute(json!({"prompt": "test"})).await;
         assert!(result.is_err());
@@ -731,7 +731,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool.execute(json!({"swarm": "pipeline"})).await;
         assert!(result.is_err());
@@ -744,7 +744,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "  ", "prompt": "test"}))
@@ -761,7 +761,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "pipeline", "prompt": "  "}))
@@ -789,7 +789,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "broken", "prompt": "test"}))
@@ -817,7 +817,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "empty", "prompt": "test"}))
@@ -838,7 +838,7 @@ mod tests {
             sample_agents(),
             None,
             readonly,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "pipeline", "prompt": "test"}))
@@ -865,7 +865,7 @@ mod tests {
             sample_agents(),
             None,
             limited,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "pipeline", "prompt": "test"}))
@@ -900,7 +900,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "seq", "prompt": "test"}))
@@ -928,7 +928,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "par", "prompt": "test"}))
@@ -956,7 +956,7 @@ mod tests {
             sample_agents(),
             None,
             test_security(),
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
         let result = tool
             .execute(json!({"swarm": "rout", "prompt": "test"}))

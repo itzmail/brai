@@ -14,7 +14,7 @@
 //! Issue #6175.
 
 use anyhow::Result;
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 /// Exclude list for `[providers.models.<name>]` field walks.
 ///
@@ -116,7 +116,7 @@ pub fn providers_models_key(prefix: &str) -> Option<&str> {
 }
 
 /// Walk a freshly-constructed defaults struct (from
-/// `zeroclaw_providers::default_provider_config`, etc.) and copy its
+/// `brai_providers::default_provider_config`, etc.) and copy its
 /// populated values into `cfg` under `target_prefix`, but only for paths
 /// the user hasn't already set.
 ///
@@ -161,12 +161,12 @@ where
 /// `prop_fields()`. Lets `apply_typed_defaults` accept any source struct
 /// without naming concrete types.
 trait PropFieldSource {
-    fn prop_fields(&self) -> Vec<zeroclaw_config::traits::PropFieldInfo>;
+    fn prop_fields(&self) -> Vec<brai_config::traits::PropFieldInfo>;
 }
 
-impl PropFieldSource for zeroclaw_config::schema::ModelProviderConfig {
-    fn prop_fields(&self) -> Vec<zeroclaw_config::traits::PropFieldInfo> {
-        zeroclaw_config::schema::ModelProviderConfig::prop_fields(self)
+impl PropFieldSource for brai_config::schema::ModelProviderConfig {
+    fn prop_fields(&self) -> Vec<brai_config::traits::PropFieldInfo> {
+        brai_config::schema::ModelProviderConfig::prop_fields(self)
     }
 }
 
@@ -174,14 +174,14 @@ impl PropFieldSource for zeroclaw_config::schema::ModelProviderConfig {
 /// provider's trait-derived defaults. Idempotent: existing user-set
 /// values aren't touched.
 ///
-/// Source of truth is `zeroclaw_providers::default_provider_config(name)`
+/// Source of truth is `brai_providers::default_provider_config(name)`
 /// — a typed `ModelProviderConfig`. We walk its `prop_fields()` and
 /// rebase each leaf onto `prefix` so e.g. the source's
 /// `providers.models.base-url` becomes the target's
 /// `providers.models.<key>.base-url`.
 pub fn apply_provider_trait_defaults(cfg: &mut Config, provider: &str, prefix: &str) -> Result<()> {
-    let defaults = zeroclaw_providers::default_provider_config(provider);
-    let source_prefix = zeroclaw_config::schema::ModelProviderConfig::configurable_prefix();
+    let defaults = brai_providers::default_provider_config(provider);
+    let source_prefix = brai_config::schema::ModelProviderConfig::configurable_prefix();
     apply_typed_defaults(cfg, &defaults, source_prefix, prefix);
     Ok(())
 }

@@ -7,7 +7,7 @@ use serde_json::json;
 use tracing::warn;
 
 use super::types::{SopRun, SopRunStatus, SopStepStatus};
-use zeroclaw_memory::traits::{Memory, MemoryCategory};
+use brai_memory::traits::{Memory, MemoryCategory};
 
 /// Maximum recent runs kept in each ring buffer (global + per-SOP).
 /// Covers ~90-day window at ~11 runs/day. If throughput exceeds this,
@@ -1121,13 +1121,13 @@ mod tests {
 
     #[tokio::test]
     async fn warm_start_roundtrip() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: std::sync::Arc<dyn Memory> = std::sync::Arc::from(
-            zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
+            brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
         );
 
         let audit = crate::sop::SopAuditLogger::new(memory.clone());
@@ -1165,13 +1165,13 @@ mod tests {
 
     #[tokio::test]
     async fn warm_start_skips_running_runs() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: std::sync::Arc<dyn Memory> = std::sync::Arc::from(
-            zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
+            brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
         );
 
         let audit = crate::sop::SopAuditLogger::new(memory.clone());
@@ -1202,13 +1202,13 @@ mod tests {
 
     #[tokio::test]
     async fn warm_start_empty_memory() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: std::sync::Arc<dyn Memory> = std::sync::Arc::from(
-            zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
+            brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
         );
 
         let collector = SopMetricsCollector::rebuild_from_memory(memory.as_ref())
@@ -1223,13 +1223,13 @@ mod tests {
 
     #[tokio::test]
     async fn warm_start_approval_matching() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: std::sync::Arc<dyn Memory> = std::sync::Arc::from(
-            zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
+            brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
         );
 
         let audit = crate::sop::SopAuditLogger::new(memory.clone());
@@ -1264,13 +1264,13 @@ mod tests {
 
     #[tokio::test]
     async fn warm_start_preserves_pending_for_nonterminal_runs() {
-        let mem_cfg = zeroclaw_config::schema::MemoryConfig {
+        let mem_cfg = brai_config::schema::MemoryConfig {
             backend: "sqlite".into(),
-            ..zeroclaw_config::schema::MemoryConfig::default()
+            ..brai_config::schema::MemoryConfig::default()
         };
         let tmp = tempfile::tempdir().unwrap();
         let memory: std::sync::Arc<dyn Memory> = std::sync::Arc::from(
-            zeroclaw_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
+            brai_memory::create_memory(&mem_cfg, tmp.path(), None).unwrap(),
         );
 
         let audit = crate::sop::SopAuditLogger::new(memory.clone());

@@ -13,8 +13,8 @@
 //!
 //! ## Live update semantics
 //!
-//! ZeroClaw's agent loop calls [`zeroclaw_hardware::boot`] on **every** request,
-//! which re-reads `~/.zeroclaw/hardware/` from disk.  Writing to those files
+//! ZeroClaw's agent loop calls [`brai_hardware::boot`] on **every** request,
+//! which re-reads `~/.brai/hardware/` from disk.  Writing to those files
 //! therefore takes effect on the very next `/api/chat` call — no daemon restart
 //! needed.  The `/api/hardware/reload` endpoint verifies what is on disk and
 //! reports what will be injected into the system prompt next time.
@@ -70,10 +70,10 @@ fn require_auth(
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 
-/// Return `~/.zeroclaw/hardware/` or an error string.
+/// Return `~/.brai/hardware/` or an error string.
 fn hardware_dir() -> Result<PathBuf, String> {
     directories::BaseDirs::new()
-        .map(|b| b.home_dir().join(".zeroclaw").join("hardware"))
+        .map(|b| b.home_dir().join(".brai").join("hardware"))
         .ok_or_else(|| "Cannot determine home directory".to_string())
 }
 
@@ -120,7 +120,7 @@ fn default_device() -> String {
 
 /// `POST /api/hardware/pin` — register a single GPIO pin assignment.
 ///
-/// Appends one line to `~/.zeroclaw/hardware/devices/<device>.md`:
+/// Appends one line to `~/.brai/hardware/devices/<device>.md`:
 /// ```text
 /// - GPIO <pin>: <component> — <notes>
 /// ```
@@ -380,7 +380,7 @@ pub async fn handle_hardware_context_get(
 /// `POST /api/hardware/reload` — verify on-disk hardware context and report what  
 /// will be loaded on the next chat request.
 ///
-/// Since [`zeroclaw_hardware::boot`] re-reads from disk on every agent invocation,
+/// Since [`brai_hardware::boot`] re-reads from disk on every agent invocation,
 /// writing to the hardware files via the other endpoints already takes effect on
 /// the next `/api/chat` call.  This endpoint reads the same files and reports
 /// the current state so callers can confirm the update landed.
@@ -396,7 +396,7 @@ pub async fn handle_hardware_reload(
     let tool_count = state.tools_registry.len();
 
     // Reload hardware context from disk (same function used by the agent loop)
-    let context = zeroclaw_hardware::load_hardware_context_prompt(&[]);
+    let context = brai_hardware::load_hardware_context_prompt(&[]);
     let context_length = context.len();
 
     tracing::info!(

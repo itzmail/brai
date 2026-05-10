@@ -29,8 +29,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tracing::{debug, error, warn};
 use uuid::Uuid;
-use zeroclaw_config::schema::Config;
-use zeroclaw_runtime::agent::agent::{Agent, TurnEvent};
+use brai_config::schema::Config;
+use brai_runtime::agent::agent::{Agent, TurnEvent};
 
 use crate::acp_channel::AcpChannel;
 
@@ -491,12 +491,12 @@ impl AcpServer {
             .fallback_provider()
             .and_then(|e| e.model.clone());
 
-        let mut zeroclaw_meta = serde_json::json!({
+        let mut brai_meta = serde_json::json!({
             "maxSessions": self.acp_config.max_sessions,
             "sessionTimeoutSecs": self.acp_config.session_timeout_secs,
         });
         if let Some(model) = default_model {
-            zeroclaw_meta["defaultModel"] = serde_json::json!(model);
+            brai_meta["defaultModel"] = serde_json::json!(model);
         }
 
         Ok(serde_json::json!({
@@ -521,7 +521,7 @@ impl AcpServer {
             },
             "authMethods": [],
             "_meta": {
-                "zeroclaw": zeroclaw_meta,
+                "brai": brai_meta,
             }
         }))
     }
@@ -701,7 +701,7 @@ impl AcpServer {
         // Per ACP spec: a cancelled turn must respond with stopReason "cancelled",
         // not an error. Detect via ToolLoopCancelled propagated through anyhow.
         let was_cancelled = match &turn_result {
-            Err(e) => zeroclaw_runtime::agent::loop_::is_tool_loop_cancelled(e),
+            Err(e) => brai_runtime::agent::loop_::is_tool_loop_cancelled(e),
             Ok(_) => false,
         };
 
@@ -1251,7 +1251,7 @@ mod tests {
 
     #[test]
     fn handle_initialize_default_model_reflects_configured_provider() {
-        use zeroclaw_config::schema::ModelProviderConfig;
+        use brai_config::schema::ModelProviderConfig;
         let mut config = Config::default();
         config.providers.fallback = Some("myprovider".to_string());
         config.providers.models.insert(
@@ -1297,22 +1297,22 @@ mod tests {
         let cwd = tempfile::tempdir().unwrap();
         let config = Config {
             workspace_dir: cwd.path().to_path_buf(),
-            providers: zeroclaw_config::providers::ProvidersConfig {
+            providers: brai_config::providers::ProvidersConfig {
                 fallback: Some("openrouter".to_string()),
                 models: HashMap::from([(
                     "openrouter".to_string(),
-                    zeroclaw_config::schema::ModelProviderConfig {
+                    brai_config::schema::ModelProviderConfig {
                         model: Some("test-model".to_string()),
                         ..Default::default()
                     },
                 )]),
                 ..Default::default()
             },
-            mcp: zeroclaw_config::schema::McpConfig {
+            mcp: brai_config::schema::McpConfig {
                 enabled: true,
-                servers: vec![zeroclaw_config::schema::McpServerConfig {
+                servers: vec![brai_config::schema::McpServerConfig {
                     name: "slow".to_string(),
-                    transport: zeroclaw_config::schema::McpTransport::Stdio,
+                    transport: brai_config::schema::McpTransport::Stdio,
                     command: "/bin/sh".to_string(),
                     args: vec!["-c".to_string(), "sleep 60".to_string()],
                     ..Default::default()
@@ -1582,11 +1582,11 @@ mod tests {
         let cwd = tempfile::tempdir().unwrap();
         let config = Config {
             workspace_dir: cwd.path().to_path_buf(),
-            providers: zeroclaw_config::providers::ProvidersConfig {
+            providers: brai_config::providers::ProvidersConfig {
                 fallback: Some("anthropic".to_string()),
                 models: HashMap::from([(
                     "anthropic".to_string(),
-                    zeroclaw_config::schema::ModelProviderConfig {
+                    brai_config::schema::ModelProviderConfig {
                         model: Some("claude-haiku-4-5".to_string()),
                         ..Default::default()
                     },
@@ -1640,11 +1640,11 @@ mod tests {
     fn make_test_config(cwd: &std::path::Path) -> Config {
         Config {
             workspace_dir: cwd.to_path_buf(),
-            providers: zeroclaw_config::providers::ProvidersConfig {
+            providers: brai_config::providers::ProvidersConfig {
                 fallback: Some("anthropic".to_string()),
                 models: HashMap::from([(
                     "anthropic".to_string(),
-                    zeroclaw_config::schema::ModelProviderConfig {
+                    brai_config::schema::ModelProviderConfig {
                         model: Some("claude-haiku-4-5".to_string()),
                         ..Default::default()
                     },

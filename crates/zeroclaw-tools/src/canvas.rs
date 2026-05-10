@@ -12,7 +12,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use zeroclaw_api::tool::{Tool, ToolResult};
+use brai_api::tool::{Tool, ToolResult};
 
 /// Maximum content size per canvas frame (256 KB).
 pub const MAX_CONTENT_SIZE: usize = 256 * 1024;

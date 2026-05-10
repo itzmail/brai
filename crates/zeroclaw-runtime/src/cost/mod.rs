@@ -1,4 +1,4 @@
-pub use zeroclaw_config::cost::*;
+pub use brai_config::cost::*;
 pub mod types {
-    pub use zeroclaw_config::cost::types::*;
+    pub use brai_config::cost::types::*;
 }

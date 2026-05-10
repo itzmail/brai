@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-config"
+name = "brai-config"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ description = "Configuration schema, secrets, and related types for ZeroClaw."
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-macros.workspace = true
+brai-api.workspace = true
+brai-macros.workspace = true
 anyhow = "1.0"
 # OnboardUi needs dyn-compat; native AFIT isn't dyn-safe. Already built for api/channels/runtime.
 async-trait = "0.1"
@@ -51,3 +51,6 @@ default = ["schema-export"]
 schema-export = ["dep:schemars"]
 channel-nostr = []
 voice-wake = []
+
+[lints]
+workspace = true

@@ -17,7 +17,7 @@ use tokio::time::{Duration, timeout};
 
 use crate::mcp_protocol::{JsonRpcRequest, MCP_PROTOCOL_VERSION, McpToolDef, McpToolsListResult};
 use crate::mcp_transport::{McpTransportConn, create_transport};
-use zeroclaw_config::schema::McpServerConfig;
+use brai_config::schema::McpServerConfig;
 
 /// Timeout for receiving a response from an MCP server during init/list.
 /// Prevents a hung server from blocking the daemon indefinitely.
@@ -294,7 +294,7 @@ impl McpRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::schema::McpTransport;
+    use brai_config::schema::McpTransport;
 
     #[test]
     fn tool_name_prefix_format() {
@@ -307,7 +307,7 @@ mod tests {
         // A command that doesn't exist should fail at spawn, not panic.
         let config = McpServerConfig {
             name: "nonexistent".to_string(),
-            command: "/usr/bin/this_binary_does_not_exist_zeroclaw_test".to_string(),
+            command: "/usr/bin/this_binary_does_not_exist_brai_test".to_string(),
             args: vec![],
             env: std::collections::HashMap::default(),
             tool_timeout_secs: None,

@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::GoogleWorkspaceAllowedOperation;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::GoogleWorkspaceAllowedOperation;
 
 /// Default `gws` command execution time before kill (overridden by config).
 #[cfg(test)]
@@ -12,7 +12,7 @@ const DEFAULT_GWS_TIMEOUT_SECS: u64 = 30;
 /// Maximum output size in bytes (1MB).
 const MAX_OUTPUT_BYTES: usize = 1_048_576;
 
-use zeroclaw_config::schema::DEFAULT_GWS_SERVICES;
+use brai_config::schema::DEFAULT_GWS_SERVICES;
 
 /// Google Workspace CLI (`gws`) integration tool.
 ///
@@ -473,8 +473,8 @@ impl Tool for GoogleWorkspaceTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
-    use zeroclaw_config::policy::SecurityPolicy;
+    use brai_config::autonomy::AutonomyLevel;
+    use brai_config::policy::SecurityPolicy;
 
     fn test_security() -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {

@@ -10,7 +10,7 @@ use extism::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
-use zeroclaw_api::tool::ToolResult;
+use brai_api::tool::ToolResult;
 
 // ── Host function context ─────────────────────────────────────────
 

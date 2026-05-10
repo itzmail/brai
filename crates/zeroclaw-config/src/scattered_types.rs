@@ -5,7 +5,7 @@ use crate::traits::{ChannelConfig, HasPropKind, PropKind};
 #[cfg(feature = "schema-export")]
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use zeroclaw_macros::Configurable;
+use brai_macros::Configurable;
 
 // ── Agent config types ──────────────────────────────────────────
 
@@ -344,7 +344,7 @@ fn default_max_attachment_bytes() -> usize {
     25 * 1024 * 1024
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, zeroclaw_macros::Configurable)]
+#[derive(Debug, Clone, Serialize, Deserialize, brai_macros::Configurable)]
 #[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
 #[prefix = "channels.email"]
 pub struct EmailConfig {
@@ -413,7 +413,7 @@ fn default_label_filter() -> Vec<String> {
     vec!["INBOX".into()]
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, zeroclaw_macros::Configurable)]
+#[derive(Debug, Clone, Serialize, Deserialize, brai_macros::Configurable)]
 #[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
 #[prefix = "channels.gmail"]
 pub struct GmailPushConfig {
@@ -456,7 +456,7 @@ impl Default for GmailPushConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, zeroclaw_macros::Configurable)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, brai_macros::Configurable)]
 #[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
 #[prefix = "channels.clawdtalk"]
 pub struct ClawdTalkConfig {

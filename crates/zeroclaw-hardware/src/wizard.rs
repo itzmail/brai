@@ -7,7 +7,7 @@
 use anyhow::Result;
 use console::style;
 use dialoguer::{Confirm, Select};
-use zeroclaw_config::schema::{HardwareConfig, HardwareTransport};
+use brai_config::schema::{HardwareConfig, HardwareTransport};
 
 use crate::discover_hardware;
 use crate::{config_from_wizard_choice, recommended_wizard_default};

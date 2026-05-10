@@ -7,10 +7,10 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use zeroclaw_api::provider::Provider;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::policy::ToolOperation;
+use brai_api::provider::Provider;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::policy::ToolOperation;
 
 /// Tool that runs a single prompt through an LLM and optionally validates
 /// the response against a JSON Schema. No tools are provided to the LLM —
@@ -26,7 +26,7 @@ pub struct LlmTaskTool {
     /// API key for provider authentication.
     api_key: Option<String>,
     /// Provider runtime options inherited from root config.
-    provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+    provider_runtime_options: brai_providers::ProviderRuntimeOptions,
 }
 
 impl LlmTaskTool {
@@ -36,7 +36,7 @@ impl LlmTaskTool {
         default_model: String,
         default_temperature: f64,
         api_key: Option<String>,
-        provider_runtime_options: zeroclaw_providers::ProviderRuntimeOptions,
+        provider_runtime_options: brai_providers::ProviderRuntimeOptions,
     ) -> Self {
         Self {
             security,
@@ -143,7 +143,7 @@ impl Tool for LlmTaskTool {
 
         // Create provider
         let api_key_ref = self.api_key.as_deref();
-        let provider: Box<dyn Provider> = match zeroclaw_providers::create_provider_with_options(
+        let provider: Box<dyn Provider> = match brai_providers::create_provider_with_options(
             &self.default_provider,
             api_key_ref,
             &self.provider_runtime_options,
@@ -420,7 +420,7 @@ mod tests {
             "test-model".to_string(),
             0.7,
             None,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
 
         assert_eq!(tool.name(), "llm_task");
@@ -446,7 +446,7 @@ mod tests {
             "test-model".to_string(),
             0.7,
             None,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
 
         let result = tool.execute(json!({})).await.unwrap();
@@ -462,7 +462,7 @@ mod tests {
             "test-model".to_string(),
             0.7,
             None,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
 
         let result = tool.execute(json!({"prompt": "  "})).await.unwrap();
@@ -478,7 +478,7 @@ mod tests {
             "test-model".to_string(),
             0.7,
             None,
-            zeroclaw_providers::ProviderRuntimeOptions::default(),
+            brai_providers::ProviderRuntimeOptions::default(),
         );
 
         let result = tool

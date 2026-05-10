@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use zeroclaw_memory::chunker;
+use brai_memory::chunker;
 
 /// A chunk of datasheet content with board metadata.
 #[derive(Debug, Clone)]

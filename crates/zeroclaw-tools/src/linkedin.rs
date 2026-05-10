@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::{LinkedInContentConfig, LinkedInImageConfig};
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::{LinkedInContentConfig, LinkedInImageConfig};
 
 pub struct LinkedInTool {
     security: Arc<SecurityPolicy>,
@@ -448,7 +448,7 @@ impl Tool for LinkedInTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zeroclaw_config::autonomy::AutonomyLevel;
+    use brai_config::autonomy::AutonomyLevel;
 
     fn test_security(level: AutonomyLevel, max_actions_per_hour: u32) -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {

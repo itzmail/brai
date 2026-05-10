@@ -3,9 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
-const SERVICE_LABEL: &str = "com.zeroclaw.daemon";
+const SERVICE_LABEL: &str = "com.brai.daemon";
 const WINDOWS_TASK_NAME: &str = "ZeroClaw Daemon";
 
 /// Supported init systems for service management
@@ -653,13 +653,13 @@ fn install_macos(config: &Config) -> Result<()> {
     let stdout = logs_dir.join("daemon.stdout.log");
     let stderr = logs_dir.join("daemon.stderr.log");
 
-    // When running under Homebrew, inject ZEROCLAW_CONFIG_DIR and
+    // When running under Homebrew, inject BRAI_CONFIG_DIR and
     // WorkingDirectory so the daemon finds its data in the Homebrew prefix.
     let env_section = if let Some(ref var_dir) = homebrew_var_dir {
         format!(
             r#"  <key>EnvironmentVariables</key>
   <dict>
-    <key>ZEROCLAW_CONFIG_DIR</key>
+    <key>BRAI_CONFIG_DIR</key>
     <string>{config_dir}</string>
   </dict>
   <key>WorkingDirectory</key>
@@ -772,7 +772,7 @@ fn is_root() -> bool {
 /// Check if the zeroclaw user exists and has expected properties.
 /// Returns Ok if user doesn't exist (OpenRC will handle creation or fail gracefully).
 /// Returns error if user exists but has unexpected properties.
-fn check_zeroclaw_user() -> Result<()> {
+fn check_brai_user() -> Result<()> {
     let output = Command::new("getent").args(["passwd", "zeroclaw"]).output();
     let is_alpine = Path::new("/etc/alpine-release").exists();
 
@@ -830,12 +830,12 @@ fn check_zeroclaw_user() -> Result<()> {
     }
 }
 
-fn ensure_zeroclaw_user() -> Result<()> {
+fn ensure_brai_user() -> Result<()> {
     let output = Command::new("getent").args(["passwd", "zeroclaw"]).output();
     if let Ok(output) = output
         && output.status.success()
     {
-        return check_zeroclaw_user();
+        return check_brai_user();
     }
 
     let is_alpine = Path::new("/etc/alpine-release").exists();
@@ -985,14 +985,14 @@ fn resolve_invoking_user_config_dir() -> Option<PathBuf> {
         let entry = String::from_utf8_lossy(&output.stdout);
         let fields: Vec<&str> = entry.trim().split(':').collect();
         if fields.len() >= 6 {
-            return Some(PathBuf::from(fields[5]).join(".zeroclaw"));
+            return Some(PathBuf::from(fields[5]).join(".brai"));
         }
     }
 
     std::env::var("HOME")
         .ok()
         .map(PathBuf::from)
-        .map(|home| home.join(".zeroclaw"))
+        .map(|home| home.join(".brai"))
 }
 
 fn migrate_openrc_runtime_state_if_needed(config_dir: &Path) -> Result<()> {
@@ -1176,7 +1176,7 @@ fn install_linux_openrc(config: &Config) -> Result<()> {
         );
     }
 
-    ensure_zeroclaw_user()?;
+    ensure_brai_user()?;
 
     let exe = resolve_openrc_executable()?;
     warn_if_binary_in_home(&exe);
@@ -1385,7 +1385,7 @@ pub fn xml_escape(raw: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-#[cfg(all(test, zeroclaw_root_crate))]
+#[cfg(all(test, brai_root_crate))]
 mod tests {
     use super::*;
 
@@ -1499,8 +1499,8 @@ mod tests {
         assert!(script.contains("description=\"ZeroClaw daemon\""));
         assert!(script.contains("command=\"/usr/local/bin/zeroclaw\""));
         assert!(script.contains("command_args=\"--config-dir /etc/zeroclaw daemon\""));
-        assert!(!script.contains("env ZEROCLAW_CONFIG_DIR"));
-        assert!(!script.contains("env ZEROCLAW_WORKSPACE"));
+        assert!(!script.contains("env BRAI_CONFIG_DIR"));
+        assert!(!script.contains("env BRAI_WORKSPACE"));
         assert!(script.contains("command_background=\"yes\""));
         assert!(script.contains("command_user=\"zeroclaw:zeroclaw\""));
         assert!(script.contains("pidfile=\"/run/${RC_SVCNAME}.pid\""));

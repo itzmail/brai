@@ -15,8 +15,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
 use tracing::debug;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::policy::SecurityPolicy;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::policy::SecurityPolicy;
 
 /// Computer-use sidecar settings.
 #[derive(Clone)]
@@ -793,7 +793,7 @@ impl BrowserTool {
             }
         });
 
-        let client = zeroclaw_config::schema::build_runtime_proxy_client("tool.browser");
+        let client = brai_config::schema::build_runtime_proxy_client("tool.browser");
         let mut request = client
             .post(endpoint)
             .timeout(Duration::from_millis(self.computer_use.timeout_ms))

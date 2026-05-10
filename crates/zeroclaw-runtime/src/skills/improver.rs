@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
-use zeroclaw_config::schema::SkillImprovementConfig;
+use brai_config::schema::SkillImprovementConfig;
 
 /// Manages skill self-improvement with cooldown tracking.
 pub struct SkillImprover {

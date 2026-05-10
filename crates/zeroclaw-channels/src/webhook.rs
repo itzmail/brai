@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use zeroclaw_api::channel::{Channel, ChannelMessage, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 
 /// Generic Webhook channel — receives messages via HTTP POST and sends replies
 /// to a configurable outbound URL. This is the "universal adapter" for any system
@@ -64,7 +64,7 @@ impl WebhookChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        zeroclaw_config::schema::build_runtime_proxy_client("channel.webhook")
+        brai_config::schema::build_runtime_proxy_client("channel.webhook")
     }
 
     /// Verify an incoming request's signature if a secret is configured.
@@ -334,9 +334,9 @@ mod tests {
 
     #[test]
     fn incoming_payload_deserializes_all_fields() {
-        let json = r#"{"sender": "zeroclaw_user", "content": "hello", "thread_id": "t1"}"#;
+        let json = r#"{"sender": "brai_user", "content": "hello", "thread_id": "t1"}"#;
         let payload: IncomingWebhook = serde_json::from_str(json).unwrap();
-        assert_eq!(payload.sender, "zeroclaw_user");
+        assert_eq!(payload.sender, "brai_user");
         assert_eq!(payload.content, "hello");
         assert_eq!(payload.thread_id.as_deref(), Some("t1"));
     }
@@ -355,12 +355,12 @@ mod tests {
         let payload = OutgoingWebhook {
             content: "response".into(),
             thread_id: Some("t1".into()),
-            recipient: Some("zeroclaw_user".into()),
+            recipient: Some("brai_user".into()),
         };
         let json = serde_json::to_value(&payload).unwrap();
         assert_eq!(json["content"], "response");
         assert_eq!(json["thread_id"], "t1");
-        assert_eq!(json["recipient"], "zeroclaw_user");
+        assert_eq!(json["recipient"], "brai_user");
     }
 
     #[test]

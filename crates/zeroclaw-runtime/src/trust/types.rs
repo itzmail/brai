@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use zeroclaw_config::scattered_types::TrustConfig;
+pub use brai_config::scattered_types::TrustConfig;
 
 /// Per-domain trust score
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_config::schema::PipelineConfig;
+use brai_api::tool::{Tool, ToolResult};
+use brai_config::schema::PipelineConfig;
 
 /// Errors specific to pipeline execution.
 #[derive(Debug, Clone, Serialize, thiserror::Error)]

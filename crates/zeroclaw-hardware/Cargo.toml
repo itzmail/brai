@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-hardware"
+name = "brai-hardware"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,9 +7,9 @@ description = "Hardware discovery, peripherals, and device management for ZeroCl
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-config.workspace = true
-zeroclaw-tools.workspace = true
+brai-api.workspace = true
+brai-config.workspace = true
+brai-tools.workspace = true
 aardvark-sys.workspace = true
 
 anyhow = "1.0"

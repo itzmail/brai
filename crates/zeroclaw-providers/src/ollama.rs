@@ -255,7 +255,7 @@ impl OllamaProvider {
     }
 
     fn http_client(&self) -> Client {
-        zeroclaw_config::schema::build_runtime_proxy_client_with_timeouts(
+        brai_config::schema::build_runtime_proxy_client_with_timeouts(
             "provider.ollama",
             300,
             10,
@@ -953,7 +953,7 @@ impl Provider for OllamaProvider {
 
     async fn chat(
         &self,
-        request: zeroclaw_api::provider::ChatRequest<'_>,
+        request: brai_api::provider::ChatRequest<'_>,
         model: &str,
         temperature: Option<f64>,
     ) -> anyhow::Result<ChatResponse> {
@@ -965,7 +965,7 @@ impl Provider for OllamaProvider {
                 .iter()
                 .map(|s| {
                     let params =
-                        zeroclaw_api::schema::SchemaCleanr::clean_for_openai(s.parameters.clone());
+                        brai_api::schema::SchemaCleanr::clean_for_openai(s.parameters.clone());
                     serde_json::json!({
                         "type": "function",
                         "function": {

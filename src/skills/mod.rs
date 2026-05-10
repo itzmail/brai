@@ -1,23 +1,23 @@
 #[allow(unused_imports)]
-pub use zeroclaw_runtime::skills::*;
+pub use brai_runtime::skills::*;
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 pub mod creator {
     #[allow(unused_imports)]
-    pub use zeroclaw_runtime::skills::creator::*;
+    pub use brai_runtime::skills::creator::*;
 }
 pub mod audit {
     #[allow(unused_imports)]
-    pub use zeroclaw_runtime::skills::audit::*;
+    pub use brai_runtime::skills::audit::*;
 }
 pub mod skill_tool {
     #[allow(unused_imports)]
-    pub use zeroclaw_runtime::skills::skill_tool::*;
+    pub use brai_runtime::skills::skill_tool::*;
 }
 pub mod skill_http {
     #[allow(unused_imports)]
-    pub use zeroclaw_runtime::skills::skill_http::*;
+    pub use brai_runtime::skills::skill_http::*;
 }
 
 #[allow(dead_code)]

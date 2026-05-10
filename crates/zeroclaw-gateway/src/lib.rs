@@ -19,7 +19,6 @@ pub mod api_plugins;
 pub mod api_webauthn;
 pub mod auth_rate_limit;
 pub mod canvas;
-pub mod hardware_context;
 pub mod node_tool;
 pub mod nodes;
 pub mod openapi;
@@ -49,24 +48,24 @@ use std::time::{Duration, Instant};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use uuid::Uuid;
-use zeroclaw_api::channel::{Channel, SendMessage};
-use zeroclaw_api::tool::ToolSpec;
-use zeroclaw_channels::{
+use brai_api::channel::{Channel, SendMessage};
+use brai_api::tool::ToolSpec;
+use brai_channels::{
     gmail_push::GmailPushChannel, linq::LinqChannel, nextcloud_talk::NextcloudTalkChannel,
     wati::WatiChannel, whatsapp::WhatsAppChannel,
 };
-use zeroclaw_config::policy::SecurityPolicy;
-use zeroclaw_config::schema::Config;
-use zeroclaw_infra::session_backend::SessionBackend;
-use zeroclaw_memory::{self, Memory, MemoryCategory};
-use zeroclaw_providers::{self, Provider};
-use zeroclaw_runtime::cost::CostTracker;
-use zeroclaw_runtime::i18n;
-use zeroclaw_runtime::platform;
-use zeroclaw_runtime::security::pairing::{PairingGuard, constant_time_eq, is_public_bind};
-use zeroclaw_runtime::tools;
-use zeroclaw_runtime::tools::CanvasStore;
-use zeroclaw_runtime::util::truncate_with_ellipsis;
+use brai_config::policy::SecurityPolicy;
+use brai_config::schema::Config;
+use brai_infra::session_backend::SessionBackend;
+use brai_memory::{self, Memory, MemoryCategory};
+use brai_providers::{self, Provider};
+use brai_runtime::cost::CostTracker;
+use brai_runtime::i18n;
+use brai_runtime::platform;
+use brai_runtime::security::pairing::{PairingGuard, constant_time_eq, is_public_bind};
+use brai_runtime::tools;
+use brai_runtime::tools::CanvasStore;
+use brai_runtime::util::truncate_with_ellipsis;
 
 /// Maximum request body size (64KB) — prevents memory exhaustion
 pub const MAX_BODY_SIZE: usize = 65_536;
@@ -82,26 +81,26 @@ pub const REQUEST_TIMEOUT_SECS: u64 = 30;
 /// realistic workloads to finish.
 pub const LONG_RUNNING_REQUEST_TIMEOUT_SECS: u64 = 600;
 
-/// Read gateway request timeout from `ZEROCLAW_GATEWAY_TIMEOUT_SECS` env var
+/// Read gateway request timeout from `BRAI_GATEWAY_TIMEOUT_SECS` env var
 /// at runtime, falling back to [`REQUEST_TIMEOUT_SECS`].
 ///
 /// Agentic workloads with tool use (web search, MCP tools, sub-agent
 /// delegation) regularly exceed 30 seconds. This allows operators to
 /// increase the timeout without recompiling.
 pub fn gateway_request_timeout_secs() -> u64 {
-    std::env::var("ZEROCLAW_GATEWAY_TIMEOUT_SECS")
+    std::env::var("BRAI_GATEWAY_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(REQUEST_TIMEOUT_SECS)
 }
 
 /// Read manual cron-run request timeout from
-/// `ZEROCLAW_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS` at runtime, falling back to
+/// `BRAI_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS` at runtime, falling back to
 /// [`LONG_RUNNING_REQUEST_TIMEOUT_SECS`]. Long-running jobs (e.g. agent prompts that
 /// invoke tools) can comfortably exceed the 30s gateway-wide default, so the
 /// `/api/cron/{id}/run` route gets its own timeout layer.
 pub fn gateway_long_running_request_timeout_secs() -> u64 {
-    std::env::var("ZEROCLAW_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS")
+    std::env::var("BRAI_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(LONG_RUNNING_REQUEST_TIMEOUT_SECS)
@@ -117,23 +116,23 @@ fn webhook_memory_key() -> String {
     format!("webhook_msg_{}", Uuid::new_v4())
 }
 
-fn whatsapp_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn whatsapp_memory_key(msg: &brai_api::channel::ChannelMessage) -> String {
     format!("whatsapp_{}_{}", msg.sender, msg.id)
 }
 
-fn linq_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn linq_memory_key(msg: &brai_api::channel::ChannelMessage) -> String {
     format!("linq_{}_{}", msg.sender, msg.id)
 }
 
-fn wati_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn wati_memory_key(msg: &brai_api::channel::ChannelMessage) -> String {
     format!("wati_{}_{}", msg.sender, msg.id)
 }
 
-fn nextcloud_talk_memory_key(msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn nextcloud_talk_memory_key(msg: &brai_api::channel::ChannelMessage) -> String {
     format!("nextcloud_talk_{}_{}", msg.sender, msg.id)
 }
 
-fn sender_session_id(channel: &str, msg: &zeroclaw_api::channel::ChannelMessage) -> String {
+fn sender_session_id(channel: &str, msg: &brai_api::channel::ChannelMessage) -> String {
     match &msg.thread_ts {
         Some(thread_id) => format!("{channel}_{thread_id}_{}", msg.sender),
         None => format!("{channel}_{}", msg.sender),
@@ -390,7 +389,7 @@ pub struct AppState {
     /// Gmail Pub/Sub push notification channel
     pub gmail_push: Option<Arc<GmailPushChannel>>,
     /// Observability backend for metrics scraping
-    pub observer: Arc<dyn zeroclaw_runtime::observability::Observer>,
+    pub observer: Arc<dyn brai_runtime::observability::Observer>,
     /// Registered tool specs (for web dashboard tools page)
     pub tools_registry: Arc<Vec<ToolSpec>>,
     /// Cost tracker (optional, for web dashboard cost page)
@@ -460,10 +459,10 @@ pub async fn run_gateway(
     let config_state = Arc::new(Mutex::new(config.clone()));
 
     // ── Hooks ──────────────────────────────────────────────────────
-    let hooks: Option<std::sync::Arc<zeroclaw_runtime::hooks::HookRunner>> = if config.hooks.enabled
+    let hooks: Option<std::sync::Arc<brai_runtime::hooks::HookRunner>> = if config.hooks.enabled
     {
         Some(std::sync::Arc::new(
-            zeroclaw_runtime::hooks::HookRunner::new(),
+            brai_runtime::hooks::HookRunner::new(),
         ))
     } else {
         None
@@ -477,12 +476,12 @@ pub async fn run_gateway(
     let fallback = config.providers.fallback_provider();
     let provider_name = config.providers.fallback.as_deref().unwrap_or("openrouter");
     let provider: Arc<dyn Provider> =
-        Arc::from(zeroclaw_providers::create_resilient_provider_with_options(
+        Arc::from(brai_providers::create_resilient_provider_with_options(
             provider_name,
             fallback.and_then(|e| e.api_key.as_deref()),
             fallback.and_then(|e| e.base_url.as_deref()),
             &config.reliability,
-            &zeroclaw_providers::provider_runtime_options_from_config(&config),
+            &brai_providers::provider_runtime_options_from_config(&config),
         )?);
     // Three-step model resolution mirroring agent::Agent::from_config (#6099):
     // (1) the fallback provider's `model`, (2) the first configured
@@ -523,7 +522,7 @@ pub async fn run_gateway(
         },
     };
     let temperature = fallback.and_then(|e| e.temperature).unwrap_or(0.7);
-    let mem: Arc<dyn Memory> = Arc::from(zeroclaw_memory::create_memory_with_storage_and_routes(
+    let mem: Arc<dyn Memory> = Arc::from(brai_memory::create_memory_with_storage_and_routes(
         &config.memory,
         &config.providers.embedding_routes,
         Some(&config.storage.provider.config),
@@ -677,7 +676,7 @@ pub async fn run_gateway(
 
     // WhatsApp app secret for webhook signature verification
     // Priority: environment variable > config file
-    let whatsapp_app_secret: Option<Arc<str>> = std::env::var("ZEROCLAW_WHATSAPP_APP_SECRET")
+    let whatsapp_app_secret: Option<Arc<str>> = std::env::var("BRAI_WHATSAPP_APP_SECRET")
         .ok()
         .and_then(|secret| {
             let secret = secret.trim();
@@ -705,7 +704,7 @@ pub async fn run_gateway(
 
     // Linq signing secret for webhook signature verification
     // Priority: environment variable > config file
-    let linq_signing_secret: Option<Arc<str>> = std::env::var("ZEROCLAW_LINQ_SIGNING_SECRET")
+    let linq_signing_secret: Option<Arc<str>> = std::env::var("BRAI_LINQ_SIGNING_SECRET")
         .ok()
         .and_then(|secret| {
             let secret = secret.trim();
@@ -749,7 +748,7 @@ pub async fn run_gateway(
     // Nextcloud Talk webhook secret for signature verification
     // Priority: environment variable > config file
     let nextcloud_talk_webhook_secret: Option<Arc<str>> =
-        std::env::var("ZEROCLAW_NEXTCLOUD_TALK_WEBHOOK_SECRET")
+        std::env::var("BRAI_NEXTCLOUD_TALK_WEBHOOK_SECRET")
             .ok()
             .and_then(|secret| {
                 let secret = secret.trim();
@@ -781,7 +780,7 @@ pub async fn run_gateway(
     // to SQLite while channel + tool reads went to JSONL — the original
     // #5769 split, just on a different backend pairing.
     let session_backend: Option<Arc<dyn SessionBackend>> = if config.gateway.session_persistence {
-        match zeroclaw_infra::make_session_backend(
+        match brai_infra::make_session_backend(
             &config.workspace_dir,
             &config.channels.session_backend,
         ) {
@@ -838,7 +837,7 @@ pub async fn run_gateway(
         .filter(|p| !p.is_empty());
 
     // ── Tunnel ────────────────────────────────────────────────
-    let tunnel = zeroclaw_runtime::tunnel::create_tunnel(&config.tunnel)?;
+    let tunnel = brai_runtime::tunnel::create_tunnel(&config.tunnel)?;
     let mut tunnel_url: Option<String> = None;
 
     if let Some(ref tun) = tunnel {
@@ -889,7 +888,7 @@ pub async fn run_gateway(
         tracing::info!("Web dashboard: serving from {}", dir.display());
     } else {
         tracing::info!(
-            "Web dashboard: not available (set gateway.web_dist_dir or ZEROCLAW_WEB_DIST_DIR)"
+            "Web dashboard: not available (set gateway.web_dist_dir or BRAI_WEB_DIST_DIR)"
         );
     }
 
@@ -939,7 +938,7 @@ pub async fn run_gateway(
     println!("  GET  {pfx}/metrics   — Prometheus metrics");
     println!("  Press Ctrl+C to stop.\n");
 
-    zeroclaw_runtime::health::mark_component_ok("gateway");
+    brai_runtime::health::mark_component_ok("gateway");
 
     // Fire gateway start hook
     if let Some(ref hooks) = hooks {
@@ -947,9 +946,9 @@ pub async fn run_gateway(
     }
 
     // Wrap observer with broadcast capability for SSE
-    let broadcast_observer: Arc<dyn zeroclaw_runtime::observability::Observer> =
+    let broadcast_observer: Arc<dyn brai_runtime::observability::Observer> =
         Arc::new(sse::BroadcastObserver::new(
-            zeroclaw_runtime::observability::create_observer(&config.observability),
+            brai_runtime::observability::create_observer(&config.observability),
             event_tx.clone(),
             event_buffer.clone(),
         ));
@@ -1014,18 +1013,18 @@ pub async fn run_gateway(
         cancel_tokens: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
         #[cfg(feature = "webauthn")]
         webauthn: if config.security.webauthn.enabled {
-            let secret_store = Arc::new(zeroclaw_runtime::security::SecretStore::new(
+            let secret_store = Arc::new(brai_runtime::security::SecretStore::new(
                 &config.workspace_dir,
                 true,
             ));
-            let wa_config = zeroclaw_runtime::security::webauthn::WebAuthnConfig {
+            let wa_config = brai_runtime::security::webauthn::WebAuthnConfig {
                 enabled: true,
                 rp_id: config.security.webauthn.rp_id.clone(),
                 rp_origin: config.security.webauthn.rp_origin.clone(),
                 rp_name: config.security.webauthn.rp_name.clone(),
             };
             Some(Arc::new(api_webauthn::WebAuthnState {
-                manager: zeroclaw_runtime::security::webauthn::WebAuthnManager::new(
+                manager: brai_runtime::security::webauthn::WebAuthnManager::new(
                     wa_config,
                     secret_store,
                     &config.workspace_dir,
@@ -1346,7 +1345,7 @@ async fn handle_health(State(state): State<AppState>) -> impl IntoResponse {
         "status": "ok",
         "paired": state.pairing.is_paired(),
         "require_pairing": state.pairing.require_pairing(),
-        "runtime": zeroclaw_runtime::health::snapshot_json(),
+        "runtime": brai_runtime::health::snapshot_json(),
     });
     Json(body)
 }
@@ -1362,11 +1361,11 @@ fn prometheus_disabled_hint() -> String {
 
 #[cfg(feature = "observability-prometheus")]
 fn prometheus_observer_from_state(
-    observer: &dyn zeroclaw_runtime::observability::Observer,
-) -> Option<&zeroclaw_runtime::observability::PrometheusObserver> {
+    observer: &dyn brai_runtime::observability::Observer,
+) -> Option<&brai_runtime::observability::PrometheusObserver> {
     observer
         .as_any()
-        .downcast_ref::<zeroclaw_runtime::observability::PrometheusObserver>()
+        .downcast_ref::<brai_runtime::observability::PrometheusObserver>()
         .or_else(|| {
             observer
                 .as_any()
@@ -1375,7 +1374,7 @@ fn prometheus_observer_from_state(
                     broadcast
                         .inner()
                         .as_any()
-                        .downcast_ref::<zeroclaw_runtime::observability::PrometheusObserver>()
+                        .downcast_ref::<brai_runtime::observability::PrometheusObserver>()
                 })
         })
 }
@@ -1583,7 +1582,7 @@ async fn run_gateway_chat_with_tools(
         // exits without racing concurrent webhook traffic that shares the
         // same tracker.
         let cost_tracking_context = state.cost_tracker.as_ref().map(|tracker| {
-            zeroclaw_runtime::agent::loop_::ToolLoopCostTrackingContext::new(
+            brai_runtime::agent::loop_::ToolLoopCostTrackingContext::new(
                 tracker.clone(),
                 std::sync::Arc::new(state.config.lock().cost.prices.clone()),
             )
@@ -1592,9 +1591,9 @@ async fn run_gateway_chat_with_tools(
             .as_ref()
             .map(|ctx| ctx.turn_usage.clone());
         let response = Box::pin(
-            zeroclaw_runtime::agent::loop_::TOOL_LOOP_COST_TRACKING_CONTEXT.scope(
+            brai_runtime::agent::loop_::TOOL_LOOP_COST_TRACKING_CONTEXT.scope(
                 cost_tracking_context,
-                zeroclaw_runtime::agent::process_message(config, message, session_id),
+                brai_runtime::agent::process_message(config, message, session_id),
             ),
         )
         .await?;
@@ -1717,7 +1716,7 @@ async fn handle_webhook(
     let message = &webhook_body.message;
     let session_id = webhook_session_id(&headers);
 
-    if state.auto_save && !zeroclaw_memory::should_skip_autosave_content(message) {
+    if state.auto_save && !brai_memory::should_skip_autosave_content(message) {
         let key = webhook_memory_key();
         let _ = state
             .mem
@@ -1741,13 +1740,13 @@ async fn handle_webhook(
     let started_at = Instant::now();
 
     state.observer.record_event(
-        &zeroclaw_runtime::observability::ObserverEvent::AgentStart {
+        &brai_runtime::observability::ObserverEvent::AgentStart {
             provider: provider_label.clone(),
             model: model_label.clone(),
         },
     );
     state.observer.record_event(
-        &zeroclaw_runtime::observability::ObserverEvent::LlmRequest {
+        &brai_runtime::observability::ObserverEvent::LlmRequest {
             provider: provider_label.clone(),
             model: model_label.clone(),
             messages_count: 1,
@@ -1772,7 +1771,7 @@ async fn handle_webhook(
                 .or(input_tokens)
                 .or(output_tokens);
             state.observer.record_event(
-                &zeroclaw_runtime::observability::ObserverEvent::LlmResponse {
+                &brai_runtime::observability::ObserverEvent::LlmResponse {
                     provider: provider_label.clone(),
                     model: model_label.clone(),
                     duration,
@@ -1783,10 +1782,10 @@ async fn handle_webhook(
                 },
             );
             state.observer.record_metric(
-                &zeroclaw_runtime::observability::traits::ObserverMetric::RequestLatency(duration),
+                &brai_runtime::observability::traits::ObserverMetric::RequestLatency(duration),
             );
             state.observer.record_event(
-                &zeroclaw_runtime::observability::ObserverEvent::AgentEnd {
+                &brai_runtime::observability::ObserverEvent::AgentEnd {
                     provider: provider_label,
                     model: model_label,
                     duration,
@@ -1800,10 +1799,10 @@ async fn handle_webhook(
         }
         Err(e) => {
             let duration = started_at.elapsed();
-            let sanitized = zeroclaw_providers::sanitize_api_error(&e.to_string());
+            let sanitized = brai_providers::sanitize_api_error(&e.to_string());
 
             state.observer.record_event(
-                &zeroclaw_runtime::observability::ObserverEvent::LlmResponse {
+                &brai_runtime::observability::ObserverEvent::LlmResponse {
                     provider: provider_label.clone(),
                     model: model_label.clone(),
                     duration,
@@ -1814,16 +1813,16 @@ async fn handle_webhook(
                 },
             );
             state.observer.record_metric(
-                &zeroclaw_runtime::observability::traits::ObserverMetric::RequestLatency(duration),
+                &brai_runtime::observability::traits::ObserverMetric::RequestLatency(duration),
             );
             state
                 .observer
-                .record_event(&zeroclaw_runtime::observability::ObserverEvent::Error {
+                .record_event(&brai_runtime::observability::ObserverEvent::Error {
                     component: "gateway".to_string(),
                     message: sanitized.clone(),
                 });
             state.observer.record_event(
-                &zeroclaw_runtime::observability::ObserverEvent::AgentEnd {
+                &brai_runtime::observability::ObserverEvent::AgentEnd {
                     provider: provider_label,
                     model: model_label,
                     duration,
@@ -1976,7 +1975,7 @@ async fn handle_whatsapp_message(
         );
 
         // Route approval replies to pending approval requests before dispatching to agent
-        if let Some((token, response)) = zeroclaw_channels::util::parse_approval_reply(&msg.content)
+        if let Some((token, response)) = brai_channels::util::parse_approval_reply(&msg.content)
         {
             let mut map = wa.pending_approvals().lock().await;
             if let Some(sender) = map.remove(&token) {
@@ -1988,7 +1987,7 @@ async fn handle_whatsapp_message(
         let session_id = sender_session_id("whatsapp", msg);
 
         // Auto-save to memory
-        if state.auto_save && !zeroclaw_memory::should_skip_autosave_content(&msg.content) {
+        if state.auto_save && !brai_memory::should_skip_autosave_content(&msg.content) {
             let key = whatsapp_memory_key(msg);
             let _ = state
                 .mem
@@ -2064,7 +2063,7 @@ async fn handle_linq_webhook(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
 
-        if !zeroclaw_channels::linq::verify_linq_signature(
+        if !brai_channels::linq::verify_linq_signature(
             signing_secret,
             &body_str,
             timestamp,
@@ -2111,7 +2110,7 @@ async fn handle_linq_webhook(
         let session_id = sender_session_id("linq", msg);
 
         // Auto-save to memory
-        if state.auto_save && !zeroclaw_memory::should_skip_autosave_content(&msg.content) {
+        if state.auto_save && !brai_memory::should_skip_autosave_content(&msg.content) {
             let key = linq_memory_key(msg);
             let _ = state
                 .mem
@@ -2230,7 +2229,7 @@ async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> impl
         let session_id = sender_session_id("wati", msg);
 
         // Auto-save to memory
-        if state.auto_save && !zeroclaw_memory::should_skip_autosave_content(&msg.content) {
+        if state.auto_save && !brai_memory::should_skip_autosave_content(&msg.content) {
             let key = wati_memory_key(msg);
             let _ = state
                 .mem
@@ -2307,7 +2306,7 @@ async fn handle_nextcloud_talk_webhook(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
 
-        if !zeroclaw_channels::nextcloud_talk::verify_nextcloud_talk_signature(
+        if !brai_channels::nextcloud_talk::verify_nextcloud_talk_signature(
             webhook_secret,
             random,
             &body_str,
@@ -2351,7 +2350,7 @@ async fn handle_nextcloud_talk_webhook(
         );
         let session_id = sender_session_id("nextcloud_talk", msg);
 
-        if state.auto_save && !zeroclaw_memory::should_skip_autosave_content(&msg.content) {
+        if state.auto_save && !brai_memory::should_skip_autosave_content(&msg.content) {
             let key = nextcloud_talk_memory_key(msg);
             let _ = state
                 .mem
@@ -2444,7 +2443,7 @@ async fn handle_gmail_push_webhook(
     }
 
     let body_str = String::from_utf8_lossy(&body);
-    let envelope: zeroclaw_channels::gmail_push::PubSubEnvelope =
+    let envelope: brai_channels::gmail_push::PubSubEnvelope =
         match serde_json::from_str(&body_str) {
             Ok(e) => e,
             Err(e) => {
@@ -2671,9 +2670,9 @@ mod tests {
     use http_body_util::BodyExt;
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use zeroclaw_api::channel::ChannelMessage;
-    use zeroclaw_memory::{Memory, MemoryCategory, MemoryEntry};
-    use zeroclaw_providers::Provider;
+    use brai_api::channel::ChannelMessage;
+    use brai_memory::{Memory, MemoryCategory, MemoryEntry};
+    use brai_providers::Provider;
 
     /// Generate a random hex secret at runtime to avoid hard-coded cryptographic values.
     fn generate_test_secret() -> String {
@@ -2695,7 +2694,7 @@ mod tests {
     fn gateway_timeout_falls_back_to_default() {
         // When env var is not set, should return the default constant
         // SAFETY: test-only, single-threaded test runner.
-        unsafe { std::env::remove_var("ZEROCLAW_GATEWAY_TIMEOUT_SECS") };
+        unsafe { std::env::remove_var("BRAI_GATEWAY_TIMEOUT_SECS") };
         assert_eq!(gateway_request_timeout_secs(), 30);
     }
 
@@ -2707,7 +2706,7 @@ mod tests {
     #[test]
     fn long_running_request_timeout_falls_back_to_default() {
         // SAFETY: test-only, single-threaded test runner.
-        unsafe { std::env::remove_var("ZEROCLAW_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS") };
+        unsafe { std::env::remove_var("BRAI_GATEWAY_LONG_RUNNING_REQUEST_TIMEOUT_SECS") };
         assert_eq!(gateway_long_running_request_timeout_secs(), 600);
     }
 
@@ -2762,7 +2761,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -2805,16 +2804,16 @@ mod tests {
         let event_tx = tokio::sync::broadcast::channel(16).0;
         let event_buffer = Arc::new(sse::EventBuffer::new(16));
         let wrapped = sse::BroadcastObserver::new(
-            Box::new(zeroclaw_runtime::observability::PrometheusObserver::new()),
+            Box::new(brai_runtime::observability::PrometheusObserver::new()),
             event_tx.clone(),
             event_buffer,
         );
-        zeroclaw_runtime::observability::Observer::record_event(
+        brai_runtime::observability::Observer::record_event(
             &wrapped,
-            &zeroclaw_runtime::observability::ObserverEvent::HeartbeatTick,
+            &brai_runtime::observability::ObserverEvent::HeartbeatTick,
         );
 
-        let observer: Arc<dyn zeroclaw_runtime::observability::Observer> = Arc::new(wrapped);
+        let observer: Arc<dyn brai_runtime::observability::Observer> = Arc::new(wrapped);
         let state = AppState {
             config: Arc::new(Mutex::new(Config::default())),
             provider: Arc::new(MockProvider::default()),
@@ -2863,7 +2862,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let text = String::from_utf8(body.to_vec()).unwrap();
-        assert!(text.contains("zeroclaw_heartbeat_ticks_total 1"));
+        assert!(text.contains("brai_heartbeat_ticks_total 1"));
     }
 
     #[test]
@@ -3039,7 +3038,7 @@ mod tests {
         assert_eq!(raw_parsed.gateway.paired_tokens.len(), 1);
         let on_disk = &raw_parsed.gateway.paired_tokens[0];
         assert!(
-            zeroclaw_runtime::security::SecretStore::is_encrypted(on_disk),
+            brai_runtime::security::SecretStore::is_encrypted(on_disk),
             "paired_token should be encrypted on disk"
         );
     }
@@ -3295,7 +3294,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3377,7 +3376,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3471,7 +3470,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3537,7 +3536,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3608,7 +3607,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3684,7 +3683,7 @@ mod tests {
             nextcloud_talk_webhook_secret: None,
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,
@@ -3757,7 +3756,7 @@ mod tests {
             nextcloud_talk_webhook_secret: Some(Arc::from(secret)),
             wati: None,
             gmail_push: None,
-            observer: Arc::new(zeroclaw_runtime::observability::NoopObserver),
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
             cost_tracker: None,
             event_tx: tokio::sync::broadcast::channel(16).0,

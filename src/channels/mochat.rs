@@ -1,1 +1,1 @@
-pub use zeroclaw_channels::mochat::*;
+pub use brai_channels::mochat::*;

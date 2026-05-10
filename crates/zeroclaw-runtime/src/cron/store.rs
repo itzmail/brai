@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::types::{FromSqlResult, ValueRef};
 use rusqlite::{Connection, params};
 use uuid::Uuid;
-use zeroclaw_config::schema::Config;
+use brai_config::schema::Config;
 
 const MAX_CRON_OUTPUT_BYTES: usize = 16 * 1024;
 const TRUNCATED_OUTPUT_MARKER: &str = "\n...[truncated]";
@@ -590,9 +590,9 @@ fn decode_allowed_tools(raw: Option<&str>) -> Result<Option<Vec<String>>> {
 /// Declarative jobs that are no longer present in config are removed.
 pub fn sync_declarative_jobs(
     config: &Config,
-    decls: &[zeroclaw_config::schema::CronJobDecl],
+    decls: &[brai_config::schema::CronJobDecl],
 ) -> Result<()> {
-    use zeroclaw_config::schema::CronScheduleDecl;
+    use brai_config::schema::CronScheduleDecl;
 
     if decls.is_empty() {
         // If no declarative jobs are defined, clean up any previously
@@ -786,7 +786,7 @@ pub fn sync_declarative_jobs(
 }
 
 /// Validate a declarative cron job definition.
-fn validate_decl(decl: &zeroclaw_config::schema::CronJobDecl) -> Result<()> {
+fn validate_decl(decl: &brai_config::schema::CronJobDecl) -> Result<()> {
     if decl.id.trim().is_empty() {
         anyhow::bail!("Declarative cron job has empty id");
     }
@@ -821,8 +821,8 @@ fn validate_decl(decl: &zeroclaw_config::schema::CronJobDecl) -> Result<()> {
 }
 
 /// Convert a `CronScheduleDecl` to the runtime `Schedule` type.
-fn convert_schedule_decl(decl: &zeroclaw_config::schema::CronScheduleDecl) -> Result<Schedule> {
-    use zeroclaw_config::schema::CronScheduleDecl;
+fn convert_schedule_decl(decl: &brai_config::schema::CronScheduleDecl) -> Result<Schedule> {
+    use brai_config::schema::CronScheduleDecl;
     match decl {
         CronScheduleDecl::Cron { expr, tz } => Ok(Schedule::Cron {
             expr: expr.clone(),
@@ -843,7 +843,7 @@ fn convert_schedule_decl(decl: &zeroclaw_config::schema::CronScheduleDecl) -> Re
 }
 
 /// Convert a `DeliveryConfigDecl` to the runtime `DeliveryConfig`.
-fn convert_delivery_decl(decl: &zeroclaw_config::schema::DeliveryConfigDecl) -> DeliveryConfig {
+fn convert_delivery_decl(decl: &brai_config::schema::DeliveryConfigDecl) -> DeliveryConfig {
     DeliveryConfig {
         mode: decl.mode.clone(),
         channel: decl.channel.clone(),
@@ -953,7 +953,7 @@ mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
     use tempfile::TempDir;
-    use zeroclaw_config::schema::Config;
+    use brai_config::schema::Config;
 
     fn test_config(tmp: &TempDir) -> Config {
         let config = Config {
@@ -1463,12 +1463,12 @@ mod tests {
 
     // ── Declarative cron job sync tests ──────────────────────────
 
-    fn make_shell_decl(id: &str, expr: &str, cmd: &str) -> zeroclaw_config::schema::CronJobDecl {
-        zeroclaw_config::schema::CronJobDecl {
+    fn make_shell_decl(id: &str, expr: &str, cmd: &str) -> brai_config::schema::CronJobDecl {
+        brai_config::schema::CronJobDecl {
             id: id.to_string(),
             name: Some(format!("decl-{id}")),
             job_type: "shell".to_string(),
-            schedule: zeroclaw_config::schema::CronScheduleDecl::Cron {
+            schedule: brai_config::schema::CronScheduleDecl::Cron {
                 expr: expr.to_string(),
                 tz: None,
             },
@@ -1483,12 +1483,12 @@ mod tests {
         }
     }
 
-    fn make_agent_decl(id: &str, expr: &str, prompt: &str) -> zeroclaw_config::schema::CronJobDecl {
-        zeroclaw_config::schema::CronJobDecl {
+    fn make_agent_decl(id: &str, expr: &str, prompt: &str) -> brai_config::schema::CronJobDecl {
+        brai_config::schema::CronJobDecl {
             id: id.to_string(),
             name: Some(format!("decl-{id}")),
             job_type: "agent".to_string(),
-            schedule: zeroclaw_config::schema::CronScheduleDecl::Cron {
+            schedule: brai_config::schema::CronScheduleDecl::Cron {
                 expr: expr.to_string(),
                 tz: None,
             },
@@ -1642,11 +1642,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp);
 
-        let decl = zeroclaw_config::schema::CronJobDecl {
+        let decl = brai_config::schema::CronJobDecl {
             id: "interval-job".to_string(),
             name: None,
             job_type: "shell".to_string(),
-            schedule: zeroclaw_config::schema::CronScheduleDecl::Every { every_ms: 60000 },
+            schedule: brai_config::schema::CronScheduleDecl::Every { every_ms: 60000 },
             command: Some("echo interval".to_string()),
             prompt: None,
             enabled: true,
@@ -1683,7 +1683,7 @@ prompt = "Check server health"
 schedule = { kind = "every", every_ms = 300000 }
         "#;
 
-        let parsed: zeroclaw_config::schema::CronConfig = toml::from_str(toml_str).unwrap();
+        let parsed: brai_config::schema::CronConfig = toml::from_str(toml_str).unwrap();
         assert!(parsed.enabled);
         assert_eq!(parsed.jobs.len(), 2);
 
@@ -1691,7 +1691,7 @@ schedule = { kind = "every", every_ms = 300000 }
         assert_eq!(parsed.jobs[0].command.as_deref(), Some("echo report"));
         assert!(matches!(
             parsed.jobs[0].schedule,
-            zeroclaw_config::schema::CronScheduleDecl::Cron { ref expr, .. } if expr == "0 9 * * *"
+            brai_config::schema::CronScheduleDecl::Cron { ref expr, .. } if expr == "0 9 * * *"
         ));
 
         assert_eq!(parsed.jobs[1].id, "health-check");
@@ -1702,7 +1702,7 @@ schedule = { kind = "every", every_ms = 300000 }
         );
         assert!(matches!(
             parsed.jobs[1].schedule,
-            zeroclaw_config::schema::CronScheduleDecl::Every { every_ms: 300_000 }
+            brai_config::schema::CronScheduleDecl::Every { every_ms: 300_000 }
         ));
     }
 }

@@ -1,4 +1,4 @@
-pub use zeroclaw_runtime::skillforge::*;
+pub use brai_runtime::skillforge::*;
 
 #[cfg(test)]
 mod tests {

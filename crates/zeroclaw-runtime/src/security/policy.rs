@@ -1,1 +1,1 @@
-pub use zeroclaw_config::policy::*;
+pub use brai_config::policy::*;

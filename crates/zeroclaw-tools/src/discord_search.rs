@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::fmt::Write;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_memory::Memory;
+use brai_api::tool::{Tool, ToolResult};
+use brai_memory::Memory;
 
 /// Search Discord message history stored in discord.db.
 pub struct DiscordSearchTool {
@@ -149,7 +149,7 @@ impl Tool for DiscordSearchTool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use zeroclaw_memory::{MemoryCategory, SqliteMemory};
+    use brai_memory::{MemoryCategory, SqliteMemory};
 
     fn seeded_discord_mem() -> (TempDir, Arc<dyn Memory>) {
         let tmp = TempDir::new().unwrap();

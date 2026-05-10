@@ -18,7 +18,7 @@ pub mod improver;
 pub mod testing;
 
 const OPEN_SKILLS_REPO_URL: &str = "https://github.com/besoeasy/open-skills";
-const OPEN_SKILLS_SYNC_MARKER: &str = ".zeroclaw-open-skills-sync";
+const OPEN_SKILLS_SYNC_MARKER: &str = ".brai-open-skills-sync";
 const OPEN_SKILLS_SYNC_INTERVAL_SECS: u64 = 60 * 60 * 24 * 7;
 
 // ─── ClawhHub / OpenClaw registry installers ───────────────────────────────
@@ -30,11 +30,11 @@ const MAX_CLAWHUB_ZIP_BYTES: u64 = 50 * 1024 * 1024; // 50 MiB
 // ─── Skills registry (zeroclaw-skills) ────────────────────────────────────────
 const SKILLS_REGISTRY_REPO_URL: &str = "https://github.com/zeroclaw-labs/zeroclaw-skills";
 const SKILLS_REGISTRY_DIR_NAME: &str = "skills-registry";
-const SKILLS_REGISTRY_SYNC_MARKER: &str = ".zeroclaw-skills-registry-sync";
+const SKILLS_REGISTRY_SYNC_MARKER: &str = ".brai-skills-registry-sync";
 const SKILLS_REGISTRY_SYNC_INTERVAL_SECS: u64 = 60 * 60 * 24;
 
 /// A skill is a user-defined or community-built capability.
-/// Skills live in `~/.zeroclaw/workspace/skills/<name>/SKILL.md`
+/// Skills live in `~/.brai/workspace/skills/<name>/SKILL.md`
 /// and can include tool definitions, prompts, and automation scripts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
@@ -169,7 +169,7 @@ pub fn load_skills(workspace_dir: &Path) -> Vec<Skill> {
 /// Load skills using runtime config values (preferred at runtime).
 pub fn load_skills_with_config(
     workspace_dir: &Path,
-    config: &zeroclaw_config::schema::Config,
+    config: &brai_config::schema::Config,
 ) -> Vec<Skill> {
     #[allow(unused_mut)]
     let mut skills = load_skills_with_open_skills_config(
@@ -443,7 +443,7 @@ fn open_skills_enabled_from_sources(
         }
         if !raw.trim().is_empty() {
             tracing::warn!(
-                "Ignoring invalid ZEROCLAW_OPEN_SKILLS_ENABLED (valid: 1|0|true|false|yes|no|on|off)"
+                "Ignoring invalid BRAI_OPEN_SKILLS_ENABLED (valid: 1|0|true|false|yes|no|on|off)"
             );
         }
     }
@@ -452,7 +452,7 @@ fn open_skills_enabled_from_sources(
 }
 
 fn open_skills_enabled(config_open_skills_enabled: Option<bool>) -> bool {
-    let env_override = std::env::var("ZEROCLAW_OPEN_SKILLS_ENABLED").ok();
+    let env_override = std::env::var("BRAI_OPEN_SKILLS_ENABLED").ok();
     open_skills_enabled_from_sources(config_open_skills_enabled, env_override.as_deref())
 }
 
@@ -480,7 +480,7 @@ fn resolve_open_skills_dir_from_sources(
 }
 
 fn resolve_open_skills_dir(config_open_skills_dir: Option<&str>) -> Option<PathBuf> {
-    let env_dir = std::env::var("ZEROCLAW_OPEN_SKILLS_DIR").ok();
+    let env_dir = std::env::var("BRAI_OPEN_SKILLS_DIR").ok();
     let home_dir = UserDirs::new().map(|dirs| dirs.home_dir().to_path_buf());
     resolve_open_skills_dir_from_sources(
         env_dir.as_deref(),
@@ -862,7 +862,7 @@ pub fn skills_to_prompt(skills: &[Skill], workspace_dir: &Path) -> String {
     skills_to_prompt_with_mode(
         skills,
         workspace_dir,
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+        brai_config::schema::SkillsPromptInjectionMode::Full,
     )
 }
 
@@ -870,7 +870,7 @@ pub fn skills_to_prompt(skills: &[Skill], workspace_dir: &Path) -> String {
 pub fn skills_to_prompt_with_mode(
     skills: &[Skill],
     workspace_dir: &Path,
-    mode: zeroclaw_config::schema::SkillsPromptInjectionMode,
+    mode: brai_config::schema::SkillsPromptInjectionMode,
 ) -> String {
     use std::fmt::Write;
 
@@ -879,13 +879,13 @@ pub fn skills_to_prompt_with_mode(
     }
 
     let mut prompt = match mode {
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Full => String::from(
+        brai_config::schema::SkillsPromptInjectionMode::Full => String::from(
             "## Available Skills\n\n\
              Skill instructions and tool metadata are preloaded below.\n\
              Follow these instructions directly; do not read skill files at runtime unless the user asks.\n\n\
              <available_skills>\n",
         ),
-        zeroclaw_config::schema::SkillsPromptInjectionMode::Compact => String::from(
+        brai_config::schema::SkillsPromptInjectionMode::Compact => String::from(
             "## Available Skills\n\n\
              Skill summaries are preloaded below to keep context compact.\n\
              Skill instructions are loaded on demand: call `read_skill(name)` with the skill's `<name>` when you need the full skill file.\n\
@@ -903,7 +903,7 @@ pub fn skills_to_prompt_with_mode(
             workspace_dir,
             matches!(
                 mode,
-                zeroclaw_config::schema::SkillsPromptInjectionMode::Compact
+                brai_config::schema::SkillsPromptInjectionMode::Compact
             ),
         );
         write_xml_text_element(&mut prompt, 4, "location", &location);
@@ -913,7 +913,7 @@ pub fn skills_to_prompt_with_mode(
         // so the LLM knows which skill tools are available.
         if matches!(
             mode,
-            zeroclaw_config::schema::SkillsPromptInjectionMode::Full
+            brai_config::schema::SkillsPromptInjectionMode::Full
         ) && !skill.prompts.is_empty()
         {
             let _ = writeln!(prompt, "    <instructions>");
@@ -986,8 +986,8 @@ pub fn skills_to_prompt_with_mode(
 pub fn skills_to_tools(
     skills: &[Skill],
     security: std::sync::Arc<crate::security::SecurityPolicy>,
-) -> Vec<Box<dyn zeroclaw_api::tool::Tool>> {
-    let mut tools: Vec<Box<dyn zeroclaw_api::tool::Tool>> = Vec::new();
+) -> Vec<Box<dyn brai_api::tool::Tool>> {
+    let mut tools: Vec<Box<dyn brai_api::tool::Tool>> = Vec::new();
     for skill in skills {
         for tool in &skill.tools {
             match tool.kind.as_str() {
@@ -1630,7 +1630,7 @@ pub fn install_registry_skill_source(
 /// collisions with user-authored skills and between bundles. The `plugin:<name>`
 /// tag is also added so prompts can distinguish plugin skills.
 #[cfg(feature = "plugins-wasm")]
-pub fn load_plugin_skills_from_config(config: &zeroclaw_config::schema::Config) -> Vec<Skill> {
+pub fn load_plugin_skills_from_config(config: &brai_config::schema::Config) -> Vec<Skill> {
     if !config.plugins.enabled {
         return Vec::new();
     }
@@ -1641,12 +1641,12 @@ pub fn load_plugin_skills_from_config(config: &zeroclaw_config::schema::Config) 
         None => return Vec::new(),
     };
 
-    let signature_mode = zeroclaw_plugins::host::PluginHost::parse_signature_mode(
+    let signature_mode = brai_plugins::host::PluginHost::parse_signature_mode(
         &config.plugins.security.signature_mode,
     );
     let trusted_keys = config.plugins.security.trusted_publisher_keys.clone();
 
-    let host = match zeroclaw_plugins::host::PluginHost::with_security(
+    let host = match brai_plugins::host::PluginHost::with_security(
         &parent,
         signature_mode,
         trusted_keys,
@@ -1715,7 +1715,7 @@ mod registry_tests {
         assert!(!is_registry_source("/abs/path"));
         assert!(!is_registry_source("skills/auto-coder"));
         assert!(!is_registry_source("some\\path"));
-        assert!(!is_registry_source("~/.zeroclaw/skills/foo"));
+        assert!(!is_registry_source("~/.brai/skills/foo"));
     }
 
     #[test]

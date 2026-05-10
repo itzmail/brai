@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-tools"
+name = "brai-tools"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,11 +7,11 @@ description = "Tool implementations for agent-callable capabilities."
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-config = { workspace = true, default-features = true }
-zeroclaw-providers.workspace = true
-zeroclaw-memory.workspace = true
-zeroclaw-infra.workspace = true
+brai-api.workspace = true
+brai-config = { workspace = true, default-features = true }
+brai-providers.workspace = true
+brai-memory.workspace = true
+brai-infra.workspace = true
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22"
@@ -49,9 +49,12 @@ rag-pdf = ["dep:pdf-extract"]
 probe = ["dep:probe-rs"]
 
 [dev-dependencies]
-zeroclaw-infra.workspace = true
+brai-infra.workspace = true
 tempfile = "3.26"
 tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
 wiremock = "0.6"
 scopeguard = "1.2"
 tokio-test = "0.4"
+
+[lints]
+workspace = true

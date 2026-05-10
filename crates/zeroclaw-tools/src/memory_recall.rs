@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::fmt::Write;
 use std::sync::Arc;
-use zeroclaw_api::tool::{Tool, ToolResult};
-use zeroclaw_memory::Memory;
+use brai_api::tool::{Tool, ToolResult};
+use brai_memory::Memory;
 
 /// Let the agent search its own memory
 pub struct MemoryRecallTool {
@@ -141,7 +141,7 @@ mod tests {
     use super::*;
     use std::sync::Mutex;
     use tempfile::TempDir;
-    use zeroclaw_memory::{MemoryCategory, MemoryEntry, SqliteMemory, is_recent_recall_query};
+    use brai_memory::{MemoryCategory, MemoryEntry, SqliteMemory, is_recent_recall_query};
 
     fn seeded_mem() -> (TempDir, Arc<dyn Memory>) {
         let tmp = TempDir::new().unwrap();

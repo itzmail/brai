@@ -1,5 +1,5 @@
 [package]
-name = "zeroclaw-providers"
+name = "brai-providers"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ description = "LLM provider implementations, auth services, and multimodal proce
 publish = false
 
 [dependencies]
-zeroclaw-api.workspace = true
-zeroclaw-config = { workspace = true, default-features = true }
+brai-api.workspace = true
+brai-config = { workspace = true, default-features = true }
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22"
@@ -38,3 +38,6 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 hyper = { version = "1", features = ["http1", "server"] }
 tempfile = "3.26"
 scopeguard = "1.2"
+
+[lints]
+workspace = true
