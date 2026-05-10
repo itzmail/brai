@@ -48,6 +48,8 @@ jobs:
 
       - name: Build release binary
         run: cargo zigbuild --release --bin brai --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
 
       - name: Rename binary with arch suffix
         run: |
