@@ -41,9 +41,9 @@ jobs:
           cache-on-failure: true
           key: ${{ matrix.target }}
 
-      - name: Install cross-compiler (aarch64 only)
+      - name: Install cross-compiler and build deps
         if: matrix.cross_compiler != ''
-        run: sudo apt-get update -qq && sudo apt-get install -y ${{ matrix.cross_compiler }}
+        run: sudo apt-get update -qq && sudo apt-get install -y ${{ matrix.cross_compiler }} cmake clang llvm
 
       - name: Ensure web/dist placeholder exists
         run: mkdir -p web/dist && touch web/dist/.gitkeep
@@ -52,7 +52,8 @@ jobs:
         run: |
           cargo build --release --bin brai --target ${{ matrix.target }}
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: ${{ matrix.linker }}
+          AWS_LC_SYS_CMAKE_BUILDER: "1"
 
       - name: Rename binary with arch suffix
         run: |
