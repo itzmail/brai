@@ -40,7 +40,7 @@ Type=simple
 User=${SERVICE_USER}
 WorkingDirectory=/home/${SERVICE_USER}
 EnvironmentFile=${ENV_FILE}
-ExecStart=${BINARY_DST}
+ExecStart=${BINARY_DST} daemon
 Restart=on-failure
 RestartSec=5
 
