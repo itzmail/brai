@@ -38,7 +38,7 @@ if ! git remote get-url "$UPSTREAM_REMOTE" &>/dev/null; then
 fi
 
 log "Fetching $UPSTREAM_REMOTE ..."
-git fetch "$UPSTREAM_REMOTE" --tags --quiet
+git fetch "$UPSTREAM_REMOTE" --no-tags --depth=50 --quiet
 
 upstream_head=$(git rev-parse "$UPSTREAM_REMOTE/$BASE_BRANCH")
 log "Upstream HEAD: ${upstream_head:0:12}"
