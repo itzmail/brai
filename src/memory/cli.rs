@@ -7,7 +7,7 @@ use crate::config::Config;
 use anyhow::{Result, bail};
 use console::style;
 #[cfg(feature = "agent-runtime")]
-use zeroclaw_runtime::i18n;
+use brai_runtime::i18n;
 
 /// Handle `zeroclaw memory <subcommand>` CLI commands.
 pub async fn handle_command(command: crate::MemoryCommands, config: &Config) -> Result<()> {
@@ -240,7 +240,7 @@ async fn handle_clear(
     category: Option<String>,
     yes: bool,
 ) -> Result<()> {
-    let backend = backend_kind_from_dotted(&config.memory.backend);
+    let backend = classify_memory_backend(&config.memory.backend);
     if matches!(
         classify_memory_backend(&backend),
         MemoryBackendKind::Markdown | MemoryBackendKind::Qdrant
