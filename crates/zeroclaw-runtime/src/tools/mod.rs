@@ -63,6 +63,7 @@ pub use brai_tools::file_write::FileWriteTool;
 pub use brai_tools::gemini_cli::GeminiCliTool;
 pub use brai_tools::git_operations::GitOperationsTool;
 pub use brai_tools::glob_search::GlobSearchTool;
+pub use brai_tools::gmail_read::GmailReadTool;
 pub use brai_tools::google_workspace::GoogleWorkspaceTool;
 pub use brai_tools::hardware_board_info::HardwareBoardInfoTool;
 pub use brai_tools::hardware_memory_map::HardwareMemoryMapTool;
@@ -659,6 +660,13 @@ pub fn all_tools_with_runtime(
         tracing::warn!(
             "google_workspace: skipped registration because shell access is unavailable"
         );
+    }
+
+    // Gmail read tool — polls Gmail API for messages; no webhook/Pub/Sub needed
+    if let Some(ref gmail_cfg) = root_config.channels.gmail_push {
+        if gmail_cfg.enabled {
+            tool_arcs.push(Arc::new(GmailReadTool::new(Arc::new(gmail_cfg.clone()))));
+        }
     }
 
     // Claude Code delegation tool

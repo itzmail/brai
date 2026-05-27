@@ -26,6 +26,7 @@ pub mod file_write;
 pub mod gemini_cli;
 pub mod git_operations;
 pub mod glob_search;
+pub mod gmail_read;
 pub mod google_workspace;
 pub mod hardware_board_info;
 pub mod hardware_memory_map;
