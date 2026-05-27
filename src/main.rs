@@ -239,12 +239,12 @@ enum EstopLevelArg {
     ToolFreeze,
 }
 
-/// `ZeroClaw` - Zero overhead. Zero compromise. 100% Rust.
+/// `Brai` - Personal AI agent for Ismail Alam.
 #[derive(Parser, Debug)]
-#[command(name = "zeroclaw")]
-#[command(author = "theonlyhennygod")]
+#[command(name = "brai")]
+#[command(author = "itzmail")]
 #[command(version)]
-#[command(about = "The fastest, smallest AI assistant.", long_about = None)]
+#[command(about = "Personal AI agent.", long_about = None)]
 struct Cli {
     #[arg(long, global = true)]
     config_dir: Option<String>,
