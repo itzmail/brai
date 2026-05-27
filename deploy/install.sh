@@ -13,6 +13,19 @@ ENV_FILE="${CONFIG_DIR}/.env"
 
 echo "[brai-install] Starting deployment..."
 
+# Pre-flight: verify new binary is executable on this system
+echo "[brai-install] Verifying binary compatibility..."
+if ! "$NEW_BINARY" --version >/dev/null 2>&1; then
+    echo "[brai-install] ERROR: New binary failed pre-flight check on this system."
+    echo "[brai-install] Diagnostic output:"
+    "$NEW_BINARY" --version 2>&1 || true
+    # Check for missing shared libraries
+    ldd "$NEW_BINARY" 2>&1 || true
+    echo "[brai-install] Aborting — existing binary untouched."
+    exit 1
+fi
+echo "[brai-install] Binary pre-flight OK."
+
 # Backup current binary if exists
 if [ -f "$BINARY_DST" ]; then
     sudo cp "$BINARY_DST" "${BINARY_DST}.bak"
@@ -66,6 +79,8 @@ if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "[brai-install] Service $SERVICE_NAME is running."
 else
     echo "[brai-install] ERROR: Service $SERVICE_NAME failed to start. Rolling back..."
+    echo "[brai-install] Last 20 journal lines:"
+    sudo journalctl -u "$SERVICE_NAME" -n 20 --no-pager 2>/dev/null || true
     if [ -f "${BINARY_DST}.bak" ]; then
         sudo install -o root -g root -m 755 "${BINARY_DST}.bak" "$BINARY_DST"
         sudo systemctl restart "$SERVICE_NAME"
