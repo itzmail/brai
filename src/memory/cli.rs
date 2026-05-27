@@ -241,11 +241,8 @@ async fn handle_clear(
     yes: bool,
 ) -> Result<()> {
     let backend = classify_memory_backend(&config.memory.backend);
-    if matches!(
-        classify_memory_backend(&backend),
-        MemoryBackendKind::Markdown | MemoryBackendKind::Qdrant
-    ) {
-        bail!(unsupported_clear_backend_message(&backend));
+    if matches!(backend, MemoryBackendKind::Markdown | MemoryBackendKind::Qdrant) {
+        bail!(unsupported_clear_backend_message(&config.memory.backend));
     }
     let mem = create_cli_memory(config)?;
 
