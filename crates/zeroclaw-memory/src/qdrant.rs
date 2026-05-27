@@ -564,6 +564,38 @@ impl Memory for QdrantMemory {
         Ok(true)
     }
 
+    async fn forget_for_agent(&self, key: &str, agent_id: &str) -> anyhow::Result<bool> {
+        self.ensure_initialized().await?;
+
+        let delete_body = serde_json::json!({
+            "filter": {
+                "must": [
+                    { "key": "key", "match": { "value": key } },
+                    { "key": "agent_id", "match": { "value": agent_id } }
+                ]
+            }
+        });
+
+        let resp = self
+            .request(
+                reqwest::Method::POST,
+                &format!("/collections/{}/points/delete", self.collection),
+            )
+            .query(&[("wait", "true")])
+            .json(&delete_body)
+            .send()
+            .await
+            .context("failed to delete from Qdrant")?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Qdrant delete failed ({status}): {text}");
+        }
+
+        Ok(true)
+    }
+
     async fn count(&self) -> Result<usize> {
         self.ensure_initialized().await?;
 

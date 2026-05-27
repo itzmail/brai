@@ -2008,22 +2008,7 @@ pub fn create_routed_provider_with_options(
                     (!trimmed_key.is_empty()).then_some(trimmed_key)
                 })
             });
-        let key = routed_credential
-            .or_else(|| {
-                name.split_once('.')
-                    .and_then(|(family, alias)| {
-                        config
-                            .providers
-                            .models
-                            .find(family, alias)
-                            .and_then(|cfg| cfg.api_key.as_deref())
-                    })
-                    .and_then(|raw_key| {
-                        let trimmed = raw_key.trim();
-                        (!trimmed.is_empty()).then_some(trimmed)
-                    })
-            })
-            .or(api_key);
+        let key = routed_credential.or(api_key);
         let url = if name == primary_name { api_url } else { None };
         match create_resilient_provider_with_options(name, key, url, reliability, options) {
             Ok(provider) => providers.push((name.clone(), provider)),

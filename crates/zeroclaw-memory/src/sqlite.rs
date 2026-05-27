@@ -1057,6 +1057,22 @@ impl Memory for SqliteMemory {
         .await?
     }
 
+    async fn forget_for_agent(&self, key: &str, agent_id: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.clone();
+        let key = key.to_string();
+        let agent_id = agent_id.to_string();
+
+        tokio::task::spawn_blocking(move || -> anyhow::Result<bool> {
+            let conn = conn.lock();
+            let affected = conn.execute(
+                "DELETE FROM memories WHERE key = ?1 AND agent_id = ?2",
+                params![key, agent_id],
+            )?;
+            Ok(affected > 0)
+        })
+        .await?
+    }
+
     async fn purge_namespace(&self, namespace: &str) -> anyhow::Result<usize> {
         let conn = self.conn.clone();
         let namespace = namespace.to_string();

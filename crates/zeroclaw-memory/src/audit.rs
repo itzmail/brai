@@ -171,6 +171,11 @@ impl<M: Memory> Memory for AuditedMemory<M> {
         self.inner.forget(key).await
     }
 
+    async fn forget_for_agent(&self, key: &str, agent_id: &str) -> anyhow::Result<bool> {
+        self.log_audit(AuditOp::Forget, Some(key), None, None, None);
+        self.inner.forget_for_agent(key, agent_id).await
+    }
+
     async fn count(&self) -> anyhow::Result<usize> {
         self.inner.count().await
     }

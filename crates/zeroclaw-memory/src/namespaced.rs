@@ -100,6 +100,15 @@ impl Memory for NamespacedMemory {
         Ok(false)
     }
 
+    async fn forget_for_agent(&self, key: &str, agent_id: &str) -> anyhow::Result<bool> {
+        if let Some(entry) = self.inner.get(key).await?
+            && entry.namespace == self.namespace
+        {
+            return self.inner.forget_for_agent(key, agent_id).await;
+        }
+        Ok(false)
+    }
+
     async fn count(&self) -> anyhow::Result<usize> {
         let entries = self.inner.list(None, None).await?;
         Ok(entries
