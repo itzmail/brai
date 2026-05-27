@@ -169,10 +169,19 @@ pub struct WatchResponse {
 /// Incoming messages arrive via webhook (`POST /webhook/gmail`) and are
 /// dispatched to the agent.  The `listen` method registers the Gmail watch
 /// subscription and periodically renews it.
+/// Cached access token with expiry tracking.
+struct CachedToken {
+    token: String,
+    /// Unix timestamp when token expires.
+    expires_at: u64,
+}
+
 pub struct GmailPushChannel {
     pub config: GmailPushConfig,
     http: Client,
     last_history_id: Arc<Mutex<u64>>,
+    /// Cached access token refreshed automatically.
+    cached_token: Arc<Mutex<Option<CachedToken>>>,
     /// Sender half injected by the gateway to forward webhook-received messages.
     pub tx: Arc<Mutex<Option<mpsc::Sender<ChannelMessage>>>>,
 }
@@ -187,6 +196,7 @@ impl GmailPushChannel {
             config,
             http,
             last_history_id: Arc::new(Mutex::new(0)),
+            cached_token: Arc::new(Mutex::new(None)),
             tx: Arc::new(Mutex::new(None)),
         }
     }
@@ -199,17 +209,102 @@ impl GmailPushChannel {
         std::env::var("GMAIL_PUSH_WEBHOOK_SECRET").unwrap_or_default()
     }
 
-    /// Resolve the OAuth token from config or environment.
-    pub fn resolve_oauth_token(&self) -> String {
+    /// Resolve a valid OAuth token, refreshing automatically if expired.
+    pub async fn resolve_oauth_token(&self) -> String {
+        // Try auto-refresh if refresh_token + client credentials are available.
+        let refresh_token = if !self.config.refresh_token.is_empty() {
+            self.config.refresh_token.clone()
+        } else {
+            std::env::var("GMAIL_PUSH_REFRESH_TOKEN").unwrap_or_default()
+        };
+        let client_id = if !self.config.client_id.is_empty() {
+            self.config.client_id.clone()
+        } else {
+            std::env::var("GMAIL_PUSH_CLIENT_ID").unwrap_or_default()
+        };
+        let client_secret = if !self.config.client_secret.is_empty() {
+            self.config.client_secret.clone()
+        } else {
+            std::env::var("GMAIL_PUSH_CLIENT_SECRET").unwrap_or_default()
+        };
+
+        if !refresh_token.is_empty() && !client_id.is_empty() && !client_secret.is_empty() {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+
+            // Return cached token if still valid (with 60s buffer).
+            {
+                let guard = self.cached_token.lock().await;
+                if let Some(ref cached) = *guard {
+                    if cached.expires_at > now + 60 {
+                        return cached.token.clone();
+                    }
+                }
+            }
+
+            // Refresh token.
+            if let Ok(new_token) = self.do_token_refresh(&refresh_token, &client_id, &client_secret).await {
+                return new_token;
+            }
+        }
+
+        // Fallback to static token from config/env.
         if !self.config.oauth_token.is_empty() {
             return self.config.oauth_token.clone();
         }
         std::env::var("GMAIL_PUSH_OAUTH_TOKEN").unwrap_or_default()
     }
 
+    /// Hit Google token endpoint to exchange refresh_token for new access_token.
+    async fn do_token_refresh(&self, refresh_token: &str, client_id: &str, client_secret: &str) -> Result<String> {
+        #[derive(serde::Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: Option<u64>,
+        }
+
+        let params = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+        ];
+
+        let resp = self
+            .http
+            .post("https://oauth2.googleapis.com/token")
+            .form(&params)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            return Err(anyhow!("Token refresh failed: {text}"));
+        }
+
+        let token_resp: TokenResponse = resp.json().await?;
+        let expires_in = token_resp.expires_in.unwrap_or(3600);
+        let expires_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+            + expires_in;
+
+        let mut guard = self.cached_token.lock().await;
+        *guard = Some(CachedToken {
+            token: token_resp.access_token.clone(),
+            expires_at,
+        });
+
+        info!("Gmail OAuth token refreshed, expires in {expires_in}s");
+        Ok(token_resp.access_token)
+    }
+
     /// Register a Gmail watch subscription via `POST /gmail/v1/users/me/watch`.
     pub async fn register_watch(&self) -> Result<WatchResponse> {
-        let token = self.resolve_oauth_token();
+        let token = self.resolve_oauth_token().await;
         if token.is_empty() {
             return Err(anyhow!("Gmail OAuth token is not configured"));
         }
@@ -263,7 +358,7 @@ impl GmailPushChannel {
         start_history_id: u64,
         last_id: &mut u64,
     ) -> Result<Vec<String>> {
-        let token = self.resolve_oauth_token();
+        let token = self.resolve_oauth_token().await;
         if token.is_empty() {
             return Err(anyhow!("Gmail OAuth token is not configured"));
         }
@@ -314,7 +409,7 @@ impl GmailPushChannel {
 
     /// Fetch a full message by ID from the Gmail API.
     pub async fn fetch_message(&self, message_id: &str) -> Result<GmailMessage> {
-        let token = self.resolve_oauth_token();
+        let token = self.resolve_oauth_token().await;
         let url = format!(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}?format=full",
             message_id
@@ -462,7 +557,7 @@ impl Channel for GmailPushChannel {
 
     async fn send(&self, message: &SendMessage) -> Result<()> {
         // Send via Gmail API (drafts.send or messages.send)
-        let token = self.resolve_oauth_token();
+        let token = self.resolve_oauth_token().await;
         if token.is_empty() {
             return Err(anyhow!("Gmail OAuth token is not configured for sending"));
         }
@@ -531,7 +626,7 @@ impl Channel for GmailPushChannel {
     }
 
     async fn health_check(&self) -> bool {
-        let token = self.resolve_oauth_token();
+        let token = self.resolve_oauth_token().await;
         if token.is_empty() {
             return false;
         }

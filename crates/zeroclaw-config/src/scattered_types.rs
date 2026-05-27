@@ -426,6 +426,14 @@ pub struct GmailPushConfig {
     #[secret]
     pub oauth_token: String,
     #[serde(default)]
+    #[secret]
+    pub refresh_token: String,
+    #[serde(default)]
+    pub client_id: String,
+    #[serde(default)]
+    #[secret]
+    pub client_secret: String,
+    #[serde(default)]
     pub allowed_senders: Vec<String>,
     #[serde(default)]
     pub webhook_url: String,
@@ -449,6 +457,9 @@ impl Default for GmailPushConfig {
             topic: String::new(),
             label_filter: default_label_filter(),
             oauth_token: String::new(),
+            refresh_token: String::new(),
+            client_id: String::new(),
+            client_secret: String::new(),
             allowed_senders: Vec::new(),
             webhook_url: String::new(),
             webhook_secret: String::new(),
