@@ -7,16 +7,16 @@ use ratatui::{
 
 use super::theme;
 
-/// ZeroClaw ASCII banner rendered at the top of the TUI onboarding session.
+/// Brai ASCII banner rendered at the top of the TUI onboarding session.
 pub struct Banner;
 
 const BANNER_ART: &str = r"
- ███████╗███████╗██████╗  ██████╗  ██████╗██╗      █████╗ ██╗    ██╗
- ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗██╔════╝██║     ██╔══██╗██║    ██║
-   ███╔╝ █████╗  ██████╔╝██║   ██║██║     ██║     ███████║██║ █╗ ██║
-  ███╔╝  ██╔══╝  ██╔══██╗██║   ██║██║     ██║     ██╔══██║██║███╗██║
- ███████╗███████╗██║  ██║╚██████╔╝╚██████╗███████╗██║  ██║╚███╔███╔╝
- ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+ ██████╗ ██████╗  █████╗ ██╗
+ ██╔══██╗██╔══██╗██╔══██╗██║
+ ██████╔╝██████╔╝███████║██║
+ ██╔══██╗██╔══██╗██╔══██║██║
+ ██████╔╝██║  ██║██║  ██║██║
+ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 ";
 
 impl Widget for Banner {
@@ -29,7 +29,7 @@ impl Widget for Banner {
             lines.push(Line::from(Span::styled(art_line, theme::title_style())));
         }
         lines.push(Line::from(Span::styled(
-            "\u{1f980} ZEROCLAW \u{1f980}",
+            "\u{1f980} BRAI \u{1f980}",
             theme::accent_style(),
         )));
 
