@@ -15,6 +15,7 @@
 //! To add a new tool, implement [`Tool`] in a new submodule and register it in
 //! [`all_tools_with_runtime`]. See `AGENTS.md` §7.3 for the full change playbook.
 
+pub mod create_skill;
 pub mod cron_add;
 pub mod cron_list;
 pub mod cron_remove;
@@ -117,6 +118,7 @@ pub use brai_api::schema::{CleaningStrategy, SchemaCleanr};
 pub use brai_api::tool::{Tool, ToolResult, ToolSpec};
 
 // Local tool re-exports (tools with root deps, kept in misc)
+pub use create_skill::CreateSkillTool;
 pub use cron_add::CronAddTool;
 pub use cron_list::CronListTool;
 pub use cron_remove::CronRemoveTool;
@@ -452,6 +454,10 @@ pub fn all_tools_with_runtime(
             llm_task_runtime_options,
         )));
     }
+
+    tool_arcs.push(Arc::new(CreateSkillTool::new(
+        root_config.workspace_dir.clone(),
+    )));
 
     if matches!(
         root_config.skills.prompt_injection_mode,

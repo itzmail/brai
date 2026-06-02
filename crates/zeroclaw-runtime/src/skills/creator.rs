@@ -82,7 +82,7 @@ impl SkillCreator {
 
     /// Generate a URL-safe slug from a task description.
     /// Alphanumeric and hyphens only, max 64 characters.
-    fn generate_slug(description: &str) -> String {
+    pub(crate) fn generate_slug(description: &str) -> String {
         let slug: String = description
             .to_lowercase()
             .chars()
@@ -122,7 +122,7 @@ impl SkillCreator {
     }
 
     /// Validate that a slug is non-empty, alphanumeric + hyphens, max 64 chars.
-    fn validate_slug(slug: &str) -> bool {
+    pub(crate) fn validate_slug(slug: &str) -> bool {
         !slug.is_empty()
             && slug.len() <= 64
             && slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
@@ -259,7 +259,7 @@ impl SkillCreator {
 }
 
 /// Escape a string for TOML value (double-quoted).
-fn toml_escape(s: &str) -> String {
+pub(crate) fn toml_escape(s: &str) -> String {
     let escaped = s
         .replace('\\', "\\\\")
         .replace('"', "\\\"")

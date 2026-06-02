@@ -155,6 +155,10 @@ mod tests {
             Ok(true)
         }
 
+        async fn forget_for_agent(&self, _key: &str, _agent_id: &str) -> anyhow::Result<bool> {
+            Ok(true)
+        }
+
         async fn count(&self) -> anyhow::Result<usize> {
             Ok(0)
         }
@@ -204,6 +208,10 @@ mod tests {
         }
 
         async fn forget(&self, _key: &str) -> anyhow::Result<bool> {
+            Ok(true)
+        }
+
+        async fn forget_for_agent(&self, _key: &str, _agent_id: &str) -> anyhow::Result<bool> {
             Ok(true)
         }
 
