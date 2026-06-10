@@ -112,6 +112,7 @@ pub use brai_tools::web_fetch::WebFetchTool;
 pub use brai_tools::web_search_tool::WebSearchTool;
 pub use brai_tools::workspace_tool::WorkspaceTool;
 pub use brai_tools::wrappers::{PathGuardedTool, RateLimitedTool};
+pub use brai_tools::zeroclaw_upstream::ZeroclawUpstreamTool;
 
 // Traits from zeroclaw-api
 pub use brai_api::schema::{CleaningStrategy, SchemaCleanr};
@@ -674,6 +675,9 @@ pub fn all_tools_with_runtime(
             tool_arcs.push(Arc::new(GmailReadTool::new(Arc::new(gmail_cfg.clone()))));
         }
     }
+
+    // Zeroclaw upstream update checker — always registered; no config needed
+    tool_arcs.push(Arc::new(ZeroclawUpstreamTool::new()));
 
     // Claude Code delegation tool
     if root_config.claude_code.enabled {

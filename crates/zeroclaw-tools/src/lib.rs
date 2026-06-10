@@ -73,3 +73,4 @@ pub mod web_search_provider_routing;
 pub mod web_search_tool;
 pub mod workspace_tool;
 pub mod wrappers;
+pub mod zeroclaw_upstream;
