@@ -353,7 +353,7 @@ impl OpenRouterProvider {
         ChatRequest {
             model: model.to_string(),
             messages,
-            temperature,
+            temperature: temperature.unwrap_or(0.7),
             max_tokens,
         }
     }
@@ -546,13 +546,11 @@ impl Provider for OpenRouterProvider {
         let credential = self.credential.as_ref()
             .ok_or_else(|| anyhow::anyhow!("OpenRouter API key not set. Run `zeroclaw onboard` or set OPENROUTER_API_KEY env var."))?;
 
-        let temperature = temperature.unwrap_or(self.default_temperature());
-
         let request = Self::build_chat_with_system_request(
             system_prompt,
             message,
             model,
-            temperature,
+            temperature.or(Some(self.default_temperature())),
             self.max_tokens,
         );
 
