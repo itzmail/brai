@@ -18,6 +18,8 @@ struct HygieneReport {
     purged_memory_archives: u64,
     purged_session_archives: u64,
     pruned_conversation_rows: u64,
+    pruned_daily_rows: u64,
+    pruned_core_rows: u64,
 }
 
 impl HygieneReport {
@@ -27,6 +29,8 @@ impl HygieneReport {
             + self.purged_memory_archives
             + self.purged_session_archives
             + self.pruned_conversation_rows
+            + self.pruned_daily_rows
+            + self.pruned_core_rows
     }
 }
 
@@ -54,6 +58,14 @@ pub fn run_if_due(config: &MemoryConfig, workspace_dir: &Path) -> Result<()> {
         &crate::traits::MemoryCategory::Conversation,
         config.conversation_retention_days,
     );
+    let daily_retention = enforcer.retention_days_for_category(
+        &crate::traits::MemoryCategory::Daily,
+        config.daily_retention_days,
+    );
+    let core_retention = enforcer.retention_days_for_category(
+        &crate::traits::MemoryCategory::Core,
+        config.core_retention_days,
+    );
 
     let report = HygieneReport {
         archived_memory_files: archive_daily_memory_files(
@@ -63,7 +75,14 @@ pub fn run_if_due(config: &MemoryConfig, workspace_dir: &Path) -> Result<()> {
         archived_session_files: archive_session_files(workspace_dir, config.archive_after_days)?,
         purged_memory_archives: purge_memory_archives(workspace_dir, config.purge_after_days)?,
         purged_session_archives: purge_session_archives(workspace_dir, config.purge_after_days)?,
-        pruned_conversation_rows: prune_conversation_rows(workspace_dir, conversation_retention)?,
+        pruned_conversation_rows: prune_category_rows(
+            workspace_dir,
+            conversation_retention,
+            "conversation",
+            false,
+        )?,
+        pruned_daily_rows: prune_category_rows(workspace_dir, daily_retention, "daily", false)?,
+        pruned_core_rows: prune_category_rows(workspace_dir, core_retention, "core", true)?,
     };
 
     // Prune audit entries if audit is enabled.
@@ -77,12 +96,14 @@ pub fn run_if_due(config: &MemoryConfig, workspace_dir: &Path) -> Result<()> {
 
     if report.total_actions() > 0 {
         tracing::info!(
-            "memory hygiene complete: archived_memory={} archived_sessions={} purged_memory={} purged_sessions={} pruned_conversation_rows={}",
+            "memory hygiene complete: archived_memory={} archived_sessions={} purged_memory={} purged_sessions={} pruned_conversation={} pruned_daily={} pruned_core={}",
             report.archived_memory_files,
             report.archived_session_files,
             report.purged_memory_archives,
             report.purged_session_archives,
             report.pruned_conversation_rows,
+            report.pruned_daily_rows,
+            report.pruned_core_rows,
         );
     }
 
@@ -307,7 +328,12 @@ fn purge_session_archives(workspace_dir: &Path, purge_after_days: u32) -> Result
     Ok(removed)
 }
 
-fn prune_conversation_rows(workspace_dir: &Path, retention_days: u32) -> Result<u64> {
+fn prune_category_rows(
+    workspace_dir: &Path,
+    retention_days: u32,
+    category: &str,
+    use_created_at: bool,
+) -> Result<u64> {
     if retention_days == 0 {
         return Ok(0);
     }
@@ -322,10 +348,22 @@ fn prune_conversation_rows(workspace_dir: &Path, retention_days: u32) -> Result<
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
     let cutoff = (Local::now() - Duration::days(i64::from(retention_days))).to_rfc3339();
 
-    let affected = conn.execute(
-        "DELETE FROM memories WHERE category = 'conversation' AND updated_at < ?1",
-        params![cutoff],
-    )?;
+    // Core memories use created_at (first-write time). Neither recall nor ordinary
+    // rewrites refresh created_at under the current SQLite upsert, so core retention
+    // is an absolute age limit from first write. Operators should set a large window
+    // or keep core_retention_days = 0 for durable core memory.
+    // Conversation and daily rows use updated_at — those categories are write-heavy and
+    // the distinction is immaterial.
+    let timestamp_col = if use_created_at {
+        "created_at"
+    } else {
+        "updated_at"
+    };
+    let sql = format!(
+        "DELETE FROM memories WHERE category = ?1 AND {} < ?2",
+        timestamp_col
+    );
+    let affected = conn.execute(&sql, params![category, cutoff])?;
 
     Ok(u64::try_from(affected).unwrap_or(0))
 }
@@ -358,8 +396,16 @@ fn prune_audit_entries(workspace_dir: &Path, retention_days: u32) -> Result<()> 
 
 fn memory_date_from_filename(filename: &str) -> Option<NaiveDate> {
     let stem = filename.strip_suffix(".md")?;
+    // Split on '_' first (handles YYYY-MM-DD_suffix.md).
     let date_part = stem.split('_').next().unwrap_or(stem);
-    NaiveDate::parse_from_str(date_part, "%Y-%m-%d").ok()
+    // If the date part has more than 10 chars (e.g. 2026-03-28-1442),
+    // take only the YYYY-MM-DD prefix.
+    let date_str = if date_part.len() > 10 {
+        date_part.get(..10)?
+    } else {
+        date_part
+    };
+    NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
 }
 
 fn date_prefix(filename: &str) -> Option<NaiveDate> {
