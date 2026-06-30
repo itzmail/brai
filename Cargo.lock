@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "brai-api"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "brai-channels"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "aes",
  "anyhow",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "brai-config"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -847,7 +847,7 @@ dependencies = [
 
 [[package]]
 name = "brai-gateway"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "brai-infra"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "brai-api",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "brai-macros"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -921,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "brai-memory"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -944,7 +944,7 @@ dependencies = [
 
 [[package]]
 name = "brai-providers"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -979,7 +979,7 @@ dependencies = [
 
 [[package]]
 name = "brai-runtime"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1057,7 +1057,7 @@ dependencies = [
 
 [[package]]
 name = "brai-tool-call-parser"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "regex",
  "serde",
@@ -1067,7 +1067,7 @@ dependencies = [
 
 [[package]]
 name = "brai-tools"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1110,7 +1110,7 @@ dependencies = [
 
 [[package]]
 name = "brai-tui"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1126,7 +1126,7 @@ dependencies = [
 
 [[package]]
 name = "brailabs"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "async-imap",
@@ -2719,7 +2719,7 @@ dependencies = [
 
 [[package]]
 name = "fill-translations"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -9684,7 +9684,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "anyhow",
  "axum",

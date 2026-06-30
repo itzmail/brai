@@ -64,7 +64,9 @@ pub use brai_tools::file_write::FileWriteTool;
 pub use brai_tools::gemini_cli::GeminiCliTool;
 pub use brai_tools::git_operations::GitOperationsTool;
 pub use brai_tools::glob_search::GlobSearchTool;
+pub use brai_tools::gmail_auth::GmailTokenStore;
 pub use brai_tools::gmail_read::GmailReadTool;
+pub use brai_tools::gmail_send::GmailSendTool;
 pub use brai_tools::google_workspace::GoogleWorkspaceTool;
 pub use brai_tools::hardware_board_info::HardwareBoardInfoTool;
 pub use brai_tools::hardware_memory_map::HardwareMemoryMapTool;
@@ -669,10 +671,21 @@ pub fn all_tools_with_runtime(
         );
     }
 
-    // Gmail read tool — polls Gmail API for messages; no webhook/Pub/Sub needed
+    // Gmail tools — read + send; credentials from brai.toml channels.gmail.*
     if let Some(ref gmail_cfg) = root_config.channels.gmail_push {
         if gmail_cfg.enabled {
-            tool_arcs.push(Arc::new(GmailReadTool::new(Arc::new(gmail_cfg.clone()))));
+            match GmailTokenStore::new(
+                gmail_cfg.client_id.clone(),
+                gmail_cfg.client_secret.clone(),
+                gmail_cfg.refresh_token.clone(),
+            ) {
+                Ok(store) => {
+                    let store = Arc::new(store);
+                    tool_arcs.push(Arc::new(GmailReadTool::new(Arc::clone(&store))));
+                    tool_arcs.push(Arc::new(GmailSendTool::new(Arc::clone(&store))));
+                }
+                Err(e) => tracing::warn!("gmail: {e}"),
+            }
         }
     }
 

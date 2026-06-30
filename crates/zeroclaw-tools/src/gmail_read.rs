@@ -1,84 +1,18 @@
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
-use std::time::Duration;
 use brai_api::tool::{Tool, ToolResult};
-use brai_config::scattered_types::GmailPushConfig;
+use crate::gmail_auth::GmailTokenStore;
 
-/// Gmail read tool — polls Gmail API for recent messages.
-///
-/// Uses OAuth access token from GmailPushConfig. Auto-refreshes token
-/// if refresh_token + client credentials are configured.
 pub struct GmailReadTool {
-    config: Arc<GmailPushConfig>,
-    http: reqwest::Client,
+    tokens: Arc<GmailTokenStore>,
+    http: Arc<reqwest::Client>,
 }
 
 impl GmailReadTool {
-    pub fn new(config: Arc<GmailPushConfig>) -> Self {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .expect("failed to build HTTP client");
-        Self { config, http }
-    }
-
-    /// Resolve a valid access token — tries refresh_token first, falls back to static token.
-    async fn resolve_token(&self) -> anyhow::Result<String> {
-        let refresh_token = if !self.config.refresh_token.is_empty() {
-            self.config.refresh_token.clone()
-        } else {
-            std::env::var("GMAIL_PUSH_REFRESH_TOKEN").unwrap_or_default()
-        };
-        let client_id = if !self.config.client_id.is_empty() {
-            self.config.client_id.clone()
-        } else {
-            std::env::var("GMAIL_PUSH_CLIENT_ID").unwrap_or_default()
-        };
-        let client_secret = if !self.config.client_secret.is_empty() {
-            self.config.client_secret.clone()
-        } else {
-            std::env::var("GMAIL_PUSH_CLIENT_SECRET").unwrap_or_default()
-        };
-
-        if !refresh_token.is_empty() && !client_id.is_empty() && !client_secret.is_empty() {
-            return self.refresh_access_token(&refresh_token, &client_id, &client_secret).await;
-        }
-
-        let token = if !self.config.oauth_token.is_empty() {
-            self.config.oauth_token.clone()
-        } else {
-            std::env::var("GMAIL_PUSH_OAUTH_TOKEN").unwrap_or_default()
-        };
-
-        if token.is_empty() {
-            anyhow::bail!("Gmail OAuth token not configured");
-        }
-        Ok(token)
-    }
-
-    async fn refresh_access_token(&self, refresh_token: &str, client_id: &str, client_secret: &str) -> anyhow::Result<String> {
-        #[derive(serde::Deserialize)]
-        struct TokenResp { access_token: String }
-
-        let params = [
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refresh_token),
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-        ];
-        let resp = self.http
-            .post("https://oauth2.googleapis.com/token")
-            .form(&params)
-            .send()
-            .await?;
-
-        if !resp.status().is_success() {
-            let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!("Token refresh failed: {text}");
-        }
-        let t: TokenResp = resp.json().await?;
-        Ok(t.access_token)
+    pub fn new(tokens: Arc<GmailTokenStore>) -> Self {
+        let http = tokens.http_client();
+        Self { tokens, http }
     }
 
     async fn list_messages(&self, token: &str, max: u32, query: &str) -> anyhow::Result<Vec<String>> {
@@ -87,10 +21,13 @@ impl GmailReadTool {
         #[derive(serde::Deserialize)]
         struct MsgRef { id: String }
 
-        let url = format!(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults={max}&q={query}"
-        );
-        let resp = self.http.get(&url).bearer_auth(token).send().await?;
+        let max_str = max.to_string();
+        let resp = self.http
+            .get("https://gmail.googleapis.com/gmail/v1/users/me/messages")
+            .query(&[("maxResults", max_str.as_str()), ("q", query)])
+            .bearer_auth(token)
+            .send()
+            .await?;
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             anyhow::bail!("Gmail list failed: {text}");
@@ -104,15 +41,15 @@ impl GmailReadTool {
         struct Msg {
             snippet: Option<String>,
             payload: Option<Payload>,
-            #[serde(rename = "internalDate")]
-            internal_date: Option<String>,
         }
         #[derive(serde::Deserialize)]
         struct Payload { headers: Option<Vec<Header>> }
         #[derive(serde::Deserialize)]
         struct Header { name: String, value: String }
 
-        let url = format!("https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date");
+        let url = format!(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date"
+        );
         let resp = self.http.get(&url).bearer_auth(token).send().await?;
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
@@ -143,11 +80,9 @@ struct ParsedEmail {
     snippet: String,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl Tool for GmailReadTool {
-    fn name(&self) -> &str {
-        "gmail_read"
-    }
+    fn name(&self) -> &str { "gmail_read" }
 
     fn description(&self) -> &str {
         "Read recent emails from Gmail. Returns sender, subject, date, and snippet. \
@@ -185,7 +120,7 @@ impl Tool for GmailReadTool {
             .unwrap_or("is:unread")
             .to_string();
 
-        let token = match self.resolve_token().await {
+        let token = match self.tokens.resolve_access_token().await {
             Ok(t) => t,
             Err(e) => return Ok(ToolResult {
                 success: false,
@@ -220,9 +155,7 @@ impl Tool for GmailReadTool {
                         email.from, email.subject, email.date, email.snippet
                     ));
                 }
-                Err(e) => {
-                    results.push(format!("[Error fetching {id}: {e}]\n"));
-                }
+                Err(e) => results.push(format!("[Error fetching {id}: {e}]\n")),
             }
         }
 
@@ -237,17 +170,18 @@ impl Tool for GmailReadTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brai_config::scattered_types::GmailPushConfig;
 
     #[test]
     fn tool_name() {
-        let tool = GmailReadTool::new(Arc::new(GmailPushConfig::default()));
+        let store = Arc::new(GmailTokenStore::new("c".into(), "s".into(), "r".into()).unwrap());
+        let tool = GmailReadTool::new(store);
         assert_eq!(tool.name(), "gmail_read");
     }
 
     #[test]
     fn parameters_schema_valid() {
-        let tool = GmailReadTool::new(Arc::new(GmailPushConfig::default()));
+        let store = Arc::new(GmailTokenStore::new("c".into(), "s".into(), "r".into()).unwrap());
+        let tool = GmailReadTool::new(store);
         let schema = tool.parameters_schema();
         assert!(schema.get("properties").is_some());
     }
