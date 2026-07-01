@@ -200,6 +200,10 @@ mod tests {
             Ok(None)
         }
 
+        async fn forget_for_agent(&self, _key: &str, _agent_id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+
         async fn list(
             &self,
             _category: Option<&MemoryCategory>,

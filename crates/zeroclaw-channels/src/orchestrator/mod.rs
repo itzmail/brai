@@ -9216,6 +9216,10 @@ BTC is currently around $65,000 based on latest tool output."#
             Ok(false)
         }
 
+        async fn forget_for_agent(&self, _key: &str, _agent_id: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+
         async fn count(&self) -> anyhow::Result<usize> {
             Ok(0)
         }
@@ -9278,6 +9282,10 @@ BTC is currently around $65,000 based on latest tool output."#
         }
 
         async fn forget(&self, _key: &str) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+
+        async fn forget_for_agent(&self, _key: &str, _agent_id: &str) -> anyhow::Result<bool> {
             Ok(false)
         }
 

@@ -9,7 +9,7 @@
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use zeroclaw::channels::{Channel, ChannelMessage, SendMessage};
+use brai::channels::{Channel, ChannelMessage, SendMessage};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Matrix test channel — records all trait method calls for assertion

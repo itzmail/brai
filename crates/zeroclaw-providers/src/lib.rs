@@ -4186,51 +4186,24 @@ mod tests {
         assert_eq!(tuning.num_predict, ollama::OLLAMA_DEFAULT_NUM_PREDICT);
     }
 
-    fn config_with_openai_alias() -> zeroclaw_config::schema::Config {
-        use zeroclaw_config::schema::{
-            AliasedAgentConfig, Config, ModelProviderConfig, OpenAIModelProviderConfig,
-        };
-        let mut config = Config::default();
-        let alias = OpenAIModelProviderConfig {
-            base: ModelProviderConfig {
-                api_key: Some("openai-alias-key".into()),
-                model: Some("gpt-4o".into()),
-                ..ModelProviderConfig::default()
-            },
-        };
-        config
-            .providers
-            .models
-            .openai
-            .insert("alias".to_string(), alias);
-        let agent = AliasedAgentConfig {
-            model_provider: "openai.alias".into(),
-            ..AliasedAgentConfig::default()
-        };
-        config.agents.insert("test_agent".to_string(), agent);
-        config
-    }
-
     #[test]
-    fn routed_model_provider_credential_precedence_uses_route_key_first() {
-        let config = config_with_openai_alias();
-        let reliability = zeroclaw_config::schema::ReliabilityConfig::default();
-        let routes = [zeroclaw_config::schema::ModelRouteConfig {
+    fn routed_provider_credential_precedence_uses_route_key_first() {
+        let reliability = brai_config::schema::ReliabilityConfig::default();
+        let routes = [brai_config::schema::ModelRouteConfig {
             hint: "test".into(),
-            model_provider: "openai.alias".into(),
+            provider: "openai".into(),
             model: "gpt-4o".into(),
             api_key: Some("route-key".into()),
         }];
 
-        let result = create_routed_model_provider_with_options(
-            &config,
-            "openai.alias",
+        let result = create_routed_provider_with_options(
+            "openai",
             Some("fallback-key"),
             None,
             &reliability,
             &routes,
             "gpt-4o",
-            &ModelProviderRuntimeOptions::default(),
+            &ProviderRuntimeOptions::default(),
         );
 
         assert!(
@@ -4241,92 +4214,29 @@ mod tests {
     }
 
     #[test]
-    fn routed_model_provider_credential_precedence_uses_config_entry_key() {
-        let config = config_with_openai_alias();
-        let reliability = zeroclaw_config::schema::ReliabilityConfig::default();
-        // Route has no api_key — should fall back to config entry key "openai-alias-key"
-        let routes = [zeroclaw_config::schema::ModelRouteConfig {
+    fn routed_provider_credential_precedence_falls_back_to_api_key_param() {
+        let reliability = brai_config::schema::ReliabilityConfig::default();
+        // Route has no api_key — should fall back to the api_key param "fallback-key"
+        let routes = [brai_config::schema::ModelRouteConfig {
             hint: "test".into(),
-            model_provider: "openai.alias".into(),
+            provider: "openai".into(),
             model: "gpt-4o".into(),
             api_key: None,
         }];
 
-        let result = create_routed_model_provider_with_options(
-            &config,
-            "openai.alias",
-            Some("fallback-key"),
-            None,
-            &reliability,
-            &routes,
-            "gpt-4o",
-            &ModelProviderRuntimeOptions::default(),
-        );
-
-        assert!(
-            result.is_ok(),
-            "config-entry key should succeed: {}",
-            result.err().unwrap()
-        );
-    }
-
-    #[test]
-    fn routed_model_provider_credential_precedence_falls_back_to_api_key_param() {
-        let config = zeroclaw_config::schema::Config::default(); // no entry in config.models
-        let reliability = zeroclaw_config::schema::ReliabilityConfig::default();
-        // Neither route nor config entry has api_key — should use the param "fallback-key"
-        let routes = [zeroclaw_config::schema::ModelRouteConfig {
-            hint: "test".into(),
-            model_provider: "openai".into(),
-            model: "gpt-4o".into(),
-            api_key: None,
-        }];
-
-        let result = create_routed_model_provider_with_options(
-            &config,
+        let result = create_routed_provider_with_options(
             "openai",
             Some("fallback-key"),
             None,
             &reliability,
             &routes,
             "gpt-4o",
-            &ModelProviderRuntimeOptions::default(),
+            &ProviderRuntimeOptions::default(),
         );
 
         assert!(
             result.is_ok(),
             "fallback-key should succeed: {}",
-            result.err().unwrap()
-        );
-    }
-
-    #[test]
-    fn routed_model_provider_credential_skips_config_entry_for_non_dotted_name() {
-        let config = zeroclaw_config::schema::Config::default();
-        let reliability = zeroclaw_config::schema::ReliabilityConfig::default();
-        // Non-dotted name "openai" — split_once('.') returns None, so config entry
-        // lookup is skipped entirely. Falls back to api_key param.
-        let routes = [zeroclaw_config::schema::ModelRouteConfig {
-            hint: "test".into(),
-            model_provider: "openai".into(),
-            model: "gpt-4o".into(),
-            api_key: None,
-        }];
-
-        let result = create_routed_model_provider_with_options(
-            &config,
-            "openai",
-            Some("direct-key"),
-            None,
-            &reliability,
-            &routes,
-            "gpt-4o",
-            &ModelProviderRuntimeOptions::default(),
-        );
-
-        assert!(
-            result.is_ok(),
-            "direct-key should succeed: {}",
             result.err().unwrap()
         );
     }

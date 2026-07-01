@@ -1125,7 +1125,7 @@ mod tests {
 
     #[test]
     fn chat_request_serializes_with_system_and_user() {
-        let request = OpenRouterModelProvider::build_chat_with_system_request(
+        let request = OpenRouterProvider::build_chat_with_system_request(
             Some("You are helpful"),
             "Summarize this",
             "anthropic/claude-sonnet-4",

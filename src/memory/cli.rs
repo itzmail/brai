@@ -403,7 +403,7 @@ mod tests {
     async fn clear_rejects_append_only_markdown_backend() {
         let tmp = TempDir::new().unwrap();
         let mut config = Config::default();
-        config.data_dir = tmp.path().to_path_buf();
+        config.workspace_dir = tmp.path().to_path_buf();
         config.memory.backend = "markdown".into();
 
         let err = handle_command(
@@ -426,7 +426,7 @@ mod tests {
     async fn clear_rejects_qdrant_backend_constructed_as_markdown() {
         let tmp = TempDir::new().unwrap();
         let mut config = Config::default();
-        config.data_dir = tmp.path().to_path_buf();
+        config.workspace_dir = tmp.path().to_path_buf();
         config.memory.backend = "qdrant".into();
 
         let err = handle_command(
@@ -449,7 +449,7 @@ mod tests {
     async fn clear_rejects_dotted_qdrant_backend() {
         let tmp = TempDir::new().unwrap();
         let mut config = Config::default();
-        config.data_dir = tmp.path().to_path_buf();
+        config.workspace_dir = tmp.path().to_path_buf();
         config.memory.backend = "qdrant.default".into();
 
         let err = handle_command(

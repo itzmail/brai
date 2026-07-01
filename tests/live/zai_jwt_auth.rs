@@ -6,8 +6,8 @@
 //! Requires `ZAI_API_KEY` env var set (format: `id.secret`).
 //! Run: `ZAI_API_KEY=... cargo test live_zai -- --ignored --nocapture`
 
-use zeroclaw::providers::create_provider;
-use zeroclaw::providers::traits::ChatMessage;
+use brai::providers::create_provider;
+use brai::providers::traits::ChatMessage;
 
 /// Near-zero temperature for the single-word sanity check; we ask for "one
 /// word" and just assert the response is non-empty, so a near-deterministic

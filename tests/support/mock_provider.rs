@@ -3,8 +3,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
-use zeroclaw::providers::traits::{ChatMessage, TokenUsage};
-use zeroclaw::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
+use brai::providers::traits::{ChatMessage, TokenUsage};
+use brai::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
 
 use super::trace::{LlmTrace, TraceResponse};
 

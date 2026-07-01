@@ -430,6 +430,22 @@ impl Memory for PostgresMemory {
         .await
     }
 
+    async fn forget_for_agent(&self, key: &str, agent_id: &str) -> Result<bool> {
+        let client = self.client.clone();
+        let qualified_table = self.qualified_table.clone();
+        let key = key.to_string();
+        let agent_id = agent_id.to_string();
+
+        run_on_os_thread(move || -> Result<bool> {
+            let mut client = client.lock();
+            let stmt =
+                format!("DELETE FROM {qualified_table} WHERE key = $1 AND session_id = $2");
+            let deleted = client.execute(&stmt, &[&key, &agent_id])?;
+            Ok(deleted > 0)
+        })
+        .await
+    }
+
     async fn count(&self) -> Result<usize> {
         let client = self.client.clone();
         let qualified_table = self.qualified_table.clone();

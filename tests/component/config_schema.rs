@@ -3,8 +3,8 @@
 //! Validates: config defaults, backward compatibility, invalid input rejection,
 //! and gateway/security/agent config boundary conditions.
 
-use zeroclaw::config::migration::{self, V1Compat};
-use zeroclaw::config::{AutonomyConfig, ChannelsConfig, Config, GatewayConfig, SecurityConfig};
+use brai::config::migration::{self, V1Compat};
+use brai::config::{AutonomyConfig, ChannelsConfig, Config, GatewayConfig, SecurityConfig};
 
 fn migrate(toml_str: &str) -> Config {
     let mut table: toml::Table = toml::from_str(toml_str).expect("failed to parse table");
