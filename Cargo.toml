@@ -29,6 +29,7 @@ brai-tui = { path = "crates/zeroclaw-tui", version = "0.7.6" }
 brai-gateway = { path = "crates/zeroclaw-gateway", version = "0.7.6" }
 brai-tool-call-parser = { path = "crates/zeroclaw-tool-call-parser", version = "0.7.6" }
 brai-macros = { path = "crates/zeroclaw-macros", version = "0.7.6" }
+toon-format = "0.5"
 
 [package]
 name = "brailabs"

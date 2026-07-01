@@ -29,6 +29,7 @@ static PERIPHERAL_TOOLS_FN: std::sync::OnceLock<PeripheralToolsFn> = std::sync::
 pub fn register_peripheral_tools_fn(f: PeripheralToolsFn) {
     let _ = PERIPHERAL_TOOLS_FN.set(f);
 }
+use crate::agent::memory_context;
 use crate::cost::types::BudgetCheck;
 use crate::observability::{self, Observer, ObserverEvent, runtime_trace};
 use crate::platform;
@@ -49,9 +50,7 @@ use uuid::Uuid;
 use brai_api::channel::Channel;
 use brai_api::provider::StreamEvent;
 use brai_config::schema::Config;
-use brai_memory::{
-    self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, MemoryCategory, decay,
-};
+use brai_memory::{self, Memory, MemoryCategory, decay};
 use brai_providers::multimodal;
 use brai_providers::{
     self, ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall,
@@ -349,65 +348,61 @@ async fn build_context(
     session_id: Option<&str>,
     exclude_conversation: bool,
 ) -> String {
-    let mut context = String::new();
-
     // Pull relevant memories for this message
-    if let Ok(mut entries) = mem.recall(user_msg, 5, session_id, None, None).await {
-        // Apply time decay: older non-Core memories score lower
-        decay::apply_time_decay(&mut entries, decay::DEFAULT_HALF_LIFE_DAYS);
+    let Ok(mut entries) = mem.recall(user_msg, 5, session_id, None, None).await else {
+        return String::new();
+    };
 
-        let relevant: Vec<_> = entries
-            .iter()
-            .filter(|e| match e.score {
-                Some(score) => score >= min_relevance_score,
-                None => true,
-            })
-            .collect();
+    // Apply time decay: older non-Core memories score lower
+    decay::apply_time_decay(&mut entries, decay::DEFAULT_HALF_LIFE_DAYS);
 
-        if !relevant.is_empty() {
-            let mut included = false;
-            for entry in &relevant {
-                // Scheduled (cron / heartbeat) runs must not see chat-origin
-                // memories. The autosave-key checks below catch the agent's
-                // own autosaves but miss Conversation entries written by
-                // channel handlers (Discord, gateway, WhatsApp, …) under
-                // their own keys. See #5415 / #5456.
-                if exclude_conversation && matches!(entry.category, MemoryCategory::Conversation) {
-                    continue;
-                }
-                if brai_memory::is_assistant_autosave_key(&entry.key) {
-                    continue;
-                }
-                // Skip raw per-turn user messages: re-injecting them causes each
-                // recalled entry to embed all prior generations, growing exponentially.
-                // Consolidated knowledge is already promoted to Core/Daily entries.
-                if brai_memory::is_user_autosave_key(&entry.key) {
-                    continue;
-                }
-                if brai_memory::should_skip_autosave_content(&entry.content) {
-                    continue;
-                }
-                // Skip entries containing tool_result blocks — they can leak
-                // stale tool output from previous heartbeat ticks into new
-                // sessions, presenting the LLM with orphan tool_result data.
-                if entry.content.contains("<tool_result") {
-                    continue;
-                }
-                if !included {
-                    context.push_str(MEMORY_CONTEXT_OPEN);
-                    context.push('\n');
-                    included = true;
-                }
-                let _ = writeln!(context, "- {}: {}", entry.key, entry.content);
+    let relevant: Vec<_> = entries
+        .iter()
+        .filter(|e| match e.score {
+            Some(score) => score >= min_relevance_score,
+            None => true,
+        })
+        .collect();
+
+    let rows: Vec<memory_context::MemoryContextRow> = relevant
+        .into_iter()
+        .filter(|entry| {
+            // Scheduled (cron / heartbeat) runs must not see chat-origin
+            // memories. The autosave-key checks below catch the agent's
+            // own autosaves but miss Conversation entries written by
+            // channel handlers (Discord, gateway, WhatsApp, …) under
+            // their own keys. See #5415 / #5456.
+            if exclude_conversation && matches!(entry.category, MemoryCategory::Conversation) {
+                return false;
             }
-            if included {
-                context.push_str(MEMORY_CONTEXT_CLOSE);
-                context.push_str("\n\n");
+            if brai_memory::is_assistant_autosave_key(&entry.key) {
+                return false;
             }
-        }
-    }
+            // Skip raw per-turn user messages: re-injecting them causes each
+            // recalled entry to embed all prior generations, growing exponentially.
+            // Consolidated knowledge is already promoted to Core/Daily entries.
+            if brai_memory::is_user_autosave_key(&entry.key) {
+                return false;
+            }
+            if brai_memory::should_skip_autosave_content(&entry.content) {
+                return false;
+            }
+            // Skip entries containing tool_result blocks — they can leak
+            // stale tool output from previous heartbeat ticks into new
+            // sessions, presenting the LLM with orphan tool_result data.
+            if entry.content.contains("<tool_result") {
+                return false;
+            }
+            true
+        })
+        .map(|entry| memory_context::MemoryContextRow {
+            key: entry.key.clone(),
+            content: entry.content.clone(),
+            score: entry.score,
+        })
+        .collect();
 
-    context
+    memory_context::encode_memory_context(&rows)
 }
 
 /// Build hardware datasheet context from RAG when peripherals are enabled.

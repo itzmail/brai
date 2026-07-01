@@ -1,6 +1,6 @@
+use crate::agent::memory_context;
 use async_trait::async_trait;
-use std::fmt::Write;
-use brai_memory::{self, MEMORY_CONTEXT_CLOSE, MEMORY_CONTEXT_OPEN, Memory, decay};
+use brai_memory::{self, Memory, decay};
 
 #[async_trait]
 pub trait MemoryLoader: Send + Sync {
@@ -53,39 +53,33 @@ impl MemoryLoader for DefaultMemoryLoader {
         // Apply time decay: older non-Core memories score lower
         decay::apply_time_decay(&mut entries, decay::DEFAULT_HALF_LIFE_DAYS);
 
-        let mut context = String::new();
-        let mut included = false;
-        for entry in entries {
-            if brai_memory::is_assistant_autosave_key(&entry.key) {
-                continue;
-            }
-            if brai_memory::is_user_autosave_key(&entry.key) {
-                continue;
-            }
-            if brai_memory::should_skip_autosave_content(&entry.content) {
-                continue;
-            }
-            if let Some(score) = entry.score
-                && score < self.min_relevance_score
-            {
-                continue;
-            }
-            if !included {
-                context.push_str(MEMORY_CONTEXT_OPEN);
-                context.push('\n');
-                included = true;
-            }
-            let _ = writeln!(context, "- {}: {}", entry.key, entry.content);
-        }
+        let rows: Vec<memory_context::MemoryContextRow> = entries
+            .into_iter()
+            .filter(|entry| {
+                if brai_memory::is_assistant_autosave_key(&entry.key) {
+                    return false;
+                }
+                if brai_memory::is_user_autosave_key(&entry.key) {
+                    return false;
+                }
+                if brai_memory::should_skip_autosave_content(&entry.content) {
+                    return false;
+                }
+                if let Some(score) = entry.score
+                    && score < self.min_relevance_score
+                {
+                    return false;
+                }
+                true
+            })
+            .map(|entry| memory_context::MemoryContextRow {
+                key: entry.key,
+                content: entry.content,
+                score: entry.score,
+            })
+            .collect();
 
-        // If all entries were below threshold, return empty
-        if !included {
-            return Ok(String::new());
-        }
-
-        context.push_str(MEMORY_CONTEXT_CLOSE);
-        context.push_str("\n\n");
-        Ok(context)
+        Ok(memory_context::encode_memory_context(&rows))
     }
 }
 
@@ -237,7 +231,9 @@ mod tests {
             .unwrap();
         assert_eq!(
             context,
-            format!("{MEMORY_CONTEXT_OPEN}\n- k: v\n{MEMORY_CONTEXT_CLOSE}\n\n")
+            format!(
+                "{MEMORY_CONTEXT_OPEN}\n[1]{{key,content,score}}:\n  k,v,null\n{MEMORY_CONTEXT_CLOSE}\n\n"
+            )
         );
     }
 
