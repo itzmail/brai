@@ -10,25 +10,25 @@ unexpected_cfgs = { level = "allow", check-cfg = [
 ] }
 
 [workspace.package]
-version = "0.7.6"
+version = "0.7.7"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/zeroclaw-labs/zeroclaw"
 rust-version = "1.87"
 
 [workspace.dependencies]
-brai-api = { path = "crates/zeroclaw-api", version = "0.7.6" }
-brai-infra = { path = "crates/zeroclaw-infra", version = "0.7.6" }
-brai-config = { path = "crates/zeroclaw-config", version = "0.7.6", default-features = false }
-brai-providers = { path = "crates/zeroclaw-providers", version = "0.7.6" }
-brai-memory = { path = "crates/zeroclaw-memory", version = "0.7.6" }
-brai-channels = { path = "crates/zeroclaw-channels", version = "0.7.6", default-features = false }
-brai-tools = { path = "crates/zeroclaw-tools", version = "0.7.6" }
-brai-runtime = { path = "crates/zeroclaw-runtime", version = "0.7.6", default-features = false }
-brai-tui = { path = "crates/zeroclaw-tui", version = "0.7.6" }
-brai-gateway = { path = "crates/zeroclaw-gateway", version = "0.7.6" }
-brai-tool-call-parser = { path = "crates/zeroclaw-tool-call-parser", version = "0.7.6" }
-brai-macros = { path = "crates/zeroclaw-macros", version = "0.7.6" }
+brai-api = { path = "crates/zeroclaw-api", version = "0.7.7" }
+brai-infra = { path = "crates/zeroclaw-infra", version = "0.7.7" }
+brai-config = { path = "crates/zeroclaw-config", version = "0.7.7", default-features = false }
+brai-providers = { path = "crates/zeroclaw-providers", version = "0.7.7" }
+brai-memory = { path = "crates/zeroclaw-memory", version = "0.7.7" }
+brai-channels = { path = "crates/zeroclaw-channels", version = "0.7.7", default-features = false }
+brai-tools = { path = "crates/zeroclaw-tools", version = "0.7.7" }
+brai-runtime = { path = "crates/zeroclaw-runtime", version = "0.7.7", default-features = false }
+brai-tui = { path = "crates/zeroclaw-tui", version = "0.7.7" }
+brai-gateway = { path = "crates/zeroclaw-gateway", version = "0.7.7" }
+brai-tool-call-parser = { path = "crates/zeroclaw-tool-call-parser", version = "0.7.7" }
+brai-macros = { path = "crates/zeroclaw-macros", version = "0.7.7" }
 toon-format = "0.5"
 
 [package]
