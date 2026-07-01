@@ -838,6 +838,7 @@ impl TelegramChannel {
             serde_json::json!({ "command": "model",  "description": "Show or switch the current model" }),
             serde_json::json!({ "command": "models", "description": "List available providers or switch provider" }),
             serde_json::json!({ "command": "config", "description": "Show current configuration" }),
+            serde_json::json!({ "command": "usage",  "description": "Show today's token and cost usage" }),
         ];
 
         // Track registered names to deduplicate across skills and tools.

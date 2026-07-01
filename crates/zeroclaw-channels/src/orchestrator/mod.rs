@@ -267,6 +267,7 @@ enum ChannelRuntimeCommand {
     ShowModel,
     SetModel(String),
     ShowConfig,
+    ShowUsage,
     NewSession,
 }
 
@@ -815,6 +816,9 @@ fn parse_runtime_command(channel_name: &str, content: &str) -> Option<ChannelRun
         }
         "/config" if supports_runtime_model_switch(channel_name) => {
             Some(ChannelRuntimeCommand::ShowConfig)
+        }
+        "/usage" if supports_runtime_model_switch(channel_name) => {
+            Some(ChannelRuntimeCommand::ShowUsage)
         }
         _ => None,
     }
@@ -1896,6 +1900,23 @@ async fn handle_runtime_command_if_needed(
                 build_config_text_response(&current, ctx.workspace_dir.as_path(), &ctx.model_routes)
             }
         }
+        ChannelRuntimeCommand::ShowUsage => match &ctx.cost_tracking {
+            Some(cost_state) => match cost_state.tracker.get_daily_tokens() {
+                Ok(daily_tokens) => {
+                    let limit = cost_state.tracker.daily_token_limit();
+                    let percent = (daily_tokens * 100) / limit.max(1);
+                    let daily_cost = cost_state
+                        .tracker
+                        .get_daily_cost(chrono::Utc::now().date_naive())
+                        .unwrap_or(0.0);
+                    format!(
+                        "📊 Usage hari ini\nToken: {daily_tokens} / {limit} ({percent}%)\nCost: ${daily_cost:.4}"
+                    )
+                }
+                Err(e) => format!("Failed to read usage: {e}"),
+            },
+            None => "Cost tracking is disabled.".to_string(),
+        },
         ChannelRuntimeCommand::NewSession => {
             clear_sender_history(ctx, &sender_key);
             if let Some(ref store) = ctx.session_store
@@ -3696,6 +3717,31 @@ async fn process_channel_message(
                         error = %e,
                         "failed to send tool receipts block"
                     );
+                }
+
+                // Non-blocking daily token warning — fires at most once per
+                // day per process (see CostTracker::should_send_token_warning).
+                if let Some(ref cost_state) = ctx.cost_tracking
+                    && cost_state.tracker.should_send_token_warning()
+                    && let Ok(Some((current, limit))) = cost_state.tracker.check_token_budget()
+                {
+                    let percent = (current * 100) / limit.max(1);
+                    let warning = format!(
+                        "⚠️ Token usage hari ini: {current} / {limit} ({percent}%)"
+                    );
+                    if let Err(e) = channel
+                        .send(
+                            &SendMessage::new(&warning, &msg.reply_target)
+                                .in_thread(msg.thread_ts.clone()),
+                        )
+                        .await
+                    {
+                        tracing::warn!(
+                            channel = channel.name(),
+                            error = %e,
+                            "failed to send daily token warning"
+                        );
+                    }
                 }
             }
         }
@@ -13346,5 +13392,137 @@ This is an example JSON object for profile settings."#;
         assert!(prompt_a.contains("sender=user_aaa"));
         assert!(prompt_b.contains("sender=user_bbb"));
         assert_ne!(prompt_a, prompt_b);
+    }
+
+    // ── /usage command and daily token warning ────────────────────────
+
+    fn cost_tracking_state_with_tokens(
+        workspace: &std::path::Path,
+        daily_token_limit: u64,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> ChannelCostTrackingState {
+        let config = brai_config::schema::CostConfig {
+            enabled: true,
+            daily_token_limit,
+            ..Default::default()
+        };
+        let tracker = brai_runtime::cost::CostTracker::new(config, workspace).unwrap();
+        if input_tokens > 0 || output_tokens > 0 {
+            tracker
+                .record_usage(brai_runtime::cost::types::TokenUsage::new(
+                    "test/model",
+                    input_tokens,
+                    output_tokens,
+                    1.0,
+                    1.0,
+                ))
+                .unwrap();
+        }
+        ChannelCostTrackingState {
+            tracker: Arc::new(tracker),
+            prices: Arc::new(HashMap::new()),
+        }
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_handles_usage_command_without_llm_call() {
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let default_provider_impl = Arc::new(ModelCaptureProvider::default());
+        let default_provider: Arc<dyn Provider> = default_provider_impl.clone();
+
+        let mut provider_cache_seed: HashMap<String, Arc<dyn Provider>> = HashMap::new();
+        provider_cache_seed.insert("test-provider".to_string(), Arc::clone(&default_provider));
+
+        let workspace = tempfile::TempDir::new().unwrap();
+        let cost_tracking = cost_tracking_state_with_tokens(workspace.path(), 1_000, 800, 300);
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::clone(&default_provider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("default-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(lru::LruCache::new(
+                std::num::NonZeroUsize::new(MAX_CONVERSATION_SENDERS).unwrap(),
+            ))),
+            pending_new_sessions: Arc::new(Mutex::new(HashSet::new())),
+            provider_cache: Arc::new(Mutex::new(provider_cache_seed)),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(brai_config::schema::ReliabilityConfig::default()),
+            provider_runtime_options: brai_providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(std::env::temp_dir()),
+            prompt_config: Arc::new(brai_config::schema::Config::default()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: InterruptOnNewMessageConfig {
+                telegram: false,
+                slack: false,
+                discord: false,
+                mattermost: false,
+                matrix: false,
+            },
+            multimodal: brai_config::schema::MultimodalConfig::default(),
+            media_pipeline: brai_config::schema::MediaPipelineConfig::default(),
+            transcription_config: brai_config::schema::TranscriptionConfig::default(),
+            hooks: None,
+            non_cli_excluded_tools: Arc::new(Vec::new()),
+            autonomy_level: AutonomyLevel::default(),
+            tool_call_dedup_exempt: Arc::new(Vec::new()),
+            model_routes: Arc::new(Vec::new()),
+            query_classification: brai_config::schema::QueryClassificationConfig::default(),
+            ack_reactions: true,
+            show_tool_calls: true,
+            session_store: None,
+            approval_manager: Arc::new(ApprovalManager::for_non_interactive(
+                &brai_config::schema::AutonomyConfig::default(),
+            )),
+            activated_tools: None,
+            cost_tracking: Some(cost_tracking),
+            pacing: brai_config::schema::PacingConfig::default(),
+            max_tool_result_chars: 0,
+            context_token_budget: 0,
+            debouncer: Arc::new(brai_infra::debounce::MessageDebouncer::new(
+                Duration::ZERO,
+            )),
+            receipt_generator: None,
+            show_receipts_in_response: false,
+        });
+
+        process_channel_message(
+            runtime_ctx.clone(),
+            brai_api::channel::ChannelMessage {
+                id: "msg-usage-1".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-1".to_string(),
+                content: "/usage".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+                interruption_scope_id: None,
+                attachments: vec![],
+            },
+            CancellationToken::new(),
+        )
+        .await;
+
+        let sent = channel_impl.sent_messages.lock().await;
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].contains("1100 / 1000"));
+        assert!(sent[0].contains("110%"));
+        assert_eq!(default_provider_impl.call_count.load(Ordering::SeqCst), 0);
     }
 }

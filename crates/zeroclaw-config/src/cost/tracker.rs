@@ -15,6 +15,7 @@ pub struct CostTracker {
     storage: Arc<Mutex<CostStorage>>,
     session_id: String,
     session_costs: Arc<Mutex<Vec<CostRecord>>>,
+    last_token_warning_date: Arc<Mutex<Option<NaiveDate>>>,
 }
 
 impl CostTracker {
@@ -31,12 +32,18 @@ impl CostTracker {
             storage: Arc::new(Mutex::new(storage)),
             session_id: uuid::Uuid::new_v4().to_string(),
             session_costs: Arc::new(Mutex::new(Vec::new())),
+            last_token_warning_date: Arc::new(Mutex::new(None)),
         })
     }
 
     /// Get the session ID.
     pub fn session_id(&self) -> &str {
         &self.session_id
+    }
+
+    /// Get the configured daily token warning threshold.
+    pub fn daily_token_limit(&self) -> u64 {
+        self.config.daily_token_limit
     }
 
     fn lock_storage(&self) -> MutexGuard<'_, CostStorage> {
@@ -173,6 +180,48 @@ impl CostTracker {
         let storage = self.lock_storage();
         storage.get_cost_for_month(year, month)
     }
+
+    /// Get today's total token usage (input + output tokens across all requests).
+    pub fn get_daily_tokens(&self) -> Result<u64> {
+        let mut storage = self.lock_storage();
+        storage.get_daily_tokens()
+    }
+
+    /// Check today's token usage against `daily_token_limit`. Returns
+    /// `Some((current_tokens, limit))` when at or over the limit, `None`
+    /// otherwise. This is purely informational — unlike `check_budget`,
+    /// it has no "block" outcome and never returns an error to the caller.
+    pub fn check_token_budget(&self) -> Result<Option<(u64, u64)>> {
+        let limit = self.config.daily_token_limit;
+        let current = self.get_daily_tokens()?;
+
+        if current >= limit {
+            Ok(Some((current, limit)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Whether a token-limit warning should be sent right now: today's usage
+    /// is at or over `daily_token_limit` AND no warning has been sent yet
+    /// today. Marks today as warned as a side effect when it returns `true`.
+    ///
+    /// ponytail: in-memory only, not persisted — a process restart can cause
+    /// at most one duplicate warning per day. Fine for a non-blocking notice.
+    pub fn should_send_token_warning(&self) -> bool {
+        let Ok(Some(_)) = self.check_token_budget() else {
+            return false;
+        };
+
+        let today = Utc::now().date_naive();
+        let mut last_warned = self.last_token_warning_date.lock();
+        if *last_warned == Some(today) {
+            return false;
+        }
+
+        *last_warned = Some(today);
+        true
+    }
 }
 
 // ── Process-global singleton ────────────────────────────────────────
@@ -259,6 +308,7 @@ struct CostStorage {
     path: PathBuf,
     daily_cost_usd: f64,
     monthly_cost_usd: f64,
+    daily_tokens: u64,
     cached_day: NaiveDate,
     cached_year: i32,
     cached_month: u32,
@@ -277,6 +327,7 @@ impl CostStorage {
             path: path.to_path_buf(),
             daily_cost_usd: 0.0,
             monthly_cost_usd: 0.0,
+            daily_tokens: 0,
             cached_day: now.date_naive(),
             cached_year: now.year(),
             cached_month: now.month(),
@@ -335,12 +386,14 @@ impl CostStorage {
     fn rebuild_aggregates(&mut self, day: NaiveDate, year: i32, month: u32) -> Result<()> {
         let mut daily_cost = 0.0;
         let mut monthly_cost = 0.0;
+        let mut daily_tokens = 0u64;
 
         self.for_each_record(|record| {
             let timestamp = record.usage.timestamp.naive_utc();
 
             if timestamp.date() == day {
                 daily_cost += record.usage.cost_usd;
+                daily_tokens = daily_tokens.saturating_add(record.usage.total_tokens);
             }
 
             if timestamp.year() == year && timestamp.month() == month {
@@ -350,6 +403,7 @@ impl CostStorage {
 
         self.daily_cost_usd = daily_cost;
         self.monthly_cost_usd = monthly_cost;
+        self.daily_tokens = daily_tokens;
         self.cached_day = day;
         self.cached_year = year;
         self.cached_month = month;
@@ -388,6 +442,7 @@ impl CostStorage {
         let timestamp = record.usage.timestamp.naive_utc();
         if timestamp.date() == self.cached_day {
             self.daily_cost_usd += record.usage.cost_usd;
+            self.daily_tokens = self.daily_tokens.saturating_add(record.usage.total_tokens);
         }
         if timestamp.year() == self.cached_year && timestamp.month() == self.cached_month {
             self.monthly_cost_usd += record.usage.cost_usd;
@@ -400,6 +455,12 @@ impl CostStorage {
     fn get_aggregated_costs(&mut self) -> Result<(f64, f64)> {
         self.ensure_period_cache_current()?;
         Ok((self.daily_cost_usd, self.monthly_cost_usd))
+    }
+
+    /// Get the current day's total token usage (input + output), auto-resetting on day change.
+    fn get_daily_tokens(&mut self) -> Result<u64> {
+        self.ensure_period_cache_current()?;
+        Ok(self.daily_tokens)
     }
 
     /// Get cost for a specific date.
@@ -562,5 +623,90 @@ mod tests {
             err.to_string()
                 .contains("Estimated cost must be a finite, non-negative value")
         );
+    }
+
+    // ── Daily token limit warning (non-blocking) ──────────────────────
+
+    fn config_with_token_limit(limit: u64) -> CostConfig {
+        CostConfig {
+            enabled: true,
+            daily_token_limit: limit,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn check_token_budget_none_when_under_limit() {
+        let tmp = TempDir::new().unwrap();
+        let tracker = CostTracker::new(config_with_token_limit(100_000), tmp.path()).unwrap();
+
+        tracker
+            .record_usage(TokenUsage::new("test/model", 1000, 500, 1.0, 1.0))
+            .unwrap();
+
+        assert!(tracker.check_token_budget().unwrap().is_none());
+    }
+
+    #[test]
+    fn check_token_budget_some_when_at_or_over_limit() {
+        let tmp = TempDir::new().unwrap();
+        let tracker = CostTracker::new(config_with_token_limit(1_000), tmp.path()).unwrap();
+
+        tracker
+            .record_usage(TokenUsage::new("test/model", 800, 300, 1.0, 1.0))
+            .unwrap();
+
+        let result = tracker.check_token_budget().unwrap();
+        assert_eq!(result, Some((1_100, 1_000)));
+    }
+
+    #[test]
+    fn daily_tokens_reset_when_record_is_from_a_different_day() {
+        let tmp = TempDir::new().unwrap();
+        let storage_path = resolve_storage_path(tmp.path()).unwrap();
+        if let Some(parent) = storage_path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+
+        // A record from yesterday should not count toward today's total.
+        let mut yesterday_usage = TokenUsage::new("test/model", 5_000, 5_000, 1.0, 1.0);
+        yesterday_usage.timestamp = Utc::now() - chrono::Duration::days(1);
+        let yesterday_record = CostRecord::new("session-old", yesterday_usage);
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&storage_path)
+            .unwrap();
+        writeln!(file, "{}", serde_json::to_string(&yesterday_record).unwrap()).unwrap();
+        file.sync_all().unwrap();
+
+        let tracker = CostTracker::new(config_with_token_limit(1_000), tmp.path()).unwrap();
+        assert!(tracker.check_token_budget().unwrap().is_none());
+    }
+
+    #[test]
+    fn should_send_token_warning_fires_once_per_day() {
+        let tmp = TempDir::new().unwrap();
+        let tracker = CostTracker::new(config_with_token_limit(1_000), tmp.path()).unwrap();
+
+        tracker
+            .record_usage(TokenUsage::new("test/model", 800, 300, 1.0, 1.0))
+            .unwrap();
+
+        assert!(tracker.should_send_token_warning());
+        assert!(!tracker.should_send_token_warning());
+    }
+
+    #[test]
+    fn should_send_token_warning_false_when_under_limit() {
+        let tmp = TempDir::new().unwrap();
+        let tracker = CostTracker::new(config_with_token_limit(100_000), tmp.path()).unwrap();
+
+        tracker
+            .record_usage(TokenUsage::new("test/model", 100, 50, 1.0, 1.0))
+            .unwrap();
+
+        assert!(!tracker.should_send_token_warning());
     }
 }

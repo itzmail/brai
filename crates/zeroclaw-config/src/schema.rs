@@ -2081,6 +2081,10 @@ pub struct CostConfig {
     #[serde(default = "default_warn_percent")]
     pub warn_at_percent: u8,
 
+    /// Daily token usage threshold for a non-blocking warning (default: 100,000)
+    #[serde(default = "default_daily_token_limit")]
+    pub daily_token_limit: u64,
+
     /// Allow requests to exceed budget with --override flag (default: false)
     #[serde(default)]
     pub allow_override: bool,
@@ -2154,6 +2158,10 @@ fn default_warn_percent() -> u8 {
     80
 }
 
+fn default_daily_token_limit() -> u64 {
+    100_000
+}
+
 fn default_cost_enabled() -> bool {
     true
 }
@@ -2165,6 +2173,7 @@ impl Default for CostConfig {
             daily_limit_usd: default_daily_limit(),
             monthly_limit_usd: default_monthly_limit(),
             warn_at_percent: default_warn_percent(),
+            daily_token_limit: default_daily_token_limit(),
             allow_override: false,
             prices: get_default_pricing(),
             enforcement: CostEnforcementConfig::default(),
