@@ -4420,17 +4420,45 @@ fn build_channel_by_id(config: &Config, channel_id: &str) -> Result<Arc<dyn Chan
                         "WhatsApp channel send requires Web mode (session_path must be set)"
                     );
                 }
-                Ok(Arc::new(WhatsAppWebChannel::new(
-                    wa.session_path.clone().unwrap_or_default(),
-                    wa.pair_phone.clone(),
-                    wa.pair_code.clone(),
-                    wa.allowed_numbers.clone(),
-                    wa.mention_only,
-                    wa.mode.clone(),
-                    wa.dm_policy.clone(),
-                    wa.group_policy.clone(),
-                    wa.self_chat_mode,
-                )))
+                if wa.contact_gate_enabled && wa.master_identity.is_none() {
+                    anyhow::bail!(
+                        "WhatsApp contact_gate_enabled=true but master_identity is not set. \
+                        Set channels_config.whatsapp.master_identity to your own WhatsApp \
+                        number (E.164), or set contact_gate_enabled = false."
+                    );
+                }
+                let gate_db_path = std::path::Path::new(
+                    wa.session_path.as_deref().unwrap_or_default(),
+                )
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .map(|p| p.join("contact_gate.db"))
+                .unwrap_or_else(|| std::path::PathBuf::from("contact_gate.db"));
+                let contact_gate = match crate::contact_gate::ContactGate::open(&gate_db_path) {
+                    Ok(g) => Some(Arc::new(g)),
+                    Err(e) => {
+                        tracing::error!("Failed to open contact gate DB, gate disabled: {e}");
+                        None
+                    }
+                };
+                Ok(Arc::new(
+                    WhatsAppWebChannel::new(
+                        wa.session_path.clone().unwrap_or_default(),
+                        wa.pair_phone.clone(),
+                        wa.pair_code.clone(),
+                        wa.allowed_numbers.clone(),
+                        wa.mention_only,
+                        wa.mode.clone(),
+                        wa.dm_policy.clone(),
+                        wa.group_policy.clone(),
+                        wa.self_chat_mode,
+                    )
+                    .with_contact_gate(
+                        contact_gate,
+                        wa.master_identity.clone(),
+                        wa.contact_gate_enabled,
+                    ),
+                ))
             }
             #[cfg(not(feature = "whatsapp-web"))]
             {

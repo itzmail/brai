@@ -31,3 +31,14 @@ allow_override = false
 # [cost.prices."openai/gpt-4o"]
 # input = 5.0
 # output = 15.0
+
+# WhatsApp Web channel (pair-code linking, no Meta Business token needed).
+# Uncomment and fill in to enable brai on a dedicated second WhatsApp number.
+# [channels_config.whatsapp]
+# enabled = true
+# session_path = "~/.brai/whatsapp-session.db"
+# pair_phone = "15551234567"          # brai's dedicated second number
+# mode = "personal"
+# self_chat_mode = true
+# master_identity = "15550001111"     # YOUR own WhatsApp number
+# contact_gate_enabled = true          # default; set false to disable the approval gate
