@@ -29,7 +29,7 @@
 //! The Cloud API channel is used when `phone_number_id` is set.
 
 use super::whatsapp_storage::RusqliteStore;
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::path::Path;
@@ -448,6 +448,13 @@ impl WhatsAppWebChannel {
     /// - E.164-like numbers (e.g. "+1234567890")
     #[cfg(feature = "whatsapp-web")]
     fn recipient_to_jid(&self, recipient: &str) -> Result<wa_rs_binary::jid::Jid> {
+        Self::jid_for_recipient(recipient)
+    }
+
+    /// `&self`-free version of [`Self::recipient_to_jid`], usable from the
+    /// `on_event` closure after `self` has moved into captured clones.
+    #[cfg(feature = "whatsapp-web")]
+    fn jid_for_recipient(recipient: &str) -> Result<wa_rs_binary::jid::Jid> {
         let trimmed = recipient.trim();
         if trimmed.is_empty() {
             anyhow::bail!("Recipient cannot be empty");
@@ -465,6 +472,133 @@ impl WhatsAppWebChannel {
         }
 
         Ok(wa_rs_binary::jid::Jid::pn(digits))
+    }
+
+    /// Load `~/.brai/config.toml` without applying env-var overrides, mirroring
+    /// `TelegramChannel::load_config_without_env` so `gate on`/`gate off`
+    /// persists the same way Telegram's runtime allowlist writes do.
+    #[cfg(feature = "whatsapp-web")]
+    async fn load_config_without_env() -> Result<brai_config::schema::Config> {
+        let home = directories::UserDirs::new()
+            .map(|u| u.home_dir().to_path_buf())
+            .context("Could not find home directory")?;
+        let brai_dir = home.join(".brai");
+        let config_path = brai_dir.join("config.toml");
+
+        let contents = tokio::fs::read_to_string(&config_path)
+            .await
+            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+        let mut config: brai_config::schema::Config = toml::from_str(&contents)
+            .context("Failed to parse config.toml — check [channels.whatsapp] section for syntax errors")?;
+        config.config_path = config_path;
+        config.workspace_dir = brai_dir.join("workspace");
+        Ok(config)
+    }
+
+    /// Persist `contact_gate_enabled` back to config.toml so the toggle
+    /// survives a restart, not just the current process's runtime state.
+    #[cfg(feature = "whatsapp-web")]
+    async fn persist_contact_gate_enabled(enabled: bool) -> Result<()> {
+        let mut config = Self::load_config_without_env().await?;
+        let Some(whatsapp) = config.channels.whatsapp.as_mut() else {
+            anyhow::bail!(
+                "Missing [channels.whatsapp] section in config.toml; cannot persist gate toggle"
+            );
+        };
+        whatsapp.contact_gate_enabled = enabled;
+        config
+            .save()
+            .await
+            .context("Failed to persist contact_gate_enabled to config.toml")?;
+        Ok(())
+    }
+
+    /// Send a plain-text WhatsApp message to `reply_to` (a chat JID string),
+    /// swallowing send errors (logged, not propagated) since this is used
+    /// for best-effort gate acknowledgements.
+    #[cfg(feature = "whatsapp-web")]
+    async fn send_gate_text(client: &wa_rs::Client, reply_to: &str, text: &str) {
+        let Ok(jid) = Self::jid_for_recipient(reply_to) else {
+            tracing::warn!("WhatsApp Web: contact gate reply target invalid: {reply_to}");
+            return;
+        };
+        let outgoing = wa_rs_proto::whatsapp::Message {
+            conversation: Some(text.to_string()),
+            ..Default::default()
+        };
+        if let Err(e) = client.send_message(jid, outgoing).await {
+            tracing::warn!("WhatsApp Web: failed to send contact gate reply: {e}");
+        }
+    }
+
+    /// Parse and execute a Contact Approval Gate command sent by the
+    /// configured master identity: `approve <id>`, `deny <id>`,
+    /// `revoke <id>`, `gate on`, `gate off`.
+    ///
+    /// Returns `true` if `text` was recognized as a gate command (caller
+    /// should stop further processing of this message), `false` otherwise
+    /// (caller should continue normal message handling).
+    #[cfg(feature = "whatsapp-web")]
+    async fn handle_master_gate_command(
+        client: &wa_rs::Client,
+        gate: &crate::contact_gate::ContactGate,
+        gate_enabled: &std::sync::atomic::AtomicBool,
+        reply_to: &str,
+        text: &str,
+    ) -> bool {
+        if let Some(identity) = text.strip_prefix("approve ") {
+            let identity = identity.trim();
+            let reply = match gate.approve("whatsapp", identity) {
+                Ok(true) => format!("Approved {identity}."),
+                Ok(false) => format!("No pending request for {identity}."),
+                Err(e) => {
+                    tracing::warn!("WhatsApp Web: contact gate approve failed: {e}");
+                    "Failed to approve contact.".to_string()
+                }
+            };
+            Self::send_gate_text(client, reply_to, &reply).await;
+            return true;
+        }
+        if let Some(identity) = text.strip_prefix("deny ") {
+            let identity = identity.trim();
+            let reply = match gate.deny("whatsapp", identity) {
+                Ok(true) => format!("Denied {identity}."),
+                Ok(false) => format!("No pending request for {identity}."),
+                Err(e) => {
+                    tracing::warn!("WhatsApp Web: contact gate deny failed: {e}");
+                    "Failed to deny contact.".to_string()
+                }
+            };
+            Self::send_gate_text(client, reply_to, &reply).await;
+            return true;
+        }
+        if let Some(identity) = text.strip_prefix("revoke ") {
+            let identity = identity.trim();
+            let reply = match gate.revoke("whatsapp", identity) {
+                Ok(true) => format!("Revoked {identity}."),
+                Ok(false) => format!("No record for {identity}."),
+                Err(e) => {
+                    tracing::warn!("WhatsApp Web: contact gate revoke failed: {e}");
+                    "Failed to revoke contact.".to_string()
+                }
+            };
+            Self::send_gate_text(client, reply_to, &reply).await;
+            return true;
+        }
+        if text.eq_ignore_ascii_case("gate on") || text.eq_ignore_ascii_case("gate off") {
+            let enabled = text.eq_ignore_ascii_case("gate on");
+            gate_enabled.store(enabled, std::sync::atomic::Ordering::Relaxed);
+            if let Err(e) = Self::persist_contact_gate_enabled(enabled).await {
+                tracing::error!("WhatsApp Web: failed to persist contact_gate_enabled: {e}");
+            }
+            let reply = format!(
+                "Contact Approval Gate is now {}.",
+                if enabled { "ON" } else { "OFF" }
+            );
+            Self::send_gate_text(client, reply_to, &reply).await;
+            return true;
+        }
+        false
     }
 
     // ── Reconnect state-machine helpers (used by listen() and tested directly) ──
@@ -1300,6 +1434,31 @@ impl Channel for WhatsAppWebChannel {
                                     })
                                     .cloned();
 
+                                // ── Master commands (approve/deny/revoke/gate) ──
+                                // Checked before any policy filtering: the master
+                                // must be able to manage the gate regardless of
+                                // mode/self-chat/mention settings. Only applies
+                                // when this message's sender is the configured
+                                // master_identity for this channel.
+                                if let Some(master) = master_identity_inner.as_deref()
+                                    && !master.is_empty()
+                                    && sender_candidates.iter().any(|c| c == master)
+                                    && let Some(gate) = contact_gate_inner.as_deref()
+                                {
+                                    let raw_text = msg.text_content().unwrap_or("").trim();
+                                    let handled = Self::handle_master_gate_command(
+                                        &client,
+                                        gate,
+                                        &contact_gate_enabled_inner,
+                                        &chat,
+                                        raw_text,
+                                    )
+                                    .await;
+                                    if handled {
+                                        return;
+                                    }
+                                }
+
                                 let is_group = info.source.is_group;
 
                                 // Phone-based reply target for self-chat.
@@ -1421,22 +1580,38 @@ impl Channel for WhatsAppWebChannel {
                                                             // Fall through: treat as allowed for this message.
                                                         }
                                                         GateDecision::NewlyPending => {
-                                                            let _ = tx_inner
-                                                                .send(ChannelMessage {
-                                                                    id: uuid::Uuid::new_v4().to_string(),
-                                                                    channel: "whatsapp".to_string(),
-                                                                    sender: "system".to_string(),
-                                                                    reply_target: chat.clone(),
-                                                                    content: format!(
-                                                                        "__contact_gate_pending__:{candidate_identity}"
+                                                            if let Ok(sender_jid_target) =
+                                                                Self::jid_for_recipient(&chat)
+                                                            {
+                                                                let notice = wa_rs_proto::whatsapp::Message {
+                                                                    conversation: Some(
+                                                                        "Your message is under review. \
+                                                                        You'll be able to chat once approved."
+                                                                            .to_string(),
                                                                     ),
-                                                                    timestamp: chrono::Utc::now().timestamp()
-                                                                        as u64,
-                                                                    thread_ts: None,
-                                                                    interruption_scope_id: None,
-                                                                    attachments: vec![],
-                                                                })
-                                                                .await;
+                                                                    ..Default::default()
+                                                                };
+                                                                let _ = client
+                                                                    .send_message(sender_jid_target, notice)
+                                                                    .await;
+                                                            }
+                                                            if let Some(master) = master_identity_inner.as_deref()
+                                                                && !master.is_empty()
+                                                                && let Ok(master_jid) =
+                                                                    Self::jid_for_recipient(master)
+                                                            {
+                                                                let alert = wa_rs_proto::whatsapp::Message {
+                                                                    conversation: Some(format!(
+                                                                        "New contact wants to chat: {candidate_identity}\n\
+                                                                        Reply `approve {candidate_identity}` to allow, \
+                                                                        or `deny {candidate_identity}` to block."
+                                                                    )),
+                                                                    ..Default::default()
+                                                                };
+                                                                let _ = client
+                                                                    .send_message(master_jid, alert)
+                                                                    .await;
+                                                            }
                                                             return;
                                                         }
                                                         GateDecision::StillPending | GateDecision::Drop => {
