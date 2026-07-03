@@ -204,6 +204,7 @@ mod tunnel;
 mod util;
 #[cfg(feature = "agent-runtime")]
 mod verifiable_intent;
+mod whatsapp_onboard;
 
 use config::Config;
 
