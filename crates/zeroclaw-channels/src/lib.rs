@@ -1,5 +1,6 @@
 //! Channel implementations and orchestration for messaging platform integrations.
 
+pub mod contact_gate;
 pub mod orchestrator;
 pub mod util;
 

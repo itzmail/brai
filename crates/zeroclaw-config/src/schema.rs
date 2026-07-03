@@ -7211,6 +7211,10 @@ fn default_channel_approval_timeout_secs() -> u64 {
     300
 }
 
+fn default_contact_gate_enabled() -> bool {
+    true
+}
+
 fn default_matrix_draft_update_interval_ms() -> u64 {
     1500
 }
@@ -7803,6 +7807,20 @@ pub struct WhatsAppConfig {
     /// Seconds to wait for operator approval on `always_ask` tools before auto-denying.
     #[serde(default = "default_channel_approval_timeout_secs")]
     pub approval_timeout_secs: u64,
+    /// The owner's own identity on this channel (E.164 phone number for
+    /// WhatsApp). Messages from this identity always bypass the Contact
+    /// Approval Gate. Required when `contact_gate_enabled = true`.
+    #[serde(default)]
+    pub master_identity: Option<String>,
+    /// Whether the Contact Approval Gate is active for this channel.
+    /// Default: true (secure by default). Unknown contacts are held in a
+    /// "pending" state and the master must reply `approve <identity>` or
+    /// `deny <identity>` before the contact's messages are processed.
+    /// Toggle at runtime via the `gate on` / `gate off` chat command (master
+    /// only) — this persists back to config.toml the same way the runtime
+    /// allowlist does.
+    #[serde(default = "default_contact_gate_enabled")]
+    pub contact_gate_enabled: bool,
 }
 
 impl ChannelConfig for WhatsAppConfig {
@@ -14028,6 +14046,8 @@ bot_token = "xoxb-tok"
             group_mention_patterns: vec![],
             proxy_url: None,
             approval_timeout_secs: 300,
+            master_identity: None,
+            contact_gate_enabled: true,
         };
         let json = serde_json::to_string(&wc).unwrap();
         let parsed: WhatsAppConfig = serde_json::from_str(&json).unwrap();
@@ -14035,6 +14055,24 @@ bot_token = "xoxb-tok"
         assert_eq!(parsed.phone_number_id, Some("123456789".into()));
         assert_eq!(parsed.verify_token, Some("my-verify-token".into()));
         assert_eq!(parsed.allowed_numbers.len(), 2);
+    }
+
+    #[test]
+    async fn whatsapp_config_gate_fields_default() {
+        // Deserializing a config with no gate fields set must default to
+        // gate ON and no master identity configured yet.
+        let json = r#"{"enabled": true}"#;
+        let parsed: WhatsAppConfig = serde_json::from_str(json).unwrap();
+        assert!(parsed.contact_gate_enabled);
+        assert_eq!(parsed.master_identity, None);
+    }
+
+    #[test]
+    async fn whatsapp_config_gate_fields_explicit() {
+        let json = r#"{"enabled": true, "master_identity": "+15551234567", "contact_gate_enabled": false}"#;
+        let parsed: WhatsAppConfig = serde_json::from_str(json).unwrap();
+        assert!(!parsed.contact_gate_enabled);
+        assert_eq!(parsed.master_identity.as_deref(), Some("+15551234567"));
     }
 
     #[test]
@@ -14058,6 +14096,8 @@ bot_token = "xoxb-tok"
             group_mention_patterns: vec![],
             proxy_url: None,
             approval_timeout_secs: 300,
+            master_identity: None,
+            contact_gate_enabled: true,
         };
         let toml_str = toml::to_string(&wc).unwrap();
         let parsed: WhatsAppConfig = toml::from_str(&toml_str).unwrap();
@@ -14093,6 +14133,8 @@ bot_token = "xoxb-tok"
             group_mention_patterns: vec![],
             proxy_url: None,
             approval_timeout_secs: 300,
+            master_identity: None,
+            contact_gate_enabled: true,
         };
         let toml_str = toml::to_string(&wc).unwrap();
         let parsed: WhatsAppConfig = toml::from_str(&toml_str).unwrap();
@@ -14120,6 +14162,8 @@ bot_token = "xoxb-tok"
             group_mention_patterns: vec![],
             proxy_url: None,
             approval_timeout_secs: 300,
+            master_identity: None,
+            contact_gate_enabled: true,
         };
         assert!(wc.is_ambiguous_config());
         assert_eq!(wc.backend_type(), "cloud");
@@ -14146,6 +14190,8 @@ bot_token = "xoxb-tok"
             group_mention_patterns: vec![],
             proxy_url: None,
             approval_timeout_secs: 300,
+            master_identity: None,
+            contact_gate_enabled: true,
         };
         assert!(!wc.is_ambiguous_config());
         assert_eq!(wc.backend_type(), "web");
@@ -14183,6 +14229,8 @@ bot_token = "xoxb-tok"
                 group_mention_patterns: vec![],
                 proxy_url: None,
                 approval_timeout_secs: 300,
+                master_identity: None,
+                contact_gate_enabled: true,
             }),
             linq: None,
             wati: None,

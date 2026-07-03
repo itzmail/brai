@@ -204,6 +204,7 @@ mod tunnel;
 mod util;
 #[cfg(feature = "agent-runtime")]
 mod verifiable_intent;
+mod whatsapp_onboard;
 
 use config::Config;
 
@@ -771,6 +772,44 @@ enum DeprecatedPropsCommands {
     Any(Vec<String>),
 }
 
+/// Run the WhatsApp live-pairing step after the onboard wizard, but only if
+/// the WhatsApp config section was newly created or its `pair_phone`/
+/// `session_path` changed during this run.
+#[cfg(feature = "agent-runtime")]
+async fn maybe_run_whatsapp_pairing(
+    cfg: &mut Config,
+    wa_before: &Option<brai_config::schema::WhatsAppConfig>,
+    ui: &mut dyn brai_config::traits::OnboardUi,
+) -> Result<()> {
+    let Some(wa_after) = cfg.channels.whatsapp.as_mut() else {
+        return Ok(());
+    };
+    let changed = match wa_before {
+        None => true,
+        Some(before) => {
+            before.pair_phone != wa_after.pair_phone || before.session_path != wa_after.session_path
+        }
+    };
+    if !changed {
+        return Ok(());
+    }
+    if let Some(raw) = wa_after.master_identity.clone() {
+        match crate::whatsapp_onboard::normalize_master_identity(&raw) {
+            Some(normalized) => wa_after.master_identity = Some(normalized),
+            None => {
+                ui.warn(
+                    "master_identity has no digits after normalization; \
+                    skipping WhatsApp pairing step. Fix it and re-run \
+                    `brai onboard channels`.",
+                );
+                return Ok(());
+            }
+        }
+    }
+    let wa_snapshot = wa_after.clone();
+    crate::whatsapp_onboard::run_whatsapp_pairing_step(&wa_snapshot, ui).await
+}
+
 /// Resolve the onboard target from the positional `<section>` subcommand
 /// (if any) plus the legacy `--*-only` boolean flags. Returns the target
 /// section for the orchestrator plus an optional `(old_flag, new_subcommand)`
@@ -1336,6 +1375,7 @@ async fn main() -> Result<()> {
         }
 
         let mut cfg = Box::pin(Config::load_or_init()).await?;
+        let wa_before = cfg.channels.whatsapp.clone();
         cfg.apply_env_overrides();
 
         let flags = Flags {
@@ -1359,10 +1399,12 @@ async fn main() -> Result<()> {
             (true, false) => {
                 let mut ui = QuickUi::new();
                 run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
             }
             (false, true) => {
                 let mut ui = TermUi;
                 run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
             }
             (false, false) => {
                 // Default: prefer ratatui TUI. Fall back to TermUi on init
@@ -1375,6 +1417,7 @@ async fn main() -> Result<()> {
                         match brai_tui::RatatuiUi::new() {
                             Ok(mut ui) => {
                                 run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                                maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
                             }
                             Err(e) => {
                                 tracing::debug!("TUI init failed: {e:?}");
@@ -1383,17 +1426,20 @@ async fn main() -> Result<()> {
                                 );
                                 let mut ui = TermUi;
                                 run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                                maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
                             }
                         }
                     } else {
                         let mut ui = TermUi;
                         run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                        maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
                     }
                 }
                 #[cfg(not(feature = "tui-onboarding"))]
                 {
                     let mut ui = TermUi;
                     run_onboard(&mut cfg, &mut ui, target, &flags).await?;
+                    maybe_run_whatsapp_pairing(&mut cfg, &wa_before, &mut ui).await?;
                 }
             }
         }

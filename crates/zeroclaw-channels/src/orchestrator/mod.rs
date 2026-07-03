@@ -4420,17 +4420,25 @@ fn build_channel_by_id(config: &Config, channel_id: &str) -> Result<Arc<dyn Chan
                         "WhatsApp channel send requires Web mode (session_path must be set)"
                     );
                 }
-                Ok(Arc::new(WhatsAppWebChannel::new(
-                    wa.session_path.clone().unwrap_or_default(),
-                    wa.pair_phone.clone(),
-                    wa.pair_code.clone(),
-                    wa.allowed_numbers.clone(),
-                    wa.mention_only,
-                    wa.mode.clone(),
-                    wa.dm_policy.clone(),
-                    wa.group_policy.clone(),
-                    wa.self_chat_mode,
-                )))
+                let contact_gate = build_contact_gate(wa)?;
+                Ok(Arc::new(
+                    WhatsAppWebChannel::new(
+                        wa.session_path.clone().unwrap_or_default(),
+                        wa.pair_phone.clone(),
+                        wa.pair_code.clone(),
+                        wa.allowed_numbers.clone(),
+                        wa.mention_only,
+                        wa.mode.clone(),
+                        wa.dm_policy.clone(),
+                        wa.group_policy.clone(),
+                        wa.self_chat_mode,
+                    )
+                    .with_contact_gate(
+                        contact_gate,
+                        wa.master_identity.clone(),
+                        wa.contact_gate_enabled,
+                    ),
+                ))
             }
             #[cfg(not(feature = "whatsapp-web"))]
             {
@@ -4739,6 +4747,56 @@ struct ConfiguredChannel {
     channel: Arc<dyn Channel>,
 }
 
+/// Validate and construct the Contact Approval Gate for a WhatsApp Web
+/// channel config. Shared by `collect_configured_channels` (real startup
+/// path) and `build_channel_by_id` (ad-hoc rebuild path) so both actually
+/// wire the gate the same way, instead of only one of them doing it.
+///
+/// Constructs the `ContactGate` store whenever `master_identity` is set,
+/// *regardless* of `contact_gate_enabled` — the `enabled` flag only gates
+/// `gate_decision`'s runtime behavior (via the channel's `AtomicBool`). If
+/// the store were only built when `enabled = true` at startup, a later
+/// `gate on` command would have no `ContactGate` to attach to and would be a
+/// silent no-op, permanently unable to turn the gate back on without a
+/// config edit + restart.
+///
+/// Fails hard (does not construct the channel) when `contact_gate_enabled`
+/// is true and either `master_identity` is unset or the gate's SQLite store
+/// cannot be opened — the gate's whole purpose is "secure by default," so a
+/// misconfiguration or a storage failure must not silently fall back to
+/// "gate disabled" and let every unknown contact through unfiltered.
+#[cfg(feature = "whatsapp-web")]
+fn build_contact_gate(
+    wa: &brai_config::schema::WhatsAppConfig,
+) -> anyhow::Result<Option<Arc<crate::contact_gate::ContactGate>>> {
+    if wa.master_identity.is_none() {
+        if wa.contact_gate_enabled {
+            anyhow::bail!(
+                "WhatsApp contact_gate_enabled=true but master_identity is not set. \
+                Set channels_config.whatsapp.master_identity to your own WhatsApp \
+                number (E.164), or set contact_gate_enabled = false."
+            );
+        }
+        // No master identity at all: nobody could ever run `gate on`/`approve`/etc.
+        // anyway, so there's no point opening a store nobody can administer.
+        return Ok(None);
+    }
+    let gate_db_path = std::path::Path::new(wa.session_path.as_deref().unwrap_or_default())
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(|p| p.join("contact_gate.db"))
+        .unwrap_or_else(|| std::path::PathBuf::from("contact_gate.db"));
+    let gate = crate::contact_gate::ContactGate::open(&gate_db_path).with_context(|| {
+        format!(
+            "contact_gate_enabled=true but the gate database at {} could not be opened; \
+            refusing to start the WhatsApp channel wide open. Fix the underlying issue \
+            (disk space, permissions) or set contact_gate_enabled = false.",
+            gate_db_path.display()
+        )
+    })?;
+    Ok(Some(Arc::new(gate)))
+}
+
 fn collect_configured_channels(
     config: &Config,
     matrix_skip_context: &str,
@@ -4988,26 +5046,42 @@ fn collect_configured_channels(
                     // Web mode: requires session_path
                     #[cfg(feature = "whatsapp-web")]
                     if wa.is_web_config() {
-                        channels.push(ConfiguredChannel {
-                            display_name: "WhatsApp",
-                            channel: Arc::new(
-                                WhatsAppWebChannel::new(
-                                    wa.session_path.clone().unwrap_or_default(),
-                                    wa.pair_phone.clone(),
-                                    wa.pair_code.clone(),
-                                    wa.allowed_numbers.clone(),
-                                    wa.mention_only,
-                                    wa.mode.clone(),
-                                    wa.dm_policy.clone(),
-                                    wa.group_policy.clone(),
-                                    wa.self_chat_mode,
-                                )
-                                .with_transcription(config.transcription.clone())
-                                .with_tts(config.tts.clone())
-                                .with_dm_mention_patterns(wa.dm_mention_patterns.clone())
-                                .with_group_mention_patterns(wa.group_mention_patterns.clone()),
-                            ),
-                        });
+                        match build_contact_gate(wa) {
+                            Ok(contact_gate) => {
+                                channels.push(ConfiguredChannel {
+                                    display_name: "WhatsApp",
+                                    channel: Arc::new(
+                                        WhatsAppWebChannel::new(
+                                            wa.session_path.clone().unwrap_or_default(),
+                                            wa.pair_phone.clone(),
+                                            wa.pair_code.clone(),
+                                            wa.allowed_numbers.clone(),
+                                            wa.mention_only,
+                                            wa.mode.clone(),
+                                            wa.dm_policy.clone(),
+                                            wa.group_policy.clone(),
+                                            wa.self_chat_mode,
+                                        )
+                                        .with_transcription(config.transcription.clone())
+                                        .with_tts(config.tts.clone())
+                                        .with_dm_mention_patterns(wa.dm_mention_patterns.clone())
+                                        .with_group_mention_patterns(
+                                            wa.group_mention_patterns.clone(),
+                                        )
+                                        .with_contact_gate(
+                                            contact_gate,
+                                            wa.master_identity.clone(),
+                                            wa.contact_gate_enabled,
+                                        ),
+                                    ),
+                                });
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    "WhatsApp Web channel not started: {e:#}"
+                                );
+                            }
+                        }
                     } else {
                         tracing::warn!("WhatsApp Web configured but session_path not set");
                     }
@@ -13524,5 +13598,57 @@ This is an example JSON object for profile settings."#;
         assert!(sent[0].contains("1100 / 1000"));
         assert!(sent[0].contains("110%"));
         assert_eq!(default_provider_impl.call_count.load(Ordering::SeqCst), 0);
+    }
+
+    // ── build_contact_gate ──────────────────────────────────────
+
+    #[cfg(feature = "whatsapp-web")]
+    #[test]
+    fn build_contact_gate_constructs_store_when_master_identity_set_even_if_disabled() {
+        // Regression: a gate store must exist whenever master_identity is
+        // configured, regardless of contact_gate_enabled — otherwise a
+        // later runtime `gate on` command has no ContactGate to attach to
+        // and is a silent no-op, permanently unable to re-enable the gate
+        // without a config edit + restart.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let wa = brai_config::schema::WhatsAppConfig {
+            session_path: Some(tmp.path().join("session.db").to_string_lossy().to_string()),
+            master_identity: Some("+15551111111".to_string()),
+            contact_gate_enabled: false,
+            ..Default::default()
+        };
+        let gate = build_contact_gate(&wa).unwrap();
+        assert!(
+            gate.is_some(),
+            "gate store must be constructed when master_identity is set, even if disabled"
+        );
+    }
+
+    #[cfg(feature = "whatsapp-web")]
+    #[test]
+    fn build_contact_gate_none_when_no_master_identity_and_disabled() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let wa = brai_config::schema::WhatsAppConfig {
+            session_path: Some(tmp.path().join("session.db").to_string_lossy().to_string()),
+            master_identity: None,
+            contact_gate_enabled: false,
+            ..Default::default()
+        };
+        let gate = build_contact_gate(&wa).unwrap();
+        assert!(gate.is_none());
+    }
+
+    #[cfg(feature = "whatsapp-web")]
+    #[test]
+    fn build_contact_gate_fails_hard_when_enabled_without_master_identity() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let wa = brai_config::schema::WhatsAppConfig {
+            session_path: Some(tmp.path().join("session.db").to_string_lossy().to_string()),
+            master_identity: None,
+            contact_gate_enabled: true,
+            ..Default::default()
+        };
+        let result = build_contact_gate(&wa);
+        assert!(result.is_err());
     }
 }
