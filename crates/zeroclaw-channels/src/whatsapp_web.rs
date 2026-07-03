@@ -40,6 +40,23 @@ use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 #[cfg(not(feature = "whatsapp-web"))]
 use brai_runtime::i18n;
 
+/// Outcome of a Contact Approval Gate check for an incoming message.
+#[cfg(feature = "whatsapp-web")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GateDecision {
+    /// Sender is the master, gate is disabled, sender is already approved,
+    /// or no gate is configured at all — proceed normally.
+    Process,
+    /// Sender was unknown and has just been marked pending — send the
+    /// "under review" reply to the sender and notify the master.
+    NewlyPending,
+    /// Sender is already pending from a previous message — drop silently,
+    /// do not re-prompt the master.
+    StillPending,
+    /// Sender is denied, or the gate write failed — drop silently.
+    Drop,
+}
+
 /// WhatsApp Web channel using wa-rs with custom rusqlite storage
 ///
 /// # Status: Functional Implementation
@@ -100,6 +117,13 @@ pub struct WhatsAppWebChannel {
     /// When non-empty, only group messages matching at least one pattern are
     /// processed; matched fragments are stripped from the forwarded content.
     group_mention_patterns: Arc<Vec<regex::Regex>>,
+    /// Contact Approval Gate — `None` when not configured (feature exists
+    /// but the operator hasn't set it up), `Some` otherwise.
+    contact_gate: Option<Arc<crate::contact_gate::ContactGate>>,
+    /// The owner's own identity on this channel; always bypasses the gate.
+    master_identity: Option<String>,
+    /// Whether the gate is active. Runtime-toggleable via `gate on`/`gate off`.
+    contact_gate_enabled: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl WhatsAppWebChannel {
@@ -163,6 +187,9 @@ impl WhatsAppWebChannel {
             voice_chats: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
             dm_mention_patterns: Arc::new(Vec::new()),
             group_mention_patterns: Arc::new(Vec::new()),
+            contact_gate: None,
+            master_identity: None,
+            contact_gate_enabled: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         }
     }
 
@@ -220,6 +247,24 @@ impl WhatsAppWebChannel {
         self
     }
 
+    /// Attach the Contact Approval Gate. `gate` is `None` when the feature
+    /// is entirely unconfigured (e.g. tests, or an operator who hasn't set
+    /// up `master_identity` yet — in that case the gate is inert regardless
+    /// of `enabled`).
+    #[cfg(feature = "whatsapp-web")]
+    pub fn with_contact_gate(
+        mut self,
+        gate: Option<Arc<crate::contact_gate::ContactGate>>,
+        master_identity: Option<String>,
+        enabled: bool,
+    ) -> Self {
+        self.contact_gate = gate;
+        self.master_identity = master_identity;
+        self.contact_gate_enabled
+            .store(enabled, std::sync::atomic::Ordering::Relaxed);
+        self
+    }
+
     /// Check if a phone number is allowed (E.164 format: +1234567890)
     #[cfg(feature = "whatsapp-web")]
     fn is_number_allowed(&self, phone: &str) -> bool {
@@ -242,6 +287,40 @@ impl WhatsAppWebChannel {
                 .as_deref()
                 .is_some_and(|allowed_norm| allowed_norm == phone_norm)
         })
+    }
+
+    /// Decide what to do with an incoming message given the Contact Approval
+    /// Gate state. Pure decision logic, no I/O beyond the gate's own SQLite
+    /// calls — kept separate from the event-loop closure so it's directly
+    /// unit-testable.
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision(
+        gate: Option<&crate::contact_gate::ContactGate>,
+        master_identity: &str,
+        sender_identity: &str,
+        enabled: bool,
+    ) -> GateDecision {
+        if sender_identity == master_identity {
+            return GateDecision::Process;
+        }
+        if !enabled {
+            return GateDecision::Process;
+        }
+        let Some(gate) = gate else {
+            return GateDecision::Process;
+        };
+        match gate.status("whatsapp", sender_identity) {
+            Some(crate::contact_gate::GateStatus::Approved) => GateDecision::Process,
+            Some(crate::contact_gate::GateStatus::Denied) => GateDecision::Drop,
+            Some(crate::contact_gate::GateStatus::Pending) => GateDecision::StillPending,
+            None => match gate.mark_pending("whatsapp", sender_identity) {
+                Ok(()) => GateDecision::NewlyPending,
+                Err(e) => {
+                    tracing::warn!("WhatsApp Web: failed to mark contact pending: {e}");
+                    GateDecision::Drop
+                }
+            },
+        }
     }
 
     /// Normalize a phone-like token to canonical E.164 (`+<digits>`).
@@ -1163,6 +1242,9 @@ impl Channel for WhatsAppWebChannel {
             let bot_phone_clone = self.bot_phone.clone();
             let wa_dm_mention_patterns = self.dm_mention_patterns.clone();
             let wa_group_mention_patterns = self.group_mention_patterns.clone();
+            let contact_gate_outer = self.contact_gate.clone();
+            let master_identity_outer = self.master_identity.clone();
+            let contact_gate_enabled_outer = self.contact_gate_enabled.clone();
 
             let mut builder = Bot::builder()
                 .with_backend(backend)
@@ -1188,6 +1270,9 @@ impl Channel for WhatsAppWebChannel {
                     let bot_phone_inner = bot_phone_clone.clone();
                     let wa_dm_mention_patterns = wa_dm_mention_patterns.clone();
                     let wa_group_mention_patterns = wa_group_mention_patterns.clone();
+                    let contact_gate_inner = contact_gate_outer.clone();
+                    let master_identity_inner = master_identity_outer.clone();
+                    let contact_gate_enabled_inner = contact_gate_enabled_outer.clone();
                     async move {
                         match event {
                             Event::Message(msg, info) => {
@@ -1319,16 +1404,45 @@ impl Channel for WhatsAppWebChannel {
                                             }
                                             brai_config::schema::WhatsAppChatPolicy::Allowlist => {
                                                 if normalized.is_none() {
-                                                    let lid_diag = Self::lid_rejection_diagnostic(
-                                                        &sender_jid,
-                                                        mapped_phone.as_deref(),
+                                                    let candidate_identity = sender_candidates
+                                                        .first()
+                                                        .cloned()
+                                                        .unwrap_or_else(|| sender.clone());
+                                                    let gate_enabled = contact_gate_enabled_inner
+                                                        .load(std::sync::atomic::Ordering::Relaxed);
+                                                    let gate_decision = Self::gate_decision(
+                                                        contact_gate_inner.as_deref(),
+                                                        master_identity_inner.as_deref().unwrap_or(""),
+                                                        &candidate_identity,
+                                                        gate_enabled,
                                                     );
-                                                    tracing::warn!(
-                                                        "WhatsApp Web: message from unrecognized sender not in allowed list (candidates_count={}){}",
-                                                        sender_candidates.len(),
-                                                        lid_diag,
-                                                    );
-                                                    return;
+                                                    match gate_decision {
+                                                        GateDecision::Process => {
+                                                            // Fall through: treat as allowed for this message.
+                                                        }
+                                                        GateDecision::NewlyPending => {
+                                                            let _ = tx_inner
+                                                                .send(ChannelMessage {
+                                                                    id: uuid::Uuid::new_v4().to_string(),
+                                                                    channel: "whatsapp".to_string(),
+                                                                    sender: "system".to_string(),
+                                                                    reply_target: chat.clone(),
+                                                                    content: format!(
+                                                                        "__contact_gate_pending__:{candidate_identity}"
+                                                                    ),
+                                                                    timestamp: chrono::Utc::now().timestamp()
+                                                                        as u64,
+                                                                    thread_ts: None,
+                                                                    interruption_scope_id: None,
+                                                                    attachments: vec![],
+                                                                })
+                                                                .await;
+                                                            return;
+                                                        }
+                                                        GateDecision::StillPending | GateDecision::Drop => {
+                                                            return;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -2487,5 +2601,92 @@ mod tests {
         assert!(!fromme_outside_self_chat_is_operator_trigger(
             false, &dm, &group, ""
         ));
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_master_always_processes() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let gate = crate::contact_gate::ContactGate::open(&tmp.path().join("gate.db")).unwrap();
+        let decision = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111", // master
+            "+15551111111", // sender == master
+            true,
+        );
+        assert_eq!(decision, GateDecision::Process);
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_disabled_processes_unknown_sender() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let gate = crate::contact_gate::ContactGate::open(&tmp.path().join("gate.db")).unwrap();
+        let decision = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111",
+            "+15559999999",
+            false, // gate disabled
+        );
+        assert_eq!(decision, GateDecision::Process);
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_unknown_sender_becomes_pending() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let gate = crate::contact_gate::ContactGate::open(&tmp.path().join("gate.db")).unwrap();
+        let decision = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111",
+            "+15559999999",
+            true,
+        );
+        assert_eq!(decision, GateDecision::NewlyPending);
+        // Second message from the same still-pending sender: no repeat prompt.
+        let decision2 = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111",
+            "+15559999999",
+            true,
+        );
+        assert_eq!(decision2, GateDecision::StillPending);
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_approved_sender_processes() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let gate = crate::contact_gate::ContactGate::open(&tmp.path().join("gate.db")).unwrap();
+        gate.approve("whatsapp", "+15559999999").unwrap();
+        let decision = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111",
+            "+15559999999",
+            true,
+        );
+        assert_eq!(decision, GateDecision::Process);
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_denied_sender_drops_silently() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let gate = crate::contact_gate::ContactGate::open(&tmp.path().join("gate.db")).unwrap();
+        gate.deny("whatsapp", "+15559999999").unwrap();
+        let decision = WhatsAppWebChannel::gate_decision(
+            Some(&gate),
+            "+15551111111",
+            "+15559999999",
+            true,
+        );
+        assert_eq!(decision, GateDecision::Drop);
+    }
+
+    #[test]
+    #[cfg(feature = "whatsapp-web")]
+    fn gate_decision_no_gate_configured_processes() {
+        let decision = WhatsAppWebChannel::gate_decision(None, "+15551111111", "+15559999999", true);
+        assert_eq!(decision, GateDecision::Process);
     }
 }
