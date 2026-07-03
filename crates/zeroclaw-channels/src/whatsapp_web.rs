@@ -57,6 +57,22 @@ pub enum GateDecision {
     Drop,
 }
 
+/// Events emitted during the WhatsApp Web pairing/connection handshake,
+/// broadcast to any subscriber (e.g. the `brai onboard` live-pairing step)
+/// in addition to the existing `eprintln!`/`tracing` logging in `listen()`.
+#[cfg(feature = "whatsapp-web")]
+#[derive(Debug, Clone)]
+pub enum PairingEvent {
+    /// An 8-digit pair code was issued; link it in WhatsApp > Linked Devices.
+    Code(String),
+    /// The device successfully connected (paired or resumed an existing session).
+    Connected,
+    /// The session was logged out / revoked.
+    LoggedOut,
+    /// A transport/stream error occurred; carries a debug-formatted description.
+    StreamError(String),
+}
+
 /// WhatsApp Web channel using wa-rs with custom rusqlite storage
 ///
 /// # Status: Functional Implementation
@@ -124,6 +140,12 @@ pub struct WhatsAppWebChannel {
     master_identity: Option<String>,
     /// Whether the gate is active. Runtime-toggleable via `gate on`/`gate off`.
     contact_gate_enabled: Arc<std::sync::atomic::AtomicBool>,
+    /// Broadcast sender for pairing-handshake events. Created lazily — only
+    /// when something subscribes (e.g. the onboard live-pairing step).
+    /// `listen()`'s event handlers publish here in addition to their
+    /// existing `eprintln!`/`tracing` logging; this is a no-op when nobody
+    /// has subscribed (the real running `brai` service never does).
+    pairing_events: Arc<Mutex<Option<tokio::sync::broadcast::Sender<PairingEvent>>>>,
 }
 
 impl WhatsAppWebChannel {
@@ -190,6 +212,7 @@ impl WhatsAppWebChannel {
             contact_gate: None,
             master_identity: None,
             contact_gate_enabled: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            pairing_events: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -269,6 +292,15 @@ impl WhatsAppWebChannel {
     #[cfg(feature = "whatsapp-web")]
     fn is_number_allowed(&self, phone: &str) -> bool {
         Self::is_number_allowed_for_list(&self.allowed_numbers, phone)
+    }
+
+    /// Subscribe to pairing-handshake events. Each call lazily creates the
+    /// underlying broadcast channel if it doesn't exist yet.
+    #[cfg(feature = "whatsapp-web")]
+    pub fn subscribe_pairing_events(&self) -> tokio::sync::broadcast::Receiver<PairingEvent> {
+        let mut guard = self.pairing_events.lock();
+        let sender = guard.get_or_insert_with(|| tokio::sync::broadcast::channel(8).0);
+        sender.subscribe()
     }
 
     /// Check whether a phone number is allowed against a provided allowlist.
@@ -1354,6 +1386,7 @@ impl Channel for WhatsAppWebChannel {
             let contact_gate_outer = self.contact_gate.clone();
             let master_identity_outer = self.master_identity.clone();
             let contact_gate_enabled_outer = self.contact_gate_enabled.clone();
+            let pairing_events_outer = self.pairing_events.clone();
 
             let mut builder = Bot::builder()
                 .with_backend(backend)
@@ -1382,6 +1415,7 @@ impl Channel for WhatsAppWebChannel {
                     let contact_gate_inner = contact_gate_outer.clone();
                     let master_identity_inner = master_identity_outer.clone();
                     let contact_gate_enabled_inner = contact_gate_enabled_outer.clone();
+                    let pairing_events_inner = pairing_events_outer.clone();
                     async move {
                         match event {
                             Event::Message(msg, info) => {
@@ -1763,6 +1797,9 @@ impl Channel for WhatsAppWebChannel {
                             }
                             Event::Connected(_) => {
                                 tracing::info!("WhatsApp Web connected successfully");
+                                if let Some(tx) = pairing_events_inner.lock().as_ref() {
+                                    let _ = tx.send(PairingEvent::Connected);
+                                }
                                 WhatsAppWebChannel::reset_retry(&retry_count);
                                 // Resolve bot identity from the device store
                                 if mention_only {
@@ -1791,16 +1828,25 @@ impl Channel for WhatsAppWebChannel {
                                 tracing::warn!(
                                     "WhatsApp Web was logged out — will clear session and reconnect"
                                 );
+                                if let Some(tx) = pairing_events_inner.lock().as_ref() {
+                                    let _ = tx.send(PairingEvent::LoggedOut);
+                                }
                                 let _ = logout_tx.send(());
                             }
                             Event::StreamError(stream_error) => {
                                 tracing::error!("WhatsApp Web stream error: {:?}", stream_error);
+                                if let Some(tx) = pairing_events_inner.lock().as_ref() {
+                                    let _ = tx.send(PairingEvent::StreamError(format!("{stream_error:?}")));
+                                }
                             }
                             Event::PairingCode { code, .. } => {
                                 tracing::info!("WhatsApp Web pair code received");
                                 tracing::info!(
                                     "Link your phone by entering this code in WhatsApp > Linked Devices"
                                 );
+                                if let Some(tx) = pairing_events_inner.lock().as_ref() {
+                                    let _ = tx.send(PairingEvent::Code(code.clone()));
+                                }
                                 eprintln!();
                                 eprintln!("WhatsApp Web pair code: {code}");
                                 eprintln!();
@@ -2876,5 +2922,47 @@ mod tests {
     fn gate_decision_no_gate_configured_processes() {
         let decision = WhatsAppWebChannel::gate_decision(None, "+15551111111", "+15559999999", true);
         assert_eq!(decision, GateDecision::Process);
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "whatsapp-web")]
+    async fn subscribe_pairing_events_receives_sent_event() {
+        let ch = make_channel();
+        let mut rx = ch.subscribe_pairing_events();
+        // Simulate what listen()'s event handlers do: look up the lazily
+        // created sender and publish through it.
+        {
+            let guard = ch_pairing_events_sender(&ch);
+            guard.send(PairingEvent::Code("12345678".to_string())).unwrap();
+        }
+        let event = rx.recv().await.unwrap();
+        match event {
+            PairingEvent::Code(code) => assert_eq!(code, "12345678"),
+            other => panic!("expected Code, got {other:?}"),
+        }
+    }
+
+    #[cfg(feature = "whatsapp-web")]
+    fn ch_pairing_events_sender(
+        ch: &WhatsAppWebChannel,
+    ) -> tokio::sync::broadcast::Sender<PairingEvent> {
+        ch.pairing_events
+            .lock()
+            .clone()
+            .expect("subscribe_pairing_events must have created the sender")
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "whatsapp-web")]
+    async fn subscribe_pairing_events_multiple_subscribers_both_receive() {
+        let ch = make_channel();
+        let mut rx1 = ch.subscribe_pairing_events();
+        let mut rx2 = ch.subscribe_pairing_events();
+        {
+            let guard = ch_pairing_events_sender(&ch);
+            guard.send(PairingEvent::Connected).unwrap();
+        }
+        assert!(matches!(rx1.recv().await.unwrap(), PairingEvent::Connected));
+        assert!(matches!(rx2.recv().await.unwrap(), PairingEvent::Connected));
     }
 }
