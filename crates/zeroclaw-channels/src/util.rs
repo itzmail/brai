@@ -221,6 +221,27 @@ pub fn conversation_history_key(msg: &brai_api::channel::ChannelMessage) -> Stri
     }
 }
 
+/// Load `~/.brai/config.toml` without applying env-var overrides. Shared by
+/// any channel that needs to persist a runtime toggle back to disk (e.g.
+/// Telegram's allowlist writes, WhatsApp's `gate on`/`gate off` command).
+pub async fn load_config_without_env() -> anyhow::Result<brai_config::schema::Config> {
+    use anyhow::Context;
+    let home = directories::UserDirs::new()
+        .map(|u| u.home_dir().to_path_buf())
+        .context("Could not find home directory")?;
+    let brai_dir = home.join(".brai");
+    let config_path = brai_dir.join("config.toml");
+
+    let contents = tokio::fs::read_to_string(&config_path)
+        .await
+        .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+    let mut config: brai_config::schema::Config = toml::from_str(&contents)
+        .context("Failed to parse config.toml — check channel sections for syntax errors")?;
+    config.config_path = config_path;
+    config.workspace_dir = brai_dir.join("workspace");
+    Ok(config)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

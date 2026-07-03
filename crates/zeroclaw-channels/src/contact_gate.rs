@@ -7,7 +7,7 @@
 use anyhow::{Context, Result};
 use parking_lot::Mutex;
 use rusqlite::{Connection, OptionalExtension, params};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GateStatus {
@@ -37,8 +37,6 @@ impl GateStatus {
 
 pub struct ContactGate {
     conn: Mutex<Connection>,
-    #[allow(dead_code)]
-    db_path: PathBuf,
 }
 
 impl ContactGate {
@@ -64,7 +62,6 @@ impl ContactGate {
         .context("Failed to initialize contact_gate schema")?;
         Ok(Self {
             conn: Mutex::new(conn),
-            db_path: db_path.to_path_buf(),
         })
     }
 
