@@ -1422,7 +1422,7 @@ impl Channel for WhatsAppWebChannel {
                                 let sender_jid = info.source.sender.clone();
                                 let sender_alt = info.source.sender_alt.clone();
                                 let sender = sender_jid.user().to_string();
-                                let _is_group = info.source.chat.is_group();
+                                let is_group = info.source.is_group;
                                 let chat = info.source.chat.to_string();
 
                                 let mapped_phone = if sender_jid.is_lid() {
@@ -1448,10 +1448,14 @@ impl Channel for WhatsAppWebChannel {
                                 // must be able to manage the gate regardless of
                                 // mode/self-chat/mention settings. Only applies
                                 // when this message's sender is the configured
-                                // master_identity for this channel.
-                                if let Some(master_norm) = master_identity_inner
-                                    .as_deref()
-                                    .and_then(Self::normalize_phone_token)
+                                // master_identity for this channel, and only in
+                                // a DM (never in groups) — gate administration
+                                // must not execute, or acknowledge, inside a
+                                // group chat the master happens to be in.
+                                if !is_group
+                                    && let Some(master_norm) = master_identity_inner
+                                        .as_deref()
+                                        .and_then(Self::normalize_phone_token)
                                     && sender_candidates.contains(&master_norm)
                                     && let Some(gate) = contact_gate_inner.as_deref()
                                 {
@@ -1468,8 +1472,6 @@ impl Channel for WhatsAppWebChannel {
                                         return;
                                     }
                                 }
-
-                                let is_group = info.source.is_group;
 
                                 // Phone-based reply target for self-chat.
                                 // LID JIDs (e.g. 76188559093817@lid) are internal
