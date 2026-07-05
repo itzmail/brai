@@ -6806,6 +6806,13 @@ pub struct ChannelsConfig {
     #[display_name = "iMessage"]
     #[description = "macOS AppleScript bridge"]
     pub imessage: Option<IMessageConfig>,
+    /// WhatsApp Bridge channel configuration — talks to the external
+    /// wa-bridge service (Baileys-based) over HTTP instead of embedding
+    /// a WhatsApp client directly.
+    #[nested]
+    #[display_name = "WhatsApp Bridge"]
+    #[description = "External wa-bridge service (Baileys)"]
+    pub whatsapp_bridge: Option<WhatsAppBridgeConfig>,
     /// Matrix channel configuration.
     #[nested]
     #[display_name = "Matrix"]
@@ -7141,6 +7148,7 @@ impl Default for ChannelsConfig {
             mattermost: None,
             webhook: None,
             imessage: None,
+            whatsapp_bridge: None,
             matrix: None,
             signal: None,
             whatsapp: None,
@@ -7829,6 +7837,34 @@ impl ChannelConfig for WhatsAppConfig {
     }
     fn desc() -> &'static str {
         "Business Cloud API"
+    }
+}
+
+/// WhatsApp Bridge channel configuration — talks to the external wa-bridge
+/// service (Baileys-based, separate process) over HTTP instead of embedding
+/// a WhatsApp client directly.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Configurable)]
+#[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
+#[prefix = "channels.whatsapp_bridge"]
+pub struct WhatsAppBridgeConfig {
+    /// Whether this channel is active. Default: false.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Base URL of the running wa-bridge service, e.g. `http://127.0.0.1:8765`.
+    #[serde(default)]
+    pub base_url: String,
+    /// Shared secret sent as `Authorization: Bearer <secret>` on every
+    /// request in both directions (brai → wa-bridge and wa-bridge → brai).
+    #[serde(default)]
+    pub shared_secret: String,
+}
+
+impl ChannelConfig for WhatsAppBridgeConfig {
+    fn name() -> &'static str {
+        "WhatsApp Bridge"
+    }
+    fn desc() -> &'static str {
+        "External wa-bridge service (Baileys)"
     }
 }
 
@@ -12643,6 +12679,7 @@ auto_save = true
                 mattermost: None,
                 webhook: None,
                 imessage: None,
+                whatsapp_bridge: None,
                 matrix: None,
                 signal: None,
                 whatsapp: None,
@@ -13799,6 +13836,7 @@ allowed_users = ["@u:matrix.org"]
                 enabled: true,
                 allowed_contacts: vec!["+1".into()],
             }),
+            whatsapp_bridge: None,
             matrix: Some(MatrixConfig {
                 enabled: true,
                 homeserver: "https://m.org".into(),
@@ -14067,6 +14105,29 @@ bot_token = "xoxb-tok"
         assert_eq!(parsed.master_identity, None);
     }
 
+    // ── WhatsApp Bridge config ──────────────────────────────────────
+
+    #[test]
+    async fn whatsapp_bridge_config_parses_from_toml() {
+        let toml_str = r#"
+enabled = true
+base_url = "http://127.0.0.1:8765"
+shared_secret = "test-secret"
+"#;
+        let parsed: WhatsAppBridgeConfig = toml::from_str(toml_str).unwrap();
+        assert!(parsed.enabled);
+        assert_eq!(parsed.base_url, "http://127.0.0.1:8765");
+        assert_eq!(parsed.shared_secret, "test-secret");
+    }
+
+    #[test]
+    async fn whatsapp_bridge_config_defaults_when_empty() {
+        let parsed: WhatsAppBridgeConfig = toml::from_str("").unwrap();
+        assert!(!parsed.enabled);
+        assert_eq!(parsed.base_url, "");
+        assert_eq!(parsed.shared_secret, "");
+    }
+
     #[test]
     async fn whatsapp_config_gate_fields_explicit() {
         let json = r#"{"enabled": true, "master_identity": "+15551234567", "contact_gate_enabled": false}"#;
@@ -14208,6 +14269,7 @@ bot_token = "xoxb-tok"
             mattermost: None,
             webhook: None,
             imessage: None,
+            whatsapp_bridge: None,
             matrix: None,
             signal: None,
             whatsapp: Some(WhatsAppConfig {
