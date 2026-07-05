@@ -73,6 +73,7 @@ pub mod weather_tool;
 pub mod web_fetch;
 pub mod web_search_provider_routing;
 pub mod web_search_tool;
+pub mod whatsapp_send;
 pub mod workspace_tool;
 pub mod wrappers;
 pub mod zeroclaw_upstream;
