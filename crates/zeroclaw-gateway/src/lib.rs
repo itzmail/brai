@@ -48,11 +48,12 @@ use std::time::{Duration, Instant};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use uuid::Uuid;
-use brai_api::channel::{Channel, SendMessage};
+use brai_api::channel::{Channel, ChannelMessage, SendMessage};
 use brai_api::tool::ToolSpec;
 use brai_channels::{
     gmail_push::GmailPushChannel, linq::LinqChannel, nextcloud_talk::NextcloudTalkChannel,
     wati::WatiChannel, whatsapp::WhatsAppChannel,
+    whatsapp_bridge::WhatsAppBridgeChannel,
 };
 use brai_config::policy::SecurityPolicy;
 use brai_config::schema::Config;
@@ -379,6 +380,11 @@ pub struct AppState {
     pub whatsapp: Option<Arc<WhatsAppChannel>>,
     /// `WhatsApp` app secret for webhook signature verification (`X-Hub-Signature-256`)
     pub whatsapp_app_secret: Option<Arc<str>>,
+    /// wa-bridge channel (external Baileys-based service), if configured and enabled.
+    pub whatsapp_bridge: Option<Arc<WhatsAppBridgeChannel>>,
+    /// Shared secret for validating inbound wa-bridge webhook calls
+    /// (`Authorization: Bearer <secret>`).
+    pub whatsapp_bridge_secret: Option<Arc<str>>,
     pub linq: Option<Arc<LinqChannel>>,
     /// Linq webhook signing secret for signature verification
     pub linq_signing_secret: Option<Arc<str>>,
@@ -673,6 +679,24 @@ pub async fn run_gateway(
                 wa.allowed_numbers.clone(),
             ))
         });
+
+    // WhatsApp Bridge channel (if configured) — shares a single process-wide
+    // instance with the orchestrator (via WhatsAppBridgeChannel::get_or_init)
+    // so inbound messages pushed here reach the listen() the orchestrator
+    // registered, and outbound replies go through the same wa-bridge client.
+    let whatsapp_bridge_channel: Option<Arc<WhatsAppBridgeChannel>> = config
+        .channels
+        .whatsapp_bridge
+        .as_ref()
+        .filter(|wb| wb.enabled)
+        .map(|wb| WhatsAppBridgeChannel::get_or_init(wb.base_url.clone(), wb.shared_secret.clone()));
+
+    let whatsapp_bridge_secret: Option<Arc<str>> = config
+        .channels
+        .whatsapp_bridge
+        .as_ref()
+        .filter(|wb| wb.enabled)
+        .map(|wb| Arc::from(wb.shared_secret.as_str()));
 
     // WhatsApp app secret for webhook signature verification
     // Priority: environment variable > config file
@@ -989,6 +1013,8 @@ pub async fn run_gateway(
         idempotency_store,
         whatsapp: whatsapp_channel,
         whatsapp_app_secret,
+        whatsapp_bridge: whatsapp_bridge_channel,
+        whatsapp_bridge_secret,
         linq: linq_channel,
         linq_signing_secret,
         nextcloud_talk: nextcloud_talk_channel,
@@ -1052,6 +1078,7 @@ pub async fn run_gateway(
         .route("/webhook", post(handle_webhook))
         .route("/whatsapp", get(handle_whatsapp_verify))
         .route("/whatsapp", post(handle_whatsapp_message))
+        .route("/webhook/whatsapp", post(handle_whatsapp_bridge_webhook))
         .route("/linq", post(handle_linq_webhook))
         .route("/wati", get(handle_wati_verify))
         .route("/wati", post(handle_wati_webhook))
@@ -2036,6 +2063,88 @@ async fn handle_whatsapp_message(
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"})))
 }
 
+/// Inbound payload from wa-bridge (the external Baileys-based service).
+/// wa-bridge has already filtered senders against its own whitelist before
+/// calling this endpoint — no additional sender filtering happens here.
+#[derive(Debug, serde::Deserialize)]
+struct WhatsAppBridgeInboundPayload {
+    from: String,
+    text: String,
+    #[serde(default)]
+    timestamp: u64,
+}
+
+/// POST /webhook/whatsapp — incoming message webhook from the external
+/// wa-bridge service. Distinct from `/whatsapp` above, which is the
+/// official Meta WhatsApp Cloud API webhook (different protocol: `hub.challenge`
+/// verification + `X-Hub-Signature-256` HMAC signing).
+async fn handle_whatsapp_bridge_webhook(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> impl IntoResponse {
+    let Some(ref channel) = state.whatsapp_bridge else {
+        return (
+            StatusCode::NOT_FOUND,
+            "WhatsApp Bridge not configured".to_string(),
+        );
+    };
+    let Some(ref expected_secret) = state.whatsapp_bridge_secret else {
+        return (
+            StatusCode::NOT_FOUND,
+            "WhatsApp Bridge not configured".to_string(),
+        );
+    };
+
+    let provided = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "));
+
+    let authorized = provided.is_some_and(|p| constant_time_eq(p, expected_secret));
+    if !authorized {
+        tracing::warn!("wa-bridge webhook: missing or invalid shared secret");
+        return (StatusCode::UNAUTHORIZED, "Unauthorized".to_string());
+    }
+
+    let payload: WhatsAppBridgeInboundPayload = match serde_json::from_slice(&body) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("wa-bridge webhook: invalid payload: {e}");
+            return (StatusCode::BAD_REQUEST, format!("Invalid payload: {e}"));
+        }
+    };
+    if payload.from.is_empty() || payload.text.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Missing 'from' or 'text'".to_string(),
+        );
+    }
+
+    let msg = ChannelMessage {
+        id: format!("whatsapp_bridge_{}", payload.timestamp),
+        sender: payload.from.clone(),
+        reply_target: payload.from,
+        content: payload.text,
+        channel: "whatsapp_bridge".to_string(),
+        timestamp: payload.timestamp,
+        thread_ts: None,
+        interruption_scope_id: None,
+        attachments: vec![],
+    };
+
+    match channel.push_inbound(msg).await {
+        Ok(()) => (StatusCode::OK, "ok".to_string()),
+        Err(e) => {
+            tracing::error!("wa-bridge webhook: failed to push inbound message: {e}");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Channel not ready".to_string(),
+            )
+        }
+    }
+}
+
 /// POST /linq — incoming message webhook (iMessage/RCS/SMS via Linq)
 async fn handle_linq_webhook(
     State(state): State<AppState>,
@@ -2710,6 +2819,161 @@ mod tests {
         assert_eq!(gateway_long_running_request_timeout_secs(), 600);
     }
 
+    fn whatsapp_bridge_test_state(
+        whatsapp_bridge: Option<Arc<WhatsAppBridgeChannel>>,
+        whatsapp_bridge_secret: Option<Arc<str>>,
+    ) -> AppState {
+        AppState {
+            config: Arc::new(Mutex::new(Config::default())),
+            provider: Arc::new(MockProvider::default()),
+            model: "test-model".into(),
+            temperature: 0.0,
+            mem: Arc::new(MockMemory),
+            auto_save: false,
+            webhook_secret_hash: None,
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: false,
+            rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
+            auth_limiter: Arc::new(auth_rate_limit::AuthRateLimiter::new()),
+            idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            whatsapp: None,
+            whatsapp_app_secret: None,
+            whatsapp_bridge,
+            whatsapp_bridge_secret,
+            linq: None,
+            linq_signing_secret: None,
+            nextcloud_talk: None,
+            nextcloud_talk_webhook_secret: None,
+            wati: None,
+            gmail_push: None,
+            observer: Arc::new(brai_runtime::observability::NoopObserver),
+            tools_registry: Arc::new(Vec::new()),
+            cost_tracker: None,
+            event_tx: tokio::sync::broadcast::channel(16).0,
+            event_buffer: Arc::new(sse::EventBuffer::new(16)),
+            shutdown_tx: tokio::sync::watch::channel(false).0,
+            reload_tx: None,
+            node_registry: Arc::new(nodes::NodeRegistry::new(16)),
+            path_prefix: String::new(),
+            web_dist_dir: None,
+            session_backend: None,
+            session_queue: std::sync::Arc::new(crate::session_queue::SessionActorQueue::new(
+                8, 30, 600,
+            )),
+            device_registry: None,
+            pending_pairings: None,
+            canvas_store: CanvasStore::new(),
+            cancel_tokens: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+            #[cfg(feature = "webauthn")]
+            webauthn: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn whatsapp_bridge_webhook_returns_404_when_not_configured() {
+        let state = whatsapp_bridge_test_state(None, None);
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer anything".parse().unwrap());
+        let body = Bytes::from_static(br#"{"from":"+15550001111","text":"hi","timestamp":0}"#);
+
+        let response = handle_whatsapp_bridge_webhook(State(state), headers, body)
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn whatsapp_bridge_webhook_rejects_missing_secret() {
+        let channel = Arc::new(WhatsAppBridgeChannel::new(
+            "http://127.0.0.1:1".to_string(),
+            "correct-secret".to_string(),
+        ));
+        let state = whatsapp_bridge_test_state(
+            Some(channel),
+            Some(Arc::from("correct-secret")),
+        );
+        let headers = HeaderMap::new();
+        let body = Bytes::from_static(br#"{"from":"+15550001111","text":"hi","timestamp":0}"#);
+
+        let response = handle_whatsapp_bridge_webhook(State(state), headers, body)
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn whatsapp_bridge_webhook_rejects_wrong_secret() {
+        let channel = Arc::new(WhatsAppBridgeChannel::new(
+            "http://127.0.0.1:1".to_string(),
+            "correct-secret".to_string(),
+        ));
+        let state = whatsapp_bridge_test_state(
+            Some(channel),
+            Some(Arc::from("correct-secret")),
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer wrong-secret".parse().unwrap());
+        let body = Bytes::from_static(br#"{"from":"+15550001111","text":"hi","timestamp":0}"#);
+
+        let response = handle_whatsapp_bridge_webhook(State(state), headers, body)
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn whatsapp_bridge_webhook_rejects_invalid_payload() {
+        let channel = Arc::new(WhatsAppBridgeChannel::new(
+            "http://127.0.0.1:1".to_string(),
+            "correct-secret".to_string(),
+        ));
+        let state = whatsapp_bridge_test_state(
+            Some(channel),
+            Some(Arc::from("correct-secret")),
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer correct-secret".parse().unwrap());
+        let body = Bytes::from_static(br#"{"not_from": "x"}"#);
+
+        let response = handle_whatsapp_bridge_webhook(State(state), headers, body)
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn whatsapp_bridge_webhook_accepts_valid_request() {
+        let channel = Arc::new(WhatsAppBridgeChannel::new(
+            "http://127.0.0.1:1".to_string(),
+            "correct-secret".to_string(),
+        ));
+        // Start listen() so push_inbound() has somewhere to deliver to —
+        // otherwise this would hit the 503 "not ready" branch instead.
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let listen_channel = channel.clone();
+        tokio::spawn(async move {
+            let _ = listen_channel.listen(tx).await;
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let state = whatsapp_bridge_test_state(
+            Some(channel),
+            Some(Arc::from("correct-secret")),
+        );
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer correct-secret".parse().unwrap());
+        let body = Bytes::from_static(br#"{"from":"+15550001111","text":"hi","timestamp":1700000000}"#);
+
+        let response = handle_whatsapp_bridge_webhook(State(state), headers, body)
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let received = rx.recv().await.expect("should receive pushed message");
+        assert_eq!(received.sender, "+15550001111");
+        assert_eq!(received.content, "hi");
+    }
+
     #[test]
     fn webhook_body_requires_message_field() {
         let valid = r#"{"message": "hello"}"#;
@@ -2755,6 +3019,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -2829,6 +3095,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3296,6 +3564,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3378,6 +3648,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3472,6 +3744,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3538,6 +3812,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3609,6 +3885,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3685,6 +3963,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: None,
@@ -3758,6 +4038,8 @@ mod tests {
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
             whatsapp: None,
             whatsapp_app_secret: None,
+            whatsapp_bridge: None,
+            whatsapp_bridge_secret: None,
             linq: None,
             linq_signing_secret: None,
             nextcloud_talk: Some(channel),
