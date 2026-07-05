@@ -112,6 +112,7 @@ pub use brai_tools::tool_search::ToolSearchTool;
 pub use brai_tools::weather_tool::WeatherTool;
 pub use brai_tools::web_fetch::WebFetchTool;
 pub use brai_tools::web_search_tool::WebSearchTool;
+pub use brai_tools::whatsapp_send::WhatsAppSendTool;
 pub use brai_tools::workspace_tool::WorkspaceTool;
 pub use brai_tools::wrappers::{PathGuardedTool, RateLimitedTool};
 pub use brai_tools::zeroclaw_upstream::ZeroclawUpstreamTool;
@@ -686,6 +687,16 @@ pub fn all_tools_with_runtime(
                 }
                 Err(e) => tracing::warn!("gmail: {e}"),
             }
+        }
+    }
+
+    // whatsapp_send — sends via the external wa-bridge service
+    if let Some(ref wb) = root_config.channels.whatsapp_bridge {
+        if wb.enabled {
+            tool_arcs.push(Arc::new(WhatsAppSendTool::new(
+                wb.base_url.clone(),
+                wb.shared_secret.clone(),
+            )));
         }
     }
 

@@ -4952,6 +4952,20 @@ fn collect_configured_channels(
         }
     }
 
+    if let Some(ref wb) = config.channels.whatsapp_bridge {
+        if wb.enabled {
+            channels.push(ConfiguredChannel {
+                display_name: "WhatsApp Bridge",
+                channel: crate::whatsapp_bridge::WhatsAppBridgeChannel::get_or_init(
+                    wb.base_url.clone(),
+                    wb.shared_secret.clone(),
+                ),
+            });
+        } else {
+            tracing::info!("WhatsApp Bridge channel configured but disabled (enabled = false)");
+        }
+    }
+
     #[cfg(feature = "channel-matrix")]
     if let Some(ref mx) = config.channels.matrix {
         if mx.enabled {
@@ -11848,6 +11862,47 @@ This is an example JSON object for profile settings."#;
             channels
                 .iter()
                 .any(|entry| entry.channel.name() == "mattermost")
+        );
+    }
+
+    #[test]
+    fn collect_configured_channels_includes_whatsapp_bridge_when_enabled() {
+        let mut config = Config::default();
+        config.channels.whatsapp_bridge = Some(brai_config::schema::WhatsAppBridgeConfig {
+            enabled: true,
+            base_url: "http://127.0.0.1:8765".to_string(),
+            shared_secret: "secret".to_string(),
+        });
+
+        let channels = collect_configured_channels(&config, "test", &[]);
+
+        assert!(
+            channels
+                .iter()
+                .any(|entry| entry.display_name == "WhatsApp Bridge")
+        );
+        assert!(
+            channels
+                .iter()
+                .any(|entry| entry.channel.name() == "whatsapp_bridge")
+        );
+    }
+
+    #[test]
+    fn collect_configured_channels_skips_disabled_whatsapp_bridge() {
+        let mut config = Config::default();
+        config.channels.whatsapp_bridge = Some(brai_config::schema::WhatsAppBridgeConfig {
+            enabled: false,
+            base_url: "http://127.0.0.1:8765".to_string(),
+            shared_secret: "secret".to_string(),
+        });
+
+        let channels = collect_configured_channels(&config, "test", &[]);
+        assert!(
+            !channels
+                .iter()
+                .any(|entry| entry.display_name == "WhatsApp Bridge"),
+            "disabled whatsapp_bridge should not be collected"
         );
     }
 

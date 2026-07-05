@@ -11,6 +11,7 @@ pub mod cli;
 pub mod link_enricher;
 pub mod transcription;
 pub mod tts;
+pub mod whatsapp_bridge;
 
 // Feature-gated channels
 #[cfg(feature = "channel-bluesky")]
