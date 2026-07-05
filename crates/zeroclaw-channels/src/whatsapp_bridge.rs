@@ -12,8 +12,17 @@
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use brai_api::channel::{Channel, ChannelMessage, SendMessage};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::{Mutex, mpsc};
+
+/// Process-wide singleton so the gateway (which calls `push_inbound`) and
+/// the orchestrator (which calls `listen`, filling `tx_slot`) share the
+/// same instance even though they're started as separate top-level
+/// subsystems in `main.rs` and each only receive a cloned `Config`, not a
+/// shared channel instance. Whoever calls `get_or_init` first constructs
+/// it; every subsequent call (regardless of caller) returns that same
+/// `Arc`.
+static SHARED: OnceLock<Arc<WhatsAppBridgeChannel>> = OnceLock::new();
 
 pub struct WhatsAppBridgeChannel {
     base_url: String,
@@ -30,6 +39,18 @@ impl WhatsAppBridgeChannel {
             http: reqwest::Client::new(),
             tx_slot: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Get the process-wide shared instance, constructing it on first call.
+    /// `base_url`/`shared_secret` are only used the first time this is
+    /// called (whichever subsystem — gateway or orchestrator — starts
+    /// first); later calls ignore their arguments and return the existing
+    /// instance, since both subsystems read the same config and must agree
+    /// on these values anyway.
+    pub fn get_or_init(base_url: String, shared_secret: String) -> Arc<Self> {
+        SHARED
+            .get_or_init(|| Arc::new(Self::new(base_url, shared_secret)))
+            .clone()
     }
 
     /// Called by the gateway's `POST /webhook/whatsapp` handler when

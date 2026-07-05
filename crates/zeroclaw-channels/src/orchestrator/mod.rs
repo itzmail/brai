@@ -4956,10 +4956,10 @@ fn collect_configured_channels(
         if wb.enabled {
             channels.push(ConfiguredChannel {
                 display_name: "WhatsApp Bridge",
-                channel: Arc::new(crate::whatsapp_bridge::WhatsAppBridgeChannel::new(
+                channel: crate::whatsapp_bridge::WhatsAppBridgeChannel::get_or_init(
                     wb.base_url.clone(),
                     wb.shared_secret.clone(),
-                )),
+                ),
             });
         } else {
             tracing::info!("WhatsApp Bridge channel configured but disabled (enabled = false)");
